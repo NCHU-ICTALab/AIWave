@@ -1,0 +1,27 @@
+[project]
+name = "smart-living-butler"
+version = "0.1.0"
+description = "智慧生活管家 — 2026 雲湧智生黑客松（統一資訊命題）"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.139.2",
+    "openai>=2.48.0",
+    "pydantic>=2",
+    "python-dotenv>=1.2.2",
+    "uvicorn[standard]>=0.51.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+# 不打包成 wheel，當作應用專案；模組以 pythonpath 匯入
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"

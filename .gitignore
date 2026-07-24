@@ -1,0 +1,20 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+.env
+
+# Node / Vue
+node_modules/
+coverage/
+*.tsbuildinfo
+
+# 拋棄式工作區（SQLite demo db、分析腳本、PDF 轉圖）
+tmp/

@@ -1,0 +1,407 @@
+{
+  "console_errors": [],
+  "interaction_checks": [
+    {
+      "action": "recommendation feedback",
+      "toast_visible": true
+    },
+    {
+      "action": "undo feedback",
+      "toast_hidden": true
+    }
+  ],
+  "screens": [
+    {
+      "theme": "grid",
+      "device": "desktop",
+      "file": "grid-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1274
+      }
+    },
+    {
+      "theme": "grid",
+      "device": "mobile",
+      "file": "grid-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 1915
+      }
+    },
+    {
+      "theme": "warm",
+      "device": "desktop",
+      "file": "warm-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1424
+      }
+    },
+    {
+      "theme": "warm",
+      "device": "mobile",
+      "file": "warm-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 1925
+      }
+    },
+    {
+      "theme": "pulse",
+      "device": "desktop",
+      "file": "pulse-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1126
+      }
+    },
+    {
+      "theme": "pulse",
+      "device": "mobile",
+      "file": "pulse-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 1903
+      }
+    },
+    {
+      "theme": "data",
+      "device": "desktop",
+      "file": "data-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 946
+      }
+    },
+    {
+      "theme": "data",
+      "device": "mobile",
+      "file": "data-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 2037
+      }
+    },
+    {
+      "theme": "calm",
+      "device": "desktop",
+      "file": "calm-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1320
+      }
+    },
+    {
+      "theme": "calm",
+      "device": "mobile",
+      "file": "calm-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 2013
+      }
+    },
+    {
+      "theme": "clinical",
+      "device": "desktop",
+      "file": "clinical-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1107
+      }
+    },
+    {
+      "theme": "clinical",
+      "device": "mobile",
+      "file": "clinical-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 2046
+      }
+    },
+    {
+      "theme": "bridge",
+      "device": "desktop",
+      "file": "bridge-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1166
+      }
+    },
+    {
+      "theme": "bridge",
+      "device": "mobile",
+      "file": "bridge-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 1807
+      }
+    },
+    {
+      "theme": "hybrid",
+      "device": "desktop",
+      "file": "hybrid-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1220
+      }
+    },
+    {
+      "theme": "hybrid",
+      "device": "mobile",
+      "file": "hybrid-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 1829
+      }
+    },
+    {
+      "theme": "clinical",
+      "colorway": "teal",
+      "device": "desktop",
+      "file": "clinical-teal-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1107
+      }
+    },
+    {
+      "theme": "clinical",
+      "colorway": "teal",
+      "device": "mobile",
+      "file": "clinical-teal-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 2046
+      }
+    },
+    {
+      "theme": "clinical",
+      "colorway": "cobalt",
+      "device": "desktop",
+      "file": "clinical-cobalt-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1107
+      }
+    },
+    {
+      "theme": "clinical",
+      "colorway": "cobalt",
+      "device": "mobile",
+      "file": "clinical-cobalt-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 2046
+      }
+    },
+    {
+      "theme": "clinical",
+      "colorway": "forest",
+      "device": "desktop",
+      "file": "clinical-forest-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1107
+      }
+    },
+    {
+      "theme": "clinical",
+      "colorway": "forest",
+      "device": "mobile",
+      "file": "clinical-forest-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 2046
+      }
+    },
+    {
+      "theme": "clinical",
+      "colorway": "brick",
+      "device": "desktop",
+      "file": "clinical-brick-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1107
+      }
+    },
+    {
+      "theme": "clinical",
+      "colorway": "brick",
+      "device": "mobile",
+      "file": "clinical-brick-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 2046
+      }
+    },
+    {
+      "theme": "clinical",
+      "colorway": "indigo",
+      "device": "desktop",
+      "file": "clinical-indigo-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1107
+      }
+    },
+    {
+      "theme": "clinical",
+      "colorway": "indigo",
+      "device": "mobile",
+      "file": "clinical-indigo-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 2046
+      }
+    },
+    {
+      "theme": "hybrid",
+      "tone": "bridge",
+      "device": "desktop",
+      "file": "hybrid-bridge-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1220
+      }
+    },
+    {
+      "theme": "hybrid",
+      "tone": "bridge",
+      "device": "mobile",
+      "file": "hybrid-bridge-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 1829
+      }
+    },
+    {
+      "theme": "hybrid",
+      "tone": "grove",
+      "device": "desktop",
+      "file": "hybrid-grove-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1220
+      }
+    },
+    {
+      "theme": "hybrid",
+      "tone": "grove",
+      "device": "mobile",
+      "file": "hybrid-grove-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 1829
+      }
+    },
+    {
+      "theme": "hybrid",
+      "tone": "mist",
+      "device": "desktop",
+      "file": "hybrid-mist-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1220
+      }
+    },
+    {
+      "theme": "hybrid",
+      "tone": "mist",
+      "device": "mobile",
+      "file": "hybrid-mist-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 1829
+      }
+    },
+    {
+      "theme": "hybrid",
+      "tone": "clay",
+      "device": "desktop",
+      "file": "hybrid-clay-desktop.png",
+      "overflow": {
+        "clientWidth": 1370,
+        "scrollWidth": 1370,
+        "clientHeight": 760,
+        "scrollHeight": 1220
+      }
+    },
+    {
+      "theme": "hybrid",
+      "tone": "clay",
+      "device": "mobile",
+      "file": "hybrid-clay-mobile.png",
+      "overflow": {
+        "clientWidth": 388,
+        "scrollWidth": 388,
+        "clientHeight": 780,
+        "scrollHeight": 1829
+      }
+    }
+  ]
+}

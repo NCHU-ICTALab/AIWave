@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>生活 AI 管家｜八種介面方向</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!--
+    設計探索假設：
+    1. 這是用來選風格的 throwaway HTML，不是正式 Vue 實作。
+    2. 八套方向使用完全相同的內容與互動，避免把內容差異誤認為視覺優劣。
+    3. 「生活 AI 管家」是尚未有正式品牌名稱前的文字 placeholder。
+    4. 數字與使用者姓名皆為明確標記的示意資料；合作品牌資產待方向選定後依官方素材補入。
+    5. 共用門檻：WCAG 2.2 AA、320px reflow、44px 主要操作、鍵盤焦點、reduced motion、LINE safe area。
+  -->
+  <a class="skip-link" href="#preview-title">跳至設計預覽</a>
+
+  <header class="studio-header">
+    <div>
+      <p class="eyebrow">UI direction study · 01—08</p>
+      <h1>生活 AI 管家</h1>
+      <p class="studio-intro">同一個「今日生活中心」，八種完整視覺語言。先選方向，再轉成 Vue 設計系統。</p>
+    </div>
+    <div class="studio-meta" aria-label="共同驗收條件">
+      <span>RWD</span><span>WCAG 2.2 AA</span><span>LINE-ready</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="direction-picker" aria-labelledby="direction-title">
+      <h2 id="direction-title" class="visually-hidden">選擇設計方向</h2>
+      <div class="direction-tabs" role="toolbar" aria-label="設計方向">
+        <button class="direction-button" type="button" data-theme="grid" aria-pressed="false">
+          <span>01</span><strong>理性企業</strong><small>Grid Trust</small>
+        </button>
+        <button class="direction-button" type="button" data-theme="warm" aria-pressed="false">
+          <span>02</span><strong>溫暖生活</strong><small>Warm Care</small>
+        </button>
+        <button class="direction-button" type="button" data-theme="pulse" aria-pressed="false">
+          <span>03</span><strong>智慧零售</strong><small>Retail Pulse</small>
+        </button>
+        <button class="direction-button" type="button" data-theme="data" aria-pressed="false">
+          <span>04</span><strong>數據管家</strong><small>Data Concierge</small>
+        </button>
+        <button class="direction-button" type="button" data-theme="calm" aria-pressed="false">
+          <span>05</span><strong>精緻極簡</strong><small>Calm Premium</small>
+        </button>
+        <button class="direction-button" type="button" data-theme="clinical" aria-pressed="false">
+          <span>06</span><strong>臨床零售</strong><small>Clinical Retail</small>
+        </button>
+        <button class="direction-button" type="button" data-theme="bridge" aria-pressed="false">
+          <span>07</span><strong>生活指揮台</strong><small>Bridge Ops</small>
+        </button>
+        <button class="direction-button is-active" type="button" data-theme="hybrid" aria-pressed="true">
+          <span>08</span><strong>柔和指揮台</strong><small>Soft Ops</small>
+        </button>
+      </div>
+
+      <div class="direction-notes" id="direction-notes">
+        <p><strong>08 柔和指揮台</strong>：保留 07 的頂部流程與高密度資訊架構，換成 06 的圓角、留白與生活服務溫度。</p>
+        <p>特色細節：品牌色只用於操作和狀態；卡片陰影統一為低透明度中性黑，不再出現彩色投影或大面積高飽和色塊。</p>
+      </div>
+      <section class="colorway-panel" aria-labelledby="colorway-title" hidden>
+        <div>
+          <p class="eyebrow">06 color study</p>
+          <h2 id="colorway-title">同一版型，五組配色</h2>
+        </div>
+        <div class="colorway-tabs" role="toolbar" aria-label="06 配色選擇">
+          <button type="button" class="colorway-button is-active" data-colorway="teal" aria-pressed="true">
+            <span class="swatch swatch-teal" aria-hidden="true"><i></i><i></i></span><strong>青綠暖黃</strong><small>清爽、生活感</small>
+          </button>
+          <button type="button" class="colorway-button" data-colorway="cobalt" aria-pressed="false">
+            <span class="swatch swatch-cobalt" aria-hidden="true"><i></i><i></i></span><strong>鈷藍杏橘</strong><small>科技、可信</small>
+          </button>
+          <button type="button" class="colorway-button" data-colorway="forest" aria-pressed="false">
+            <span class="swatch swatch-forest" aria-hidden="true"><i></i><i></i></span><strong>森林蜜桃</strong><small>溫暖、安心</small>
+          </button>
+          <button type="button" class="colorway-button" data-colorway="brick" aria-pressed="false">
+            <span class="swatch swatch-brick" aria-hidden="true"><i></i><i></i></span><strong>磚紅霧藍</strong><small>成熟、有記憶點</small>
+          </button>
+          <button type="button" class="colorway-button" data-colorway="indigo" aria-pressed="false">
+            <span class="swatch swatch-indigo" aria-hidden="true"><i></i><i></i></span><strong>深靛萊姆</strong><small>數位、俐落</small>
+          </button>
+        </div>
+      </section>
+      <section class="colorway-panel hybrid-panel" aria-labelledby="hybrid-color-title">
+        <div>
+          <p class="eyebrow">08 color study</p>
+          <h2 id="hybrid-color-title">少量色彩，四種溫度</h2>
+        </div>
+        <div class="colorway-tabs hybrid-tone-tabs" role="toolbar" aria-label="08 配色選擇">
+          <button type="button" class="colorway-button hybrid-tone-button is-active" data-hybrid-tone="bridge" aria-pressed="true">
+            <span class="swatch swatch-bridge" aria-hidden="true"><i></i><i></i></span><strong>07 青綠琥珀</strong><small>明確、有節奏</small>
+          </button>
+          <button type="button" class="colorway-button hybrid-tone-button" data-hybrid-tone="grove" aria-pressed="false">
+            <span class="swatch swatch-grove" aria-hidden="true"><i></i><i></i></span><strong>暖灰墨綠</strong><small>生活、穩定</small>
+          </button>
+          <button type="button" class="colorway-button hybrid-tone-button" data-hybrid-tone="mist" aria-pressed="false">
+            <span class="swatch swatch-mist" aria-hidden="true"><i></i><i></i></span><strong>燕麥霧藍</strong><small>乾淨、可信</small>
+          </button>
+          <button type="button" class="colorway-button hybrid-tone-button" data-hybrid-tone="clay" aria-pressed="false">
+            <span class="swatch swatch-clay" aria-hidden="true"><i></i><i></i></span><strong>米白陶土</strong><small>溫暖、沉著</small>
+          </button>
+        </div>
+      </section>
+    </section>
+
+    <section class="preview-section" aria-labelledby="preview-title">
+      <div class="preview-toolbar">
+        <div>
+          <p class="eyebrow">Responsive preview</p>
+          <h2 id="preview-title">今日生活中心</h2>
+        </div>
+        <div class="device-toggle" role="group" aria-label="預覽裝置">
+          <button type="button" data-device="desktop" class="is-active" aria-pressed="true">桌機 1440</button>
+          <button type="button" data-device="mobile" aria-pressed="false">手機／LINE 390</button>
+        </div>
+      </div>
+
+      <div class="browser-stage" data-device="desktop">
+        <div class="browser-chrome" aria-hidden="true">
+          <div class="window-dots"><i></i><i></i><i></i></div>
+          <div class="browser-tab">生活 AI 管家</div>
+          <div class="address-bar">app.example.tw/today</div>
+        </div>
+
+        <div class="app-viewport theme-hybrid tone-bridge" id="app-preview">
+          <div class="app-shell">
+            <aside class="side-nav" aria-label="主要導覽">
+              <a class="brand-mark" href="#" aria-label="生活 AI 管家首頁">
+                <span class="brand-symbol" aria-hidden="true">生</span>
+                <span>生活 AI 管家<small>示意識別</small></span>
+              </a>
+              <nav>
+                <a class="is-current" href="#today"><span>01</span>今日</a>
+                <a href="#services"><span>02</span>找服務</a>
+                <a href="#orders"><span>03</span>訂單</a>
+                <a href="#wallet"><span>04</span>優惠點數</a>
+              </nav>
+              <button class="ai-entry" type="button">問生活管家</button>
+              <p class="channel-note">網頁主流程<br>LINE 可直接連入</p>
+            </aside>
+
+            <div class="content-shell">
+              <header class="app-header">
+                <div>
+                  <p class="context-line">7 月 24 日 · 範例帳號</p>
+                  <h3>午安，怡君</h3>
+                </div>
+                <div class="header-actions">
+                  <button type="button">通知 <span class="notification-count">3</span></button>
+                  <button type="button">切換工作區</button>
+                </div>
+              </header>
+
+              <div class="dashboard" id="today" role="main" aria-label="今日生活中心內容">
+                <section class="hero-card" aria-labelledby="hero-heading">
+                  <div class="hero-copy">
+                    <p class="section-kicker">AI 今日建議 · 示意資料</p>
+                    <h2 id="hero-heading">衛生紙快用完了，今天補最剛好</h2>
+                    <p class="hero-reason">推薦原因：你近三個月都在月初補貨，手上的日用品券還有 2 天到期。</p>
+                    <div class="hero-actions">
+                      <button class="primary-action" type="button">查看最省方案</button>
+                      <button class="feedback-action" type="button" data-feedback>不感興趣</button>
+                    </div>
+                  </div>
+                  <div class="hero-visual" aria-label="預估節省 86 元">
+                    <span>預估可省</span>
+                    <strong><b>$</b>86</strong>
+                    <small>優惠券＋點數試算</small>
+                  </div>
+                </section>
+
+                <section class="wallet-card content-card" id="wallet" aria-labelledby="wallet-heading">
+                  <div class="card-heading">
+                    <p class="section-kicker">Wallet · 示意</p>
+                    <h2 id="wallet-heading">點數與優惠</h2>
+                  </div>
+                  <div class="metric-row">
+                    <div><span>可用點數</span><strong>1,280</strong></div>
+                    <div><span>即將到期</span><strong>2 張</strong></div>
+                  </div>
+                  <button class="text-action" type="button">開啟點數計算機</button>
+                </section>
+
+                <section class="reminder-card content-card" aria-labelledby="reminder-heading">
+                  <div class="card-heading">
+                    <p class="section-kicker">Today · 3</p>
+                    <h2 id="reminder-heading">今日提醒</h2>
+                  </div>
+                  <ul class="task-list">
+                    <li><span class="task-time">18:00 前</span><strong>領取包裹</strong><button type="button">完成</button></li>
+                    <li><span class="task-time">明天</span><strong>咖啡券到期</strong><button type="button">延後</button></li>
+                    <li><span class="task-time">週六</span><strong>冷氣清洗確認</strong><button type="button">查看</button></li>
+                  </ul>
+                </section>
+
+                <section class="services-card content-card" id="services" aria-labelledby="services-heading">
+                  <div class="card-heading card-heading-row">
+                    <div><p class="section-kicker">9 services</p><h2 id="services-heading">生活服務</h2></div>
+                    <button class="text-action" type="button">全部服務</button>
+                  </div>
+                  <div class="service-grid">
+                    <button type="button"><span>01</span><strong>冷氣清洗</strong><small>社區優惠</small></button>
+                    <button type="button"><span>02</span><strong>寄件取貨</strong><small>查進度</small></button>
+                    <button type="button"><span>03</span><strong>美食外送</strong><small>套用優惠</small></button>
+                    <button type="button"><span>04</span><strong>餐廳訂位</strong><small>今晚空位</small></button>
+                    <button type="button"><span>05</span><strong>生活採買</strong><small>補貨清單</small></button>
+                  </div>
+                </section>
+
+                <section class="order-card content-card" id="orders" aria-labelledby="order-heading">
+                  <div class="card-heading card-heading-row">
+                    <div><p class="section-kicker">In progress · 2</p><h2 id="order-heading">進行中的服務</h2></div>
+                    <button class="text-action" type="button">查看全部</button>
+                  </div>
+                  <ol class="order-list">
+                    <li><span class="order-index">A</span><div><strong>社區冷氣聯合清洗</strong><small>廠商已確認 · 週六 10:00</small></div><span class="status-pill">已排程</span></li>
+                    <li><span class="order-index">B</span><div><strong>常溫包裹</strong><small>配送中 · 預計今日抵達</small></div><span class="status-pill">配送中</span></li>
+                  </ol>
+                </section>
+              </div>
+
+              <nav class="mobile-nav" aria-label="手機主要導覽">
+                <a class="is-current" href="#today">今日</a><a href="#services">服務</a><a href="#orders">訂單</a><a href="#wallet">優惠</a>
+              </nav>
+            </div>
+          </div>
+          <div class="toast" role="status" aria-live="polite" hidden>
+            <span>已降低相似內容的推薦頻率</span>
+            <button type="button" data-undo>復原</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

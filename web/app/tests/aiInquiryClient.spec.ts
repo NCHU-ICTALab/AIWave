@@ -1,0 +1,33 @@
+import { describe, expect, it, vi } from 'vitest'
+
+import { createAiInquiryClient } from '@/api/aiInquiryClient'
+
+describe('AI inquiry API client', () => {
+  it('starts a real backend form session and sends messages to that session', async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ session_id: 's1', reply: '第一題', done: false, progress: { answered: 0, total: 6 }, trace: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ reply: '第二題', done: false, progress: { answered: 1, total: 7 }, trace: [{ tool: 'extract_form_answer', status: 'completed' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    const client = createAiInquiryClient({ fetcher })
+
+    const started = await client.start('repair')
+    const replied = await client.message(started.session_id, '兩台分離式冷氣')
+
+    expect(started.session_id).toBe('s1')
+    expect(replied.progress.answered).toBe(1)
+    expect(fetcher).toHaveBeenNthCalledWith(1, '/api/chat/start', expect.objectContaining({ method: 'POST', credentials: 'same-origin', body: JSON.stringify({ form_id: 'repair' }) }))
+    expect(fetcher).toHaveBeenNthCalledWith(2, '/api/chat/message', expect.objectContaining({ body: JSON.stringify({ session_id: 's1', message: '兩台分離式冷氣' }) }))
+  })
+
+  it('throws a safe typed error instead of reporting AI success on HTTP failure', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ detail: '工作階段不存在' }), { status: 404, headers: { 'Content-Type': 'application/json' } }))
+    const client = createAiInquiryClient({ fetcher })
+    await expect(client.message('missing', '確認')).rejects.toMatchObject({ status: 404, message: '工作階段不存在' })
+  })
+
+  it('reloads persisted inquiries from the backend repository', async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ data: [{ id: 'INQ-20260725-001', form_id: 901, status: 'pending_quote', created_at: '2026-07-25T00:00:00Z', events: [] }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    const inquiries = await createAiInquiryClient({ fetcher }).listInquiries()
+    expect(inquiries[0]?.id).toBe('INQ-20260725-001')
+    expect(fetcher).toHaveBeenCalledWith('/api/v1/inquiries', expect.objectContaining({ credentials: 'same-origin' }))
+  })
+})

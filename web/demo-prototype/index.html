@@ -1,0 +1,598 @@
+<!doctype html>
+<!--
+Junior pass · assumptions + reasoning
+
+我的假設：
+- 這是六畫面的可點擊流程原型，不是正式 Vue 應用。
+- 主要觀眾在筆電或投影上看五分鐘 Demo，但手機 390px 也必須能完成核心流程。
+- 視覺沿用 08 柔和指揮台的圓角與中性陰影，以及 07 的青綠／琥珀 token。
+- 平台名稱「生活 AI 管家」只是暫名；所有合作品牌先以純文字呈現，不仿製 Logo。
+- 本版已包含資訊架構、角色切換、確認預覽與跨頁狀態回流；正式 Vue 版再改接真實 API。
+
+刻意保留的 placeholder：
+- 品牌 Logo、商品照片、正式平台名稱。
+- 外部廠商 API 的即時內容；目前只標示未來元件位置。
+- 正式文案與完整錯誤／空資料狀態。
+-->
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e5e6f">
+  <title>生活 AI 管家｜六畫面流程原型</title>
+  <style>
+    :root {
+      --bg:#f4f6f8; --surface:#fff; --surface-2:#e9eef1; --ink:#17242b; --muted:#4a5a63;
+      --line:#c8d1d6; --primary:#0e5e6f; --primary-soft:#e1ecef; --accent:#c77400;
+      --accent-soft:#fbf1df; --danger:#a33b2e; --shadow:0 12px 32px rgba(23,28,26,.08),0 2px 8px rgba(23,28,26,.04);
+      --shadow-soft:0 4px 14px rgba(23,28,26,.06); --radius-lg:24px; --radius-md:16px; --radius-sm:10px;
+      --font-sans:"Noto Sans TC","Microsoft JhengHei",sans-serif; --font-mono:"IBM Plex Mono",Consolas,monospace;
+    }
+    *,*::before,*::after{box-sizing:border-box}
+    [hidden]{display:none!important}
+    html{background:var(--bg);color:var(--ink);font-family:var(--font-sans);scroll-behavior:smooth}
+    body{margin:0;min-width:320px;background:var(--bg);line-height:1.65;padding-bottom:env(safe-area-inset-bottom)}
+    button,select,input,textarea{font:inherit;color:inherit}
+    button,a,select{min-height:44px}
+    button{cursor:pointer}
+    :focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+    .skip-link{position:fixed;z-index:100;top:8px;left:8px;transform:translateY(-150%);padding:10px 14px;background:var(--ink);color:#fff;border-radius:8px}
+    .skip-link:focus{transform:none}
+    .topbar{position:sticky;z-index:20;top:0;background:color-mix(in srgb,var(--surface) 95%,transparent);border-bottom:1px solid var(--line);backdrop-filter:blur(16px)}
+    .topbar-main{display:flex;align-items:center;gap:18px;max-width:1600px;margin:auto;padding:10px 18px}
+    .wordmark{display:flex;align-items:center;gap:10px;min-width:210px;color:var(--ink);text-decoration:none;font-weight:800}
+    .wordmark-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--primary);color:#fff;font-family:var(--font-mono)}
+    .wordmark small{display:block;color:var(--muted);font-size:11px;font-weight:600}
+    .main-nav{display:flex;justify-content:center;gap:4px;flex:1}
+    .nav-button{border:0;border-radius:14px;background:transparent;padding:0 14px;color:var(--muted);font-weight:700;white-space:nowrap}
+    .nav-button[aria-current="page"]{background:var(--primary-soft);color:var(--primary)}
+    .top-actions{display:flex;align-items:center;gap:8px}
+    .role-select{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:0 34px 0 12px;font-weight:700}
+    .copilot-button{border:0;border-radius:14px;background:var(--primary);color:#fff;padding:0 16px;font-weight:800}
+    .prototype-note{border-bottom:1px solid var(--line);background:var(--accent-soft);color:#7c4b09;text-align:center;padding:5px 14px;font-size:12px;font-weight:700}
+    main{max-width:1500px;margin:auto;padding:18px clamp(14px,2.5vw,34px) 48px}
+    .screen{display:none;animation:screen-in .22s ease-out}
+    .screen.is-active{display:block}
+    @keyframes screen-in{from{opacity:.2;transform:translateY(5px)}to{opacity:1;transform:none}}
+    .page-heading{display:flex;justify-content:space-between;align-items:end;gap:20px;margin:4px 0 16px}
+    .eyebrow{margin:0 0 3px;color:var(--primary);font:700 11px/1.3 var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+    h1,h2,h3,p{margin-top:0;text-wrap:pretty}
+    h1{margin-bottom:0;font-size:clamp(28px,3.2vw,44px);line-height:1.15;letter-spacing:-.04em;text-wrap:balance}
+    h2{margin-bottom:12px;font-size:20px;line-height:1.3;letter-spacing:-.02em}
+    h3{margin-bottom:5px;font-size:16px}
+    .page-heading>p,.muted{color:var(--muted)}
+    .page-status{display:inline-flex;align-items:center;min-height:32px;padding:3px 10px;border-radius:999px;background:var(--primary-soft);color:var(--primary);font-size:13px;font-weight:800}
+    .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
+    .panel{border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);padding:20px;box-shadow:var(--shadow-soft)}
+    .panel.soft{background:var(--surface-2);box-shadow:none}
+    .hero{grid-column:span 8;min-height:260px;padding:30px;background:var(--surface);box-shadow:var(--shadow)}
+    .hero h2{max-width:760px;font-size:clamp(28px,3.4vw,48px);line-height:1.12;letter-spacing:-.05em}
+    .hero p{max-width:760px;color:var(--muted)}
+    .aside{grid-column:span 4}
+    .span-4{grid-column:span 4}.span-5{grid-column:span 5}.span-6{grid-column:span 6}.span-7{grid-column:span 7}.span-8{grid-column:span 8}.span-12{grid-column:1/-1}
+    .button-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+    .button{border:1px solid var(--line);border-radius:14px;background:var(--surface-2);padding:0 16px;font-weight:800}
+    .button.primary{border-color:var(--primary);background:var(--primary);color:#fff}
+    .button.ghost{background:transparent}
+    .button[disabled]{opacity:.55;cursor:not-allowed}
+    .metric-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .metric{border-radius:14px;background:var(--surface-2);padding:14px}
+    .metric span{display:block;color:var(--muted);font-size:12px}
+    .metric strong{display:block;font-size:28px;line-height:1.25;font-weight:650}
+    .reason-list,.plain-list,.timeline{margin:0;padding:0;list-style:none}
+    .reason-list li,.plain-list li,.timeline li{padding:12px 0;border-top:1px solid var(--line)}
+    .reason-list li:first-child,.plain-list li:first-child,.timeline li:first-child{border-top:0}
+    .reason-code{font:700 11px/1.2 var(--font-mono);color:var(--primary)}
+    .service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+    .service-card{min-height:100px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);padding:14px;text-align:left}
+    .service-card strong,.service-card small{display:block}
+    .service-card small{margin-top:5px;color:var(--muted)}
+    .service-card.is-selected{border:2px solid var(--primary);background:var(--primary-soft)}
+    .service-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.45fr);gap:12px;align-items:start}
+    .service-main{display:grid;gap:12px;min-width:0}
+    .service-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;border:1px solid var(--line);border-radius:20px;background:var(--surface);padding:10px;box-shadow:var(--shadow-soft)}
+    .service-search label{display:flex;align-items:center;gap:10px;min-width:0}
+    .search-mark{display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:var(--primary-soft);color:var(--primary);font:800 12px/1 var(--font-mono)}
+    .service-search input{width:100%;min-width:0;height:44px;border:0;background:transparent;font-size:17px;font-weight:650}
+    .service-search input:focus{outline:0}
+    .service-search:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+    .voice-button{border:0;border-radius:14px;background:var(--primary);color:#fff;padding:0 16px;font-weight:800}
+    .section-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .section-title-row h2{margin:0}
+    .text-button{border:0;background:transparent;color:var(--primary);padding:0 4px;font-weight:800}
+    .quick-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+    .quick-service{min-width:0;border:0;border-radius:14px;background:transparent;padding:8px 4px;text-align:center}
+    .quick-service:hover,.quick-service.is-selected{background:var(--primary-soft);color:var(--primary)}
+    .service-glyph{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 7px;border:1px solid var(--line);border-radius:17px;background:var(--surface-2);color:var(--primary);font:800 11px/1.2 var(--font-mono)}
+    .quick-service strong{display:block;font-size:13px;line-height:1.35}
+    .context-banner{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:18px;border:1px solid #e5c99c;border-radius:20px;background:var(--accent-soft);padding:20px 22px}
+    .context-banner h2{margin-bottom:6px;font-size:22px}.context-banner p{margin:0;color:#694a22}
+    .context-score{min-width:110px;text-align:center;color:#8a5100}.context-score strong{display:block;font-size:34px;line-height:1.1}.context-score span{font-size:12px}
+    .catalog-panel{display:grid;gap:18px}
+    .catalog-group+.catalog-group{padding-top:18px;border-top:1px solid var(--line)}
+    .catalog-group h2{margin-bottom:10px}
+    .catalog-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+    .catalog-service{min-width:0;min-height:112px;border:1px solid transparent;border-radius:14px;background:transparent;padding:9px 5px;text-align:center}
+    .catalog-service:hover,.catalog-service.is-selected{border-color:var(--line);background:var(--primary-soft);color:var(--primary)}
+    .catalog-service strong{display:block;font-size:13px;line-height:1.4}
+    .service-detail{position:sticky;top:142px}
+    .detail-brand{display:inline-flex;min-height:30px;align-items:center;border-radius:999px;background:var(--primary-soft);color:var(--primary);padding:3px 10px;font:800 11px/1 var(--font-mono)}
+    .detail-copy{color:var(--muted)}
+    .search-result-note{margin:8px 0 0;color:var(--muted);font-size:12px}
+    .state-box{border:1px solid var(--line);border-radius:14px;background:var(--surface-2);padding:14px}
+    .state-box.success{border-color:#8eb9ad;background:#edf6f3}
+    .state-box.warn{border-color:#e5c99c;background:var(--accent-soft)}
+    .state-box p:last-child{margin-bottom:0}
+    .preview-list{margin:0;padding:0;list-style:none}
+    .preview-list li{display:flex;justify-content:space-between;gap:18px;padding:10px 0;border-top:1px solid var(--line)}
+    .preview-list li:first-child{border-top:0}.preview-list span{color:var(--muted)}
+    .feedback-note{display:none}.feedback-note.is-visible{display:block}
+    #recommendation-card.preference-recorded>:not(.feedback-note){display:none}
+    .test-cell{font-family:var(--font-mono);font-size:12px}.test-cell.is-valid{color:#17664f;font-weight:800}
+    .placeholder{display:grid;place-items:center;min-height:112px;border:1px dashed #91a0a8;border-radius:14px;background:repeating-linear-gradient(135deg,#f8fafb,#f8fafb 10px,#f2f5f6 10px,#f2f5f6 20px);color:var(--muted);text-align:center;padding:14px;font:700 12px/1.6 var(--font-mono)}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+    .chip{display:inline-flex;align-items:center;min-height:32px;border:1px solid var(--line);border-radius:999px;background:var(--surface);padding:3px 10px;font-size:12px;font-weight:700}
+    .chip.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+    .order-row,.connector-row,.queue-row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}
+    .order-row:first-child,.connector-row:first-child,.queue-row:first-child{border-top:0}
+    .row-index{display:grid;place-items:center;width:40px;height:40px;border-radius:10px;background:var(--surface-2);font:700 12px/1 var(--font-mono)}
+    .row-meta{color:var(--muted);font-size:12px}
+    .status{display:inline-flex;align-items:center;min-height:30px;border-radius:999px;background:var(--primary-soft);color:var(--primary);padding:2px 10px;font-size:12px;font-weight:800;white-space:nowrap}
+    .status.warn{background:var(--accent-soft);color:#805000}
+    .timeline li{display:grid;grid-template-columns:22px 1fr;gap:10px}
+    .timeline li::before{content:"";width:12px;height:12px;margin-top:6px;border:3px solid var(--surface);border-radius:50%;background:var(--primary);box-shadow:0 0 0 1px var(--primary)}
+    .table-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;min-width:600px}
+    th,td{border-bottom:1px solid var(--line);padding:12px 10px;text-align:left;vertical-align:top}
+    th{color:var(--muted);font-size:12px}
+    .drawer-backdrop{position:fixed;z-index:40;inset:0;background:rgba(23,36,43,.32);opacity:0;pointer-events:none;transition:opacity .2s}
+    .drawer-backdrop.is-open{opacity:1;pointer-events:auto}
+    .drawer{position:absolute;top:0;right:0;width:min(430px,100%);height:100%;overflow:auto;background:var(--surface);padding:24px;box-shadow:-16px 0 44px rgba(23,28,26,.14)}
+    .drawer-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:22px}
+    .icon-button{display:grid;place-items:center;width:44px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);font-size:22px}
+    .chat-block{border-radius:16px;background:var(--primary-soft);padding:16px}
+    .copilot-action{margin-top:14px;border:1px solid var(--line);border-radius:16px;padding:16px}
+    .modal-layer{position:fixed;z-index:60;inset:0;display:grid;place-items:center;padding:18px;background:rgba(23,36,43,.42)}
+    .modal-card{width:min(560px,100%);max-height:min(760px,calc(100vh - 36px));overflow:auto;border:1px solid var(--line);border-radius:24px;background:var(--surface);padding:24px;box-shadow:0 28px 80px rgba(23,28,26,.22)}
+    .modal-head{display:flex;justify-content:space-between;align-items:start;gap:16px}.modal-head h2{font-size:25px}
+    .modal-body{margin-top:14px}.modal-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:22px}
+    .toast{position:fixed;z-index:80;left:50%;bottom:max(20px,calc(env(safe-area-inset-bottom) + 12px));display:flex;align-items:center;gap:14px;width:min(560px,calc(100% - 24px));transform:translate(-50%,140%);border-radius:16px;background:var(--ink);color:#fff;padding:13px 16px;box-shadow:0 18px 50px rgba(23,28,26,.2);transition:transform .22s ease}
+    .toast.is-visible{transform:translate(-50%,0)}.toast span{flex:1}.toast button{border:1px solid rgba(255,255,255,.4);border-radius:12px;background:transparent;color:#fff;padding:0 12px;font-weight:800}
+    .mobile-flow{display:none}
+    @media (max-width:1000px){
+      .topbar-main{flex-wrap:wrap}.wordmark{flex:1}.main-nav{order:3;flex:0 0 100%;justify-content:flex-start;overflow-x:auto;padding-bottom:2px}
+      .nav-button{padding:0 11px}.hero,.aside,.span-4,.span-5,.span-6,.span-7,.span-8{grid-column:1/-1}
+      .service-layout{grid-template-columns:1fr}.service-detail{position:static}
+    }
+    @media (max-width:600px){
+      .topbar-main{gap:8px;padding:8px 12px 0}.wordmark{min-width:0}.wordmark small{display:none}.role-select{display:none}.copilot-button{padding:0 12px}
+      .reset-button{display:none}
+      .main-nav{gap:0}.nav-button{min-width:max-content;border-radius:12px;font-size:12px}.prototype-note{text-align:left}
+      main{padding:14px 12px 36px}.page-heading{align-items:start;flex-direction:column;gap:8px}.page-heading>p{margin-bottom:0}
+      .grid{display:flex;flex-direction:column}.panel,.hero{padding:17px;border-radius:20px}.hero{min-height:0}.hero h2{font-size:31px}
+      .service-grid{grid-template-columns:1fr 1fr}.service-card:last-child:nth-child(odd){grid-column:1/-1}.metric-row{grid-template-columns:1fr 1fr}
+      .service-search{grid-template-columns:1fr auto;padding:7px}.service-search input{font-size:16px}.voice-button{padding:0 12px}
+      .quick-grid,.catalog-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:2px}.quick-service,.catalog-service{padding:7px 1px}.service-glyph{width:48px;height:48px;border-radius:15px}.quick-service strong,.catalog-service strong{font-size:12px}
+      .context-banner{grid-template-columns:1fr;padding:17px}.context-score{text-align:left}.context-score strong{display:inline;margin-right:7px;font-size:28px}
+      .order-row,.connector-row,.queue-row{grid-template-columns:40px 1fr}.order-row>.status,.connector-row>.status,.queue-row>.status{grid-column:2;justify-self:start}
+      .mobile-flow{display:block;color:var(--muted);font-size:12px;margin:0 0 12px}.drawer{padding:18px}
+    }
+    @media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;transition-duration:.001ms!important}}
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳至主要內容</a>
+  <header class="topbar">
+    <div class="topbar-main">
+      <a class="wordmark" href="#today" data-route="today" aria-label="回到今日生活中心">
+        <span class="wordmark-mark" aria-hidden="true">生</span>
+        <span>生活 AI 管家<small>名稱待定・文字識別</small></span>
+      </a>
+      <nav class="main-nav" aria-label="主畫面">
+        <button class="nav-button" data-route="today" aria-current="page">01 今日</button>
+        <button class="nav-button" data-route="services">02 找服務</button>
+        <button class="nav-button" data-route="orders">03 訂單</button>
+        <button class="nav-button" data-route="community">04 社區</button>
+        <button class="nav-button" data-route="vendor">05 廠商</button>
+        <button class="nav-button" data-route="platform">06 整合</button>
+      </nav>
+      <div class="top-actions">
+        <label>
+          <span class="skip-link">目前工作區</span>
+          <select class="role-select" id="role-select" aria-label="切換工作區">
+            <option value="resident">個人／住戶</option>
+            <option value="community">社區管理者</option>
+            <option value="vendor">合作廠商</option>
+            <option value="platform">平台營運者</option>
+          </select>
+        </label>
+        <button class="button reset-button" id="reset-demo" type="button">重設</button>
+        <button class="copilot-button" id="open-copilot" aria-haspopup="dialog">問生活管家</button>
+      </div>
+    </div>
+    <div class="prototype-note">互動流程原型：所有寫入先預覽再確認；Logo、圖片與正式名稱仍為待補資產。</div>
+  </header>
+
+  <main id="main-content" tabindex="-1">
+    <p class="mobile-flow">可左右捲動上方導覽切換六個畫面。</p>
+
+    <section class="screen is-active" data-screen="today" aria-labelledby="today-title">
+      <header class="page-heading"><div><p class="eyebrow">Individual workspace · demo path A</p><h1 id="today-title">早安，小圓</h1></div><span class="page-status">今天有 3 件事值得處理</span></header>
+      <div class="grid">
+        <article class="panel hero" id="recommendation-card">
+          <p class="eyebrow">AI 今日建議 · 可解釋</p><h2>衛生紙快用完了，今天補貨最剛好</h2>
+          <p>依據：近三個月都在月初補貨，手上的日用品券還有 2 天到期。</p>
+          <div class="button-row"><button class="button primary" data-route="services">查看最省方案</button><button class="button" id="recommendation-feedback">不感興趣</button></div>
+          <div class="feedback-note state-box success" id="recommendation-feedback-note" aria-live="polite"><strong>已降低此類補貨推薦的後續排序</strong><p>這不是永久封鎖；新行為與時間仍會逐步調整偏好。</p><button class="button" id="recommendation-inline-undo" type="button">復原</button></div>
+        </article>
+        <aside class="panel aside"><p class="eyebrow">Wallet · seed data</p><h2>點數與優惠</h2><div class="metric-row"><div class="metric"><span>可用點數</span><strong>1,280</strong></div><div class="metric"><span>即將到期</span><strong>2 張</strong></div></div><div class="placeholder" style="margin-top:12px">[優惠券正式視覺／品牌資產待補]</div></aside>
+        <article class="panel span-7"><p class="eyebrow">Recommendation evidence</p><h2>推薦依據</h2><ul class="reason-list"><li><span class="reason-code">CYCLE_03</span><br>月初補貨週期吻合</li><li><span class="reason-code">EXPIRY_02</span><br>日用品券 2 天後到期</li><li><span class="reason-code">ROUTE_01</span><br>今日取件門市可順路完成</li></ul></article>
+        <article class="panel span-5"><p class="eyebrow">Cross-service status</p><h2>最近進度</h2><ul class="plain-list"><li><strong>黑貓包裹</strong><br><span class="muted">今日 18:00 前可取件</span></li><li><strong>CITY CAFE</strong><br><span class="muted">優惠券尚未使用</span></li><li><strong>冷氣聯合清洗</strong><br><span class="muted">社區正在收集需求</span></li></ul></article>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="services" aria-labelledby="services-title">
+      <header class="page-heading"><div><p class="eyebrow">Service catalog · OPENPOINT layout reference</p><h1 id="services-title">需要什麼服務？</h1></div><p>熟悉的服務入口，加上 AI 理解與跨廠商履約。</p></header>
+      <div class="service-layout">
+        <div class="service-main">
+          <form class="service-search" id="service-search" role="search">
+            <label><span class="search-mark" aria-hidden="true">搜尋</span><input id="service-query" type="search" placeholder="輸入需求，例如：明天下午想洗冷氣" autocomplete="off" aria-describedby="search-result-note"></label>
+            <button class="voice-button" type="button" aria-label="使用語音描述需求">語音</button>
+          </form>
+          <p class="search-result-note" id="search-result-note" aria-live="polite">可用文字或語音描述，AI 會整理成服務題組。</p>
+
+          <section class="panel" aria-labelledby="quick-title">
+            <div class="section-title-row"><div><p class="eyebrow">Personal shortcuts</p><h2 id="quick-title">我的常用服務</h2></div><button class="text-button" type="button">編輯</button></div>
+            <div class="quick-grid" id="quick-service-grid"></div>
+          </section>
+
+          <section class="context-banner" aria-labelledby="context-title">
+            <div><p class="eyebrow">AI 順路建議 · 可解釋</p><h2 id="context-title">取包裹時順便補貨，一趟完成兩件事</h2><p>今天 18:00 前要取黑貓包裹；同一間 7-ELEVEN 可使用即將到期的日用品券。</p></div>
+            <div class="context-score"><strong>省 18 分</strong><span>預估移動時間</span></div>
+          </section>
+
+          <section class="panel catalog-panel" aria-label="全部服務">
+            <div class="section-title-row"><div><p class="eyebrow">9 operable services</p><h2>全部服務</h2></div><span class="chip active">每項皆可繼續辦理</span></div>
+            <div class="catalog-group"><h2>居家服務</h2><div class="catalog-grid" id="home-service-grid"></div></div>
+            <div class="catalog-group"><h2>日常、餐飲與購物</h2><div class="catalog-grid" id="daily-service-grid"></div></div>
+          </section>
+        </div>
+
+        <aside class="panel service-detail" aria-labelledby="selected-service-title">
+          <p class="eyebrow">Selected service</p><span class="detail-brand" id="detail-brand">7-ELEVEN 深度整合</span>
+          <h2 id="selected-service-title" style="margin-top:12px">商城購物</h2>
+          <p class="detail-copy" id="service-detail-copy">整理補貨清單、比較優惠組合，確認後建立可追蹤訂單。</p>
+          <div class="placeholder" id="service-asset">[商城商品與品牌官方資產待補]<br>原型暫用純文字</div>
+          <div class="metric-row" style="margin-top:12px"><div class="metric"><span>原價</span><strong id="detail-original">$210</strong></div><div class="metric"><span>最佳組合</span><strong id="detail-final">$124</strong></div></div>
+          <div class="button-row"><button class="button primary" id="service-continue">預覽並繼續</button><button class="button" id="compare-service">比較方案</button></div>
+          <p class="search-result-note">優惠金額由確定性規則計算；AI 只解釋選擇原因。</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="orders" aria-labelledby="orders-title">
+      <header class="page-heading"><div><p class="eyebrow">Order center · demo path A</p><h1 id="orders-title">跨服務訂單中心</h1></div><span class="page-status" id="order-count">3 筆處理中</span></header>
+      <div class="grid">
+        <article class="panel span-7"><h2>最近訂單</h2><div class="order-row"><span class="row-index">01</span><div><strong id="demo-order-name">7-ELEVEN 補給</strong><div class="row-meta" id="demo-order-meta">尚未確認・試算結果已保留</div></div><span class="status warn" id="demo-order-status">待確認</span></div><div class="order-row"><span class="row-index">02</span><div><strong>黑貓包裹取件</strong><div class="row-meta">今日 18:00 前</div></div><span class="status">可取件</span></div><div class="order-row"><span class="row-index">03</span><div><strong>DUSKIN 社區清洗</strong><div class="row-meta">需求收集中</div></div><span class="status">進行中</span></div></article>
+        <aside class="panel span-5"><p class="eyebrow">Order timeline</p><h2 id="timeline-order-name">7-ELEVEN 補給</h2><ol class="timeline"><li><div><strong>已建立試算</strong><div class="row-meta">優惠規則已重算</div></div></li><li><div><strong>訂單成立</strong><div class="row-meta" id="timeline-created">等待使用者確認</div></div></li><li><div><strong>履約完成</strong><div class="row-meta">等待廠商事件回流</div></div></li></ol></aside>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="community" aria-labelledby="community-title">
+      <header class="page-heading"><div><p class="eyebrow">Community workspace · demo path B hero</p><h1 id="community-title">DUSKIN 冷氣聯合清洗</h1></div><span class="page-status">晴川社區・18 戶參與</span></header>
+      <div class="grid">
+        <article class="panel hero"><p class="eyebrow">Anonymous demand summary</p><h2>把 18 戶的需求，整理成廠商可直接報價的格式</h2><p>社區端只顯示營運必要的群體彙總；個人行為特徵不會提供給管理者。</p><div class="button-row"><button class="button primary" id="draft-campaign">請 Copilot 草擬活動</button><button class="button ghost" id="view-form">查看題組</button></div></article>
+        <aside class="panel aside"><p class="eyebrow">Campaign state</p><h2>活動摘要</h2><div class="metric-row"><div class="metric"><span>參與戶數</span><strong>18</strong></div><div class="metric"><span>填答進度</span><strong>18/20</strong></div></div><div class="state-box warn" id="campaign-state" style="margin-top:12px"><strong>草稿尚未發佈</strong><p>管理者確認後才通知住戶。</p></div></aside>
+        <article class="panel span-6"><p class="eyebrow">Copilot draft</p><h2>活動與通知草稿</h2><div class="state-box" id="campaign-draft"><strong>尚未產生</strong><p>AI 會依匿名彙總、題組與服務範圍產生可編輯草稿。</p></div><div class="button-row"><button class="button primary" id="publish-campaign" disabled>預覽並發佈</button></div></article>
+        <article class="panel span-6"><p class="eyebrow">Vendor matching</p><h2>合作廠商方案比較</h2><div class="state-box" id="community-quote"><strong>等待合作廠商報價</strong><p>官方服務來源與實際履約廠商分開顯示。</p></div></article>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="vendor" aria-labelledby="vendor-title">
+      <header class="page-heading"><div><p class="eyebrow">Vendor workspace · demo path B</p><h1 id="vendor-title">合作廠商履約工作台</h1></div><span class="page-status">工作台接入模式</span></header>
+      <div class="grid">
+        <article class="panel span-5"><h2>待辦佇列</h2><div class="queue-row"><span class="row-index">01</span><div><strong>晴川社區冷氣清洗</strong><div class="row-meta">18 戶・統一需求格式</div></div><span class="status warn" id="vendor-queue-status">待報價</span></div><div class="queue-row"><span class="row-index">02</span><div><strong>個人清潔諮詢</strong><div class="row-meta">需求資料待確認</div></div><span class="status">待接單</span></div></article>
+        <article class="panel span-7"><p class="eyebrow">Normalized inquiry</p><h2>統一需求摘要</h2><ul class="preview-list"><li><span>活動</span><strong>DUSKIN 冷氣聯合清洗</strong></li><li><span>範圍</span><strong>晴川社區・18 戶</strong></li><li><span>偏好時段</span><strong>週末上午優先</strong></li><li><span>資料來源</span><strong>統一題組契約</strong></li></ul><div class="button-row"><button class="button primary" id="create-quote">建立報價</button><button class="button" id="view-raw-form">查看原始題組</button></div></article>
+        <article class="panel span-12"><p class="eyebrow">Fulfillment state</p><h2>報價與履約狀態</h2><div class="state-box" id="vendor-fulfillment"><strong>尚未送出報價</strong><p>送出後會直接回流社區工作區，不需人工重打。</p></div><div class="button-row"><button class="button primary" id="update-fulfillment" disabled>標記已排程</button></div></article>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="platform" aria-labelledby="platform-title">
+      <header class="page-heading"><div><p class="eyebrow">Platform workspace · demo ending</p><h1 id="platform-title">平台整合中心</h1></div><span class="page-status">廠商接一次・所有通路共用</span></header>
+      <div class="grid">
+        <article class="panel span-6"><h2>廠商接入器</h2><div class="connector-row"><span class="row-index">A</span><div><strong>DUSKIN 服務接入</strong><div class="row-meta" id="adapter-meta">Adapter・欄位映射待驗證</div></div><span class="status" id="adapter-status">健康</span></div><div class="connector-row"><span class="row-index">S</span><div><strong>標準契約示例</strong><div class="row-meta">Standard Contract</div></div><span class="status">健康</span></div><div class="connector-row"><span class="row-index">W</span><div><strong>在地廠商工作台</strong><div class="row-meta">Workbench・無既有 API</div></div><span class="status warn">待測試</span></div></article>
+        <article class="panel span-6"><p class="eyebrow">One contract · four channels</p><h2>通路覆蓋</h2><div class="service-grid"><div class="service-card"><strong>Web</strong><small>四工作區共用</small></div><div class="service-card"><strong>AI</strong><small>權限內工具呼叫</small></div><div class="service-card"><strong>LINE</strong><small>深層連結進入 Web</small></div><div class="service-card"><strong>MCP</strong><small>外部 Agent 延伸</small></div></div></article>
+        <article class="panel span-12"><p class="eyebrow">Field mapping</p><h2>上游欄位映射與測試</h2><div class="table-wrap"><table><thead><tr><th>上游欄位</th><th>統一契約欄位</th><th>驗證</th><th>範例值</th></tr></thead><tbody><tr><td>serviceCode</td><td>service_type</td><td class="test-cell" data-test-cell>尚未測試</td><td>aircon_cleaning</td></tr><tr><td>availableTimes</td><td>preferred_slots</td><td class="test-cell" data-test-cell>尚未測試</td><td>[週六上午]</td></tr></tbody></table></div><div class="state-box" id="connector-result" style="margin-top:14px"><strong>等待執行契約測試</strong><p>將驗證欄位、型別、回應與四個通路的共用結果。</p></div><div class="button-row"><button class="button primary" id="contract-test">執行契約測試</button></div></article>
+      </div>
+    </section>
+  </main>
+
+  <div class="drawer-backdrop" id="copilot-layer" hidden>
+    <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="copilot-title">
+      <div class="drawer-head"><div><p class="eyebrow">Permission-bound copilot</p><h2 id="copilot-title">生活管家</h2></div><button class="icon-button" id="close-copilot" aria-label="關閉生活管家">×</button></div>
+      <div class="chat-block"><strong>目前頁面摘要</strong><p id="copilot-context">我只會讀取你在目前工作區原本有權限查看的資料。</p></div>
+      <div class="copilot-action"><p class="eyebrow">Suggested action</p><h3 id="copilot-action-title">說明今日推薦</h3><p id="copilot-action-copy" class="muted">根據可重算證據說明，不使用「AI 覺得你會喜歡」。</p><button class="button primary" id="copilot-action-button" type="button">執行建議</button></div>
+      <p class="search-result-note">任何寫入、推播、報價、指派與下單都會先顯示變更預覽。</p>
+    </aside>
+  </div>
+
+  <div class="modal-layer" id="modal-layer" hidden>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <header class="modal-head"><div><p class="eyebrow" id="modal-eyebrow">Change preview</p><h2 id="modal-title">確認操作</h2></div><button class="icon-button" id="modal-close" aria-label="關閉確認視窗">×</button></header>
+      <div class="modal-body" id="modal-body"></div>
+      <footer class="modal-actions"><button class="button" id="modal-cancel" type="button">返回修改</button><button class="button primary" id="modal-confirm" type="button">確認</button></footer>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-message">操作已完成</span><button id="toast-action" type="button" hidden>復原</button></div>
+
+  <script>
+    const serviceSeeds = [
+      {id:'01',name:'洗衣機清洗',short:'洗衣',group:'home',brand:'DUSKIN／合作廠商',copy:'選擇洗衣機類型與可服務時段，取得合作廠商方案。',asset:'洗衣機清洗服務素材',original:'待報價',final:'2–3 家'},
+      {id:'02',name:'冷氣清洗',short:'冷氣',group:'home',brand:'DUSKIN 深度整合',copy:'填寫冷氣台數、機型與時段；個人可諮詢，社區可發起聯合服務。',asset:'DUSKIN 官方服務素材',original:'待報價',final:'社區價'},
+      {id:'03',name:'專業清潔',short:'清潔',group:'home',brand:'合作廠商媒合',copy:'描述空間、坪數與清潔重點，平台比較可服務廠商。',asset:'居家清潔服務素材',original:'待報價',final:'2–3 家'},
+      {id:'04',name:'計時家事',short:'家事',group:'home',brand:'合作廠商媒合',copy:'依時數、地區與工作項目媒合可服務人員。',asset:'計時家事服務素材',original:'待報價',final:'依時數'},
+      {id:'05',name:'水電修繕',short:'水電',group:'home',brand:'工作台接入',copy:'上傳問題照片與描述，建立諮詢單並取得報價。',asset:'水電修繕服務素材',original:'待報價',final:'估價單'},
+      {id:'06',name:'寄件服務',short:'寄件',group:'daily',brand:'黑貓深度整合',copy:'建立寄件資料、選擇收件方式並追蹤包裹狀態。',asset:'黑貓官方服務素材',original:'依材積',final:'查運費'},
+      {id:'07',name:'餐廳訂位',short:'訂位',group:'daily',brand:'EZTABLE 深度整合',copy:'依時間、人數與地點搜尋餐廳，確認後建立訂位。',asset:'EZTABLE 官方服務素材',original:'今晚',final:'查空位'},
+      {id:'08',name:'美食外送',short:'外送',group:'daily',brand:'foodomo 深度整合',copy:'依時間、位置與偏好推薦餐點，套用可用優惠。',asset:'foodomo 官方服務素材',original:'依餐點',final:'套優惠'},
+      {id:'09',name:'商城購物',short:'購物',group:'daily',brand:'7-ELEVEN 深度整合',copy:'整理補貨清單、比較優惠組合，確認後建立可追蹤訂單。',asset:'商城商品與品牌官方資產',original:'$210',final:'$124'}
+    ];
+    const quickNames = ['冷氣清洗','寄件服務','美食外送','餐廳訂位','商城購物'];
+    const quickGrid = document.querySelector('#quick-service-grid');
+    const homeGrid = document.querySelector('#home-service-grid');
+    const dailyGrid = document.querySelector('#daily-service-grid');
+
+    function serviceButton(service, quick = false) {
+      const button = document.createElement('button');
+      button.className = quick ? 'quick-service' : 'catalog-service';
+      button.type = 'button';
+      button.dataset.service = service.name;
+      button.dataset.search = `${service.name} ${service.brand} ${service.copy}`;
+      button.innerHTML = `<span class="service-glyph" aria-hidden="true">${service.short}</span><strong>${service.name}</strong>`;
+      button.addEventListener('click', () => selectService(service));
+      return button;
+    }
+    quickNames.forEach(name => quickGrid.appendChild(serviceButton(serviceSeeds.find(item => item.name === name), true)));
+    serviceSeeds.forEach(service => (service.group === 'home' ? homeGrid : dailyGrid).appendChild(serviceButton(service)));
+
+    function selectService(service) {
+      document.querySelectorAll('[data-service]').forEach(button => button.classList.toggle('is-selected', button.dataset.service === service.name));
+      document.querySelector('#detail-brand').textContent = service.brand;
+      document.querySelector('#selected-service-title').textContent = service.name;
+      document.querySelector('#service-detail-copy').textContent = service.copy;
+      document.querySelector('#service-asset').innerHTML = `[${service.asset}待補]<br>原型暫用純文字`;
+      document.querySelector('#detail-original').textContent = service.original;
+      document.querySelector('#detail-final').textContent = service.final;
+    }
+    selectService(serviceSeeds.find(item => item.name === '商城購物'));
+
+    const serviceQuery = document.querySelector('#service-query');
+    document.querySelector('#service-search').addEventListener('submit', event => event.preventDefault());
+    serviceQuery.addEventListener('input', () => {
+      const query = serviceQuery.value.trim().toLowerCase();
+      let visible = 0;
+      document.querySelectorAll('.catalog-service').forEach(button => {
+        const match = !query || button.dataset.search.toLowerCase().includes(query);
+        button.hidden = !match;
+        if (match) visible += 1;
+      });
+      document.querySelector('#search-result-note').textContent = query ? `找到 ${visible} 項相符服務；選擇後可繼續填答或建立訂單。` : '可用文字或語音描述，AI 會整理成服務題組。';
+    });
+
+    const routeToRole = {today:'resident',services:'resident',orders:'resident',community:'community',vendor:'vendor',platform:'platform'};
+    const roleToRoute = {resident:'today',community:'community',vendor:'vendor',platform:'platform'};
+    const contextCopy = {
+      today:'我可以解釋今天的推薦依據，或協助處理提醒。',services:'我可以把自然語言需求整理成服務題組，但折扣金額由規則引擎計算。',orders:'我可以摘要目前狀態與下一步，交易成功仍以後端事件為準。',community:'我可以彙整匿名需求並草擬活動；發送與指派前一定需要你確認。',vendor:'我可以整理需求與草擬報價；送出前一定顯示變更預覽。',platform:'我可以說明欄位錯誤與映射建議；契約驗證由整合服務執行。'
+    };
+    const demoState = {recommendationHidden:false,selectedService:'商城購物',orderCreated:false,campaignDrafted:false,campaignPublished:false,quoteSent:false,fulfillmentScheduled:false,connectorTested:false};
+    let currentRoute = 'today';
+    function navigate(route, updateHash = true) {
+      const target = document.querySelector(`[data-screen="${route}"]`);
+      if (!target) return;
+      currentRoute = route;
+      document.querySelectorAll('.screen').forEach(screen => screen.classList.toggle('is-active', screen === target));
+      document.querySelectorAll('.nav-button').forEach(button => {
+        if (button.dataset.route === route) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current');
+      });
+      document.querySelector('#role-select').value = routeToRole[route];
+      document.querySelector('#copilot-context').textContent = contextCopy[route];
+      updateCopilotAction(route);
+      document.title = `${target.querySelector('h1').textContent}｜生活 AI 管家`;
+      if (updateHash) history.replaceState(null,'',`#${route}`);
+      document.querySelector('#main-content').focus({preventScroll:true});
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+    document.querySelectorAll('[data-route]').forEach(control => control.addEventListener('click', event => {event.preventDefault();navigate(control.dataset.route)}));
+    document.querySelector('#role-select').addEventListener('change', event => navigate(roleToRoute[event.target.value]));
+    window.addEventListener('hashchange',()=>navigate(location.hash.slice(1)||'today',false));
+
+    const layer = document.querySelector('#copilot-layer');
+    const openCopilot = document.querySelector('#open-copilot');
+    const closeCopilot = document.querySelector('#close-copilot');
+    function setDrawer(open) {
+      if (open) {layer.hidden=false;requestAnimationFrame(()=>layer.classList.add('is-open'));closeCopilot.focus();}
+      else {layer.classList.remove('is-open');setTimeout(()=>{layer.hidden=true;openCopilot.focus()},210);}
+    }
+    openCopilot.addEventListener('click',()=>setDrawer(true));
+    closeCopilot.addEventListener('click',()=>setDrawer(false));
+    layer.addEventListener('click',event=>{if(event.target===layer)setDrawer(false)});
+
+    const modalLayer = document.querySelector('#modal-layer');
+    const modalClose = document.querySelector('#modal-close');
+    const modalCancel = document.querySelector('#modal-cancel');
+    const modalConfirm = document.querySelector('#modal-confirm');
+    let modalCallback = null;
+    let modalReturnFocus = null;
+    function openModal({eyebrow='Change preview',title,body,confirmLabel='確認',onConfirm=null}) {
+      modalReturnFocus = document.activeElement;
+      document.querySelector('#modal-eyebrow').textContent = eyebrow;
+      document.querySelector('#modal-title').textContent = title;
+      document.querySelector('#modal-body').innerHTML = body;
+      modalConfirm.textContent = confirmLabel;
+      modalCallback = onConfirm;
+      modalLayer.hidden = false;
+      modalConfirm.focus();
+    }
+    function closeModal(restoreFocus=true) {
+      modalLayer.hidden = true;
+      modalCallback = null;
+      if (restoreFocus && modalReturnFocus && document.contains(modalReturnFocus)) modalReturnFocus.focus();
+    }
+    modalClose.addEventListener('click',()=>closeModal());
+    modalCancel.addEventListener('click',()=>closeModal());
+    modalLayer.addEventListener('click',event=>{if(event.target===modalLayer)closeModal()});
+    modalConfirm.addEventListener('click',()=>{const callback=modalCallback;closeModal(false);if(callback)callback();});
+
+    const toast = document.querySelector('#toast');
+    const toastAction = document.querySelector('#toast-action');
+    let toastTimer = null;
+    let toastCallback = null;
+    function showToast(message,{actionLabel='',onAction=null}={}) {
+      clearTimeout(toastTimer);
+      document.querySelector('#toast-message').textContent = message;
+      toastCallback = onAction;
+      toastAction.hidden = !actionLabel;
+      toastAction.textContent = actionLabel;
+      requestAnimationFrame(()=>toast.classList.add('is-visible'));
+      toastTimer = setTimeout(()=>toast.classList.remove('is-visible'),4500);
+    }
+    toastAction.addEventListener('click',()=>{if(toastCallback)toastCallback();toast.classList.remove('is-visible')});
+
+    function renderRecommendation() {
+      const card = document.querySelector('#recommendation-card');
+      card.classList.toggle('preference-recorded',demoState.recommendationHidden);
+      document.querySelector('#recommendation-feedback-note').classList.toggle('is-visible',demoState.recommendationHidden);
+    }
+    function undoRecommendation() {demoState.recommendationHidden=false;renderRecommendation();showToast('已復原，這項推薦會重新納入排序。');}
+    document.querySelector('#recommendation-feedback').addEventListener('click',()=>{
+      demoState.recommendationHidden=true;renderRecommendation();
+      showToast('已記錄「不感興趣」，後續會降低相似推薦。',{actionLabel:'復原',onAction:undoRecommendation});
+    });
+    document.querySelector('#recommendation-inline-undo').addEventListener('click',undoRecommendation);
+
+    let selectedService = serviceSeeds.find(item=>item.name===demoState.selectedService);
+    const originalSelectService = selectService;
+    selectService = function(service) {selectedService=service;demoState.selectedService=service.name;originalSelectService(service);};
+    selectService(selectedService);
+
+    document.querySelector('#service-continue').addEventListener('click',()=>{
+      const shopping = selectedService.name === '商城購物';
+      openModal({
+        eyebrow:shopping?'Discount preview':'Service request preview',
+        title:`確認${selectedService.name}`,
+        body: shopping
+          ? `<ul class="preview-list"><li><span>補貨品項</span><strong>日用品組合</strong></li><li><span>原價</span><strong>$210</strong></li><li><span>日用品券</span><strong>− $60</strong></li><li><span>OPENPOINT</span><strong>− 26 點</strong></li><li><span>應付金額</span><strong>$124</strong></li></ul><div class="state-box warn" style="margin-top:14px"><strong>建立前最後確認</strong><p>確認後會建立可追蹤訂單；金額由規則引擎計算。</p></div>`
+          : `<ul class="preview-list"><li><span>服務</span><strong>${selectedService.name}</strong></li><li><span>接入方式</span><strong>${selectedService.brand}</strong></li><li><span>下一步</span><strong>建立諮詢並比較方案</strong></li></ul><div class="state-box warn" style="margin-top:14px"><strong>資料用途</strong><p>題組答案只用於本次媒合與履約。</p></div>`,
+        confirmLabel:shopping?'確認建立訂單':'確認建立諮詢',
+        onConfirm:()=>{demoState.orderCreated=true;renderOrder();navigate('orders');showToast(`${selectedService.name}已建立，可在訂單中心追蹤。`);}
+      });
+    });
+    document.querySelector('#compare-service').addEventListener('click',()=>openModal({eyebrow:'Comparable options',title:`比較${selectedService.name}方案`,body:`<div class="state-box"><strong>平台統一比較格式</strong><p>依地區、時段、預算與評分顯示 2–3 個方案；正式方案由已接入的合作廠商資料產生。</p></div>`,confirmLabel:'知道了'}));
+    document.querySelector('.voice-button').addEventListener('click',()=>showToast('語音輸入為延伸能力；目前可直接輸入自然語言需求。'));
+    document.querySelector('#quick-title').closest('.panel').querySelector('.text-button').addEventListener('click',()=>showToast('正式版本可拖曳調整常用服務；原型保留固定 Demo 順序。'));
+
+    function renderOrder() {
+      const name = demoState.selectedService === '商城購物' ? '7-ELEVEN 補給' : demoState.selectedService;
+      document.querySelector('#demo-order-name').textContent = name;
+      document.querySelector('#timeline-order-name').textContent = name;
+      document.querySelector('#demo-order-meta').textContent = demoState.orderCreated ? 'OP-0724-001・剛剛建立' : '尚未確認・試算結果已保留';
+      document.querySelector('#demo-order-status').textContent = demoState.orderCreated ? '已成立' : '待確認';
+      document.querySelector('#demo-order-status').classList.toggle('warn',!demoState.orderCreated);
+      document.querySelector('#timeline-created').textContent = demoState.orderCreated ? 'OP-0724-001・已寫入事件紀錄' : '等待使用者確認';
+    }
+
+    function generateCampaignDraft() {
+      demoState.campaignDrafted=true;
+      document.querySelector('#campaign-draft').className='state-box success';
+      document.querySelector('#campaign-draft').innerHTML='<strong>草稿已產生，可人工修改</strong><p>截止：7/29 20:00・服務：冷氣清洗・通知：僅發給晴川社區成員。</p>';
+      document.querySelector('#publish-campaign').disabled=false;
+      showToast('Copilot 已依匿名需求產生活動與通知草稿。');
+    }
+    function renderCampaign() {
+      if (demoState.campaignPublished) {
+        document.querySelector('#campaign-state').className='state-box success';
+        document.querySelector('#campaign-state').innerHTML='<strong>活動已開放</strong><p>住戶可填答；異動會寫入事件紀錄。</p>';
+      }
+      if (demoState.quoteSent) {
+        document.querySelector('#community-quote').className='state-box success';
+        document.querySelector('#community-quote').innerHTML=`<strong>已收到合作廠商報價</strong><p>基本方案每戶 $1,900 起・${demoState.fulfillmentScheduled?'已排程':'等待管理者確認'}。</p>`;
+      }
+    }
+    document.querySelector('#draft-campaign').addEventListener('click',()=>setDrawer(true));
+    document.querySelector('#view-form').addEventListener('click',()=>openModal({eyebrow:'Shared form engine',title:'冷氣聯合清洗題組',body:'<ul class="preview-list"><li><span>設備</span><strong>台數與機型</strong></li><li><span>位置</span><strong>樓層與室內機位置</strong></li><li><span>時間</span><strong>可服務時段</strong></li><li><span>聯絡</span><strong>僅履約必要資料</strong></li></ul>',confirmLabel:'關閉'}));
+    document.querySelector('#publish-campaign').addEventListener('click',()=>openModal({eyebrow:'Change preview',title:'發佈聯合服務活動',body:'<ul class="preview-list"><li><span>對象</span><strong>晴川社區成員</strong></li><li><span>活動</span><strong>DUSKIN 冷氣聯合清洗</strong></li><li><span>截止</span><strong>7/29 20:00</strong></li><li><span>寫入</span><strong>活動＋通知事件</strong></li></ul>',confirmLabel:'確認發佈',onConfirm:()=>{demoState.campaignPublished=true;renderCampaign();showToast('活動已發佈，住戶現在可以填答。');}}));
+
+    function openRawForm() {openModal({eyebrow:'Normalized inquiry',title:'原始題組摘要',body:'<ul class="preview-list"><li><span>已填戶數</span><strong>18 戶</strong></li><li><span>熱門時段</span><strong>週末上午</strong></li><li><span>設備資料</span><strong>依戶授權揭露</strong></li><li><span>個人特徵</span><strong>不提供</strong></li></ul>',confirmLabel:'關閉'});}
+    document.querySelector('#view-raw-form').addEventListener('click',openRawForm);
+    function openQuotePreview() {
+      openModal({eyebrow:'Quote preview',title:'送出晴川社區報價',body:'<ul class="preview-list"><li><span>方案</span><strong>社區聯合清洗基本方案</strong></li><li><span>種子報價</span><strong>每戶 $1,900 起</strong></li><li><span>有效期限</span><strong>7/30 20:00</strong></li><li><span>總價</span><strong>依最終台數確認</strong></li></ul><div class="state-box warn" style="margin-top:14px"><strong>送出前預覽</strong><p>確認後將透過統一服務契約回流社區工作區。</p></div>',confirmLabel:'確認送出報價',onConfirm:()=>{demoState.quoteSent=true;renderVendor();renderCampaign();showToast('報價已送出，社區工作區已同步更新。');}});
+    }
+    function renderVendor() {
+      if (demoState.quoteSent) {
+        document.querySelector('#vendor-queue-status').textContent='已報價';
+        document.querySelector('#vendor-queue-status').classList.remove('warn');
+        document.querySelector('#vendor-fulfillment').className='state-box success';
+        document.querySelector('#vendor-fulfillment').innerHTML=`<strong>${demoState.fulfillmentScheduled?'已排程':'報價已送出'}</strong><p>${demoState.fulfillmentScheduled?'週六上午到場；狀態已回流社區。':'等待社區管理者確認方案。'}</p>`;
+        document.querySelector('#update-fulfillment').disabled=demoState.fulfillmentScheduled;
+        document.querySelector('#update-fulfillment').textContent=demoState.fulfillmentScheduled?'已排程':'標記已排程';
+      }
+    }
+    document.querySelector('#create-quote').addEventListener('click',openQuotePreview);
+    document.querySelector('#update-fulfillment').addEventListener('click',()=>{demoState.fulfillmentScheduled=true;renderVendor();renderCampaign();showToast('履約狀態已更新並回流社區。');});
+
+    function runConnectorTest() {
+      const button=document.querySelector('#contract-test');
+      button.disabled=true;button.textContent='測試中…';
+      document.querySelector('#connector-result').className='state-box warn';
+      document.querySelector('#connector-result').innerHTML='<strong>正在驗證統一服務契約</strong><p>欄位、型別與回應通路測試中。</p>';
+      setTimeout(()=>{
+        demoState.connectorTested=true;
+        document.querySelectorAll('[data-test-cell]').forEach(cell=>{cell.textContent='通過';cell.classList.add('is-valid')});
+        document.querySelector('#adapter-meta').textContent='Adapter・剛剛完成契約驗證';
+        document.querySelector('#connector-result').className='state-box success';
+        document.querySelector('#connector-result').innerHTML='<strong>4/4 通路可共用</strong><p>Web、AI、LINE 深層連結與 MCP 取得相同統一結果。</p>';
+        button.disabled=false;button.textContent='重新測試';showToast('DUSKIN 接入器契約測試通過。');
+      },700);
+    }
+    document.querySelector('#contract-test').addEventListener('click',runConnectorTest);
+
+    const copilotActions = {
+      today:{title:'說明今日推薦',copy:'根據三項可重算證據說明，不使用「AI 覺得你會喜歡」。',run:()=>openModal({eyebrow:'Recommendation evidence',title:'為什麼推薦補貨？',body:'<ul class="preview-list"><li><span>週期</span><strong>近三個月皆在月初補貨</strong></li><li><span>優惠</span><strong>日用品券 2 天後到期</strong></li><li><span>路線</span><strong>取件門市可順路完成</strong></li></ul>',confirmLabel:'知道了'})},
+      services:{title:'整理自然語言需求',copy:'把描述整理成題組草稿，價格仍由規則與廠商資料決定。',run:()=>{selectService(serviceSeeds.find(item=>item.name==='冷氣清洗'));showToast('已將需求整理為冷氣清洗題組草稿。');}},
+      orders:{title:'摘要下一步',copy:'說明目前狀態與待辦，不把聊天文字當成交易成功。',run:()=>showToast(demoState.orderCreated?'訂單已成立，下一步等待門市履約事件。':'試算已完成，下一步需要你確認建立訂單。')},
+      community:{title:'草擬聯合服務活動',copy:'依匿名彙總建立可編輯活動與通知草稿，發佈仍需管理者確認。',run:generateCampaignDraft},
+      vendor:{title:'草擬社區報價',copy:'將統一需求帶入報價預覽，送出仍需廠商確認。',run:openQuotePreview},
+      platform:{title:'檢查欄位映射',copy:'執行契約驗證並顯示四個通路是否取得一致結果。',run:runConnectorTest}
+    };
+    function updateCopilotAction(route) {
+      const action=copilotActions[route];
+      if(!action)return;
+      document.querySelector('#copilot-action-title').textContent=action.title;
+      document.querySelector('#copilot-action-copy').textContent=action.copy;
+    }
+    document.querySelector('#copilot-action-button').addEventListener('click',()=>{
+      const action=copilotActions[currentRoute];setDrawer(false);setTimeout(()=>action.run(),230);
+    });
+
+    function resetDemo() {
+      Object.assign(demoState,{recommendationHidden:false,selectedService:'商城購物',orderCreated:false,campaignDrafted:false,campaignPublished:false,quoteSent:false,fulfillmentScheduled:false,connectorTested:false});
+      renderRecommendation();selectService(serviceSeeds.find(item=>item.name==='商城購物'));renderOrder();
+      document.querySelector('#campaign-draft').className='state-box';document.querySelector('#campaign-draft').innerHTML='<strong>尚未產生</strong><p>AI 會依匿名彙總、題組與服務範圍產生可編輯草稿。</p>';document.querySelector('#publish-campaign').disabled=true;
+      document.querySelector('#campaign-state').className='state-box warn';document.querySelector('#campaign-state').innerHTML='<strong>草稿尚未發佈</strong><p>管理者確認後才通知住戶。</p>';
+      document.querySelector('#community-quote').className='state-box';document.querySelector('#community-quote').innerHTML='<strong>等待合作廠商報價</strong><p>官方服務來源與實際履約廠商分開顯示。</p>';
+      document.querySelector('#vendor-queue-status').textContent='待報價';document.querySelector('#vendor-queue-status').classList.add('warn');document.querySelector('#vendor-fulfillment').className='state-box';document.querySelector('#vendor-fulfillment').innerHTML='<strong>尚未送出報價</strong><p>送出後會直接回流社區工作區，不需人工重打。</p>';document.querySelector('#update-fulfillment').disabled=true;document.querySelector('#update-fulfillment').textContent='標記已排程';
+      document.querySelectorAll('[data-test-cell]').forEach(cell=>{cell.textContent='尚未測試';cell.classList.remove('is-valid')});document.querySelector('#adapter-meta').textContent='Adapter・欄位映射待驗證';document.querySelector('#connector-result').className='state-box';document.querySelector('#connector-result').innerHTML='<strong>等待執行契約測試</strong><p>將驗證欄位、型別、回應與四個通路的共用結果。</p>';
+      document.querySelector('#contract-test').disabled=false;document.querySelector('#contract-test').textContent='執行契約測試';
+      showToast('Demo 狀態已重設。');navigate('today');
+    }
+    document.querySelector('#reset-demo').addEventListener('click',resetDemo);
+    document.addEventListener('keydown',event=>{
+      if(event.key!=='Escape')return;
+      if(!modalLayer.hidden)closeModal();else if(!layer.hidden)setDrawer(false);
+    });
+    renderRecommendation();renderOrder();renderCampaign();renderVendor();
+    navigate(location.hash.slice(1)||'today',false);
+  </script>
+</body>
+</html>
