@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 
 import {
   AiInquiryApiError,
@@ -12,7 +12,6 @@ import {
 import { useDemoStore } from '@/stores/demo'
 
 const route = useRoute()
-const router = useRouter()
 const store = useDemoStore()
 const client = createAiInquiryClient()
 
