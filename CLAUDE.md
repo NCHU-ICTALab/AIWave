@@ -6,17 +6,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Hackathon entry for 統一資訊's prompt **「AI 生活管家：智慧社區服務需求理解與媒合平台」** (2026 雲湧智生 GenAI hackathon). A LINE/Web life-butler that understands a resident's need in natural language, drives a flexible **留資表單 (lead-capture form / 諮詢單)**, and matches it to service vendors.
 
-**`docs/` is the source-of-truth spec, not just notes.** Start at [docs/README.md](docs/README.md) (index of 7 specs + 4 ADRs). [CONTEXT.md](CONTEXT.md) is the domain glossary; [ideas.md](ideas.md) is decision history. When you change behavior, keep the relevant `docs/specs/*` in sync — several decisions there are load-bearing (see ADRs below).
+**`docs/` is the source-of-truth spec, not just notes.** Start at [docs/README.md](docs/README.md) (index of 9 specs + 14 ADRs). [CONTEXT.md](CONTEXT.md) is the domain glossary; [docs/archive/](docs/archive/) holds superseded material (early proposals, design exploration) — historical only, do not treat as current. When you change behavior, keep the relevant `docs/specs/*` in sync — several decisions there are load-bearing (see ADRs below).
+
+**Read [docs/specs/08-product-experience.md](docs/specs/08-product-experience.md) before touching the frontend.** It records why the current navigation is "built for a demo, not for a user" and what the first-run experience should become. Three product forks in it are still undecided.
 
 ## Commands
 
+Backend:
+
 - Install / sync env: `uv sync` (isolated `.venv`, Python 3.13 via uv)
-- Run the test server: `uv run main.py` → http://localhost:8000 (reload on, serves `web/chat.html` + the API)
+- Run the API: `uv run main.py` (reload on, port 8000). `/` is just an info page — the UI is the Vue app.
 - All tests: `uv run pytest`
 - One file / one test: `uv run pytest tests/test_form_engine.py` · `uv run pytest tests/test_form_engine.py::test_skip_ac_type_when_not_choosing_ac` · `-k <expr>`
 - Add deps: `uv add <pkg>` (runtime) · `uv add --dev <pkg>` (dev). Never edit the venv with global `pip`.
 
-No linter or type-checker is configured; `pytest` is the only quality gate. The app entry point is `api.app:app` (built by `create_app()`).
+Frontend (`web/app`, Vue 3 + Vite; dev server proxies `/api` to port 8000):
+
+- `npm run dev` · `npm test` (vitest) · `npm run typecheck` (vue-tsc) · `npm run build`
+- Regenerate the test fixture after changing the service catalog, pricing, or insights:
+  `uv run python tools/dump_catalog_fixture.py` — frontend fixtures are **generated from the
+  backend** so they cannot silently drift.
+
+No Python linter/type-checker is configured; `pytest` is the backend's only gate. The app entry point is `api.app:app` (built by `create_app()`).
 
 ## Architecture (the parts that need multiple files to understand)
 
@@ -35,7 +46,7 @@ No linter or type-checker is configured; `pytest` is the only quality gate. The 
 
 **`api/app.py` — FastAPI, built by `create_app(repository=, llm_factory=)`** so tests inject a fake LLM + repository. Orchestration loop in `/api/chat/message`: `interpret → submit_answer/skip → next_topic → (summary + await confirm) → persist on confirmation`. Sessions are in-memory. Responses carry `progress` and a `trace` for the UI. `DEMO_TODAY` is a fixed date so relative-date resolution and validation are reproducible regardless of the machine clock.
 
-**`web/chat.html`** is a self-contained vanilla-JS chat harness (no build step) for manual testing. The intended production frontend is React + Vite (decided, not yet built).
+**`web/app` — Vue 3 + Vite + Pinia + TypeScript.** Four workspaces (resident / community / vendor / platform) behind one router. It holds **no** service or form definitions of its own: the catalog, form definitions and quotes all come from the backend (see 04 spec), and `domain/serviceIntake.ts` keeps only types plus a client-side mirror validator for instant feedback. WCAG 2.2 AA is enforced by `tests/accessibilityBaseline.spec.ts`.
 
 ## Official data & domain rules that bite
 

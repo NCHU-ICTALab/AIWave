@@ -10,7 +10,8 @@
 
 ## Notes
 
-- 本地 repository 尚無初始 commit，使用 `docs/work-management/` 作為 local-markdown tracker，不自行建立不完整的初始提交。
+- ~~本地 repository 尚無初始 commit~~ → 2026-07-26 已建立 git 歷史（`4f167a1` 起），
+  進度以 commit 為準，本目錄僅保留工作票的驗收條件。
 - 使用者已授權在離開期間持續推進；本地工作票同時承載決策與實作，覆寫 wayfinder 預設的「只規劃、不執行」。
 - 不需產品選擇的工作直接做；命名、真實合作宣稱、外部帳號／憑證與會改變主線的取捨集中到 [決策佇列](decision-queue.md)。
 - 每次修改先更新工作票，再採測試先行；完成後記錄驗證結果與遺留風險。
@@ -27,9 +28,13 @@
 
 ## Frontier
 
+> ⚠️ 2026-07-26：[08 產品體驗](../specs/08-product-experience.md) 指出目前動線是
+> 「為 demo 而做」，使用者無法自行上手。**下方順序在該文件的三項分岔決定前暫緩**，
+> 屆時需重新排序（首次使用旅程、零狀態、身分入口會插隊到前面）。
+
 | 順序 | 工作票 | 狀態 | 阻擋 |
 | --- | --- | --- | --- |
-| 1 | [真 AI 諮詢閉環](tickets/007-real-ai-inquiry-loop.md) | 進行中 | — |
+| 1 | [真 AI 諮詢閉環](tickets/007-real-ai-inquiry-loop.md) | **完成** | — |
 | 2 | [九項服務題組與報價規則](tickets/001-service-forms-and-pricing.md) | 完成 | — |
 | 3 | [訂單事件、異常與客服閉環](tickets/002-order-events-and-support.md) | 待辦 | 真 AI 諮詢閉環 |
 | 4 | [社區與廠商 Hero 深化](tickets/003-community-vendor-hero.md) | 待辦 | 真 AI 諮詢閉環 |

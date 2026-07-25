@@ -2,7 +2,8 @@
 
 > 狀態：競賽版實作基線（2026-07-24）  
 > 依據：[00 產品與情境](00-product-and-scenarios.md)、[04 MCP 與統一 API](04-mcp-and-api.md)、[05 Web 工作區模組](05-erp-modules.md)、[06 SRS](06-system-requirements.md)、[ADR-0010](../adr/0010-hero-personal-hub-and-service-breadth.md)  
-> 視覺基線：`web/design-directions/` 的 **08 資訊架構與生活感＋07 青綠／琥珀配色**，採頂部導覽、無彩色陰影。
+> 視覺基線：**08 資訊架構與生活感＋07 青綠／琥珀配色**，採頂部導覽、無彩色陰影。
+> 色彩 token 見 [brand-spec](../brand-spec.md)；產出過程已封存於 [archive/design-exploration/](../archive/design-exploration/)。
 
 ## 1. 文件目的
 

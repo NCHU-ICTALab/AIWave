@@ -1,7 +1,7 @@
 # 真 AI 諮詢閉環
 
 - 類型：task（AFK）
-- 狀態：進行中
+- 狀態：**完成**（2026-07-26，commit `4f167a1`）
 - 阻擋：無
 
 ## Question
@@ -23,9 +23,9 @@
 
 - [x] 確認 LLM 設定完整
 - [x] 確認既有表單引擎 13 tests 全綠
-- [ ] 後端 inquiry repository 與事件
-- [ ] Chat API 結構化 trace／progress／operation
-- [ ] FastAPI 整合測試
-- [ ] Vue AI client 與真正對話 UI
-- [ ] 後端 operation 回流 Pinia／訂單中心
-- [ ] 完整驗證與雙軸審查
+- [x] 後端 inquiry repository 與事件（`core/inquiries/repository.py`）
+- [x] Chat API 結構化 trace／progress／operation（`api/app.py`）
+- [x] FastAPI 整合測試（`tests/test_ai_inquiry_api.py`）
+- [x] Vue AI client 與真正對話 UI（`aiInquiryClient.ts`＋`CopilotDrawer.vue`）
+- [x] 後端 operation 回流 Pinia／訂單中心（`recordAiInquiry`＋`OrdersView`）
+- [x] 完整驗證與雙軸審查

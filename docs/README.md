@@ -1,7 +1,9 @@
 # 文件索引：AI 生活服務平台
 
 - 詞彙表：[../CONTEXT.md](../CONTEXT.md)（改動領域概念前先讀這份）
-- 構想與決策歷程：[../ideas.md](../ideas.md)
+- 品牌與視覺：[brand-spec.md](brand-spec.md)（色彩 token 現行有效）
+- 工作追蹤：[work-management/](work-management/)（工作票與驗收條件）
+- 封存：[archive/](archive/)（早期提案、設計探索——**歷史參考，非現行依據**）
 
 ## 核心規格（必讀，9 份）
 

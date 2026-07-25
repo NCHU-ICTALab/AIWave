@@ -34,7 +34,19 @@ npm run build
 - `/app/vendor`：廠商報價、活動與接入流程。
 - `/app/platform`：統一 API 連接器與營運健康度。
 
-`src/api/lifeServicesClient.ts` 是真實 `/api/v1` 的前端邊界；目前畫面使用 `src/data/demoFixtures.ts` 的穩定資料，讓展示不受外部廠商 API 狀態影響。所有會寫入資料的展示動作應先經過確認視窗。
+## 資料來源
+
+前端**不自帶服務目錄、題組定義或金額規則**，全部向後端取得：
+
+| Client | 提供 |
+| --- | --- |
+| `src/api/serviceCatalogClient.ts` | 服務目錄、題組定義、金額試算 |
+| `src/api/insightsClient.ts` | 行為軌跡、消費摘要、可解釋推薦（含官方訂單證據） |
+| `src/api/aiInquiryClient.ts` | AI 對話、諮詢單建立與查詢 |
+
+`src/domain/serviceIntake.ts` 只保留型別與**前端即時驗證**（後端在收單時才是權威）。
+測試 fixture 由 `tools/dump_catalog_fixture.py` 從後端產生，不手寫。
+所有會寫入資料的動作都先經過確認視窗。
 
 瀏覽器以同源 OIDC／session cookie 呼叫平台 API；角色由後端驗證後決定。廠商金鑰只存在後端 Adapter，不會打包進前端，也不採信前端自行宣告的角色。
 

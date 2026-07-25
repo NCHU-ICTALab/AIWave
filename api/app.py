@@ -250,8 +250,14 @@ def create_app(
 
     @application.get("/", response_class=HTMLResponse)
     def index() -> str:
-        chat_path = Path(__file__).resolve().parents[1] / "web" / "chat.html"
-        return chat_path.read_text(encoding="utf-8") if chat_path.exists() else "智慧生活管家 AI API"
+        """API 根路徑。使用者介面在 Vue 應用（`web/app`），不由此服務。"""
+        return (
+            "<!doctype html><meta charset='utf-8'>"
+            "<title>AI 生活服務平台 API</title>"
+            "<h1>AI 生活服務平台 API</h1>"
+            "<p>這是後端 API。使用者介面請執行 <code>web/app</code>（<code>npm run dev</code>）。</p>"
+            "<p><a href='/docs'>API 文件</a></p>"
+        )
 
     return application
 

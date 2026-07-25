@@ -1,6 +1,10 @@
-# 生活 AI 管家（暫名）・原型資產規格
+# 品牌與視覺規格
 
-> 狀態：部分；2026-07-24 低擬真流程原型使用。正式名稱、Logo 與合作品牌官方資產尚待補齊。
+> 狀態：**現行有效**。此處的色彩 token 已實作於 `web/app/src/styles/main.css`，
+> 並由 `tests/accessibilityBaseline.spec.ts` 驗證 WCAG AA 對比。
+> 正式名稱、Logo 與合作品牌官方資產尚待補齊。
+>
+> 產出過程（八種 UI 方向與色票探索）已封存於 [archive/design-exploration/](archive/design-exploration/)。
 
 ## 核心資產
 
