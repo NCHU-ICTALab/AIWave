@@ -22,7 +22,7 @@ from core.forms.dto import topic_to_field
 from core.forms.service_catalog import get_service as catalog_service
 from core.forms.service_catalog import get_service_form as catalog_service_form
 from core.forms.service_catalog import list_services as list_catalog_services
-from core.inquiries import InquiryRepository, SqliteInquiryRepository
+from core.inquiries import InquiryRepository, InquiryTransitionError, SqliteInquiryRepository
 from core.services import InsightsService, LifeServicesService
 
 DEMO_TODAY = date(2026, 7, 25)
@@ -55,6 +55,20 @@ class QuoteReq(BaseModel):
 
 class IntentReq(BaseModel):
     need: str
+
+
+class QuoteItem(BaseModel):
+    name: str
+    amount: int
+
+
+class CreateQuoteReq(BaseModel):
+    items: list[QuoteItem]
+    vendor_name: str = "合作廠商"
+
+
+class CompleteReq(BaseModel):
+    note: str | None = None
 
 
 def _progress(session: FormSession) -> dict[str, int]:
@@ -135,7 +149,11 @@ def create_app(
 
         if state.awaiting_confirm:
             if _is_confirmation(text):
-                record = life_services.submit_inquiry(form_id=state.form.id, feedback_content=state.session.to_feedback_content())
+                record = life_services.submit_inquiry(
+                    form_id=state.form.id,
+                    feedback_content=state.session.to_feedback_content(),
+                    service_id=state.form.service_id,
+                )
                 state.submitted_id = record["id"]
                 operation = {"type": "inquiry.created", "id": record["id"], "status": record["status"]}
                 return {
@@ -274,6 +292,42 @@ def create_app(
         if record is None:
             raise HTTPException(404, "查無諮詢單")
         return {"data": record}
+
+    # --- 諮詢單生命週期：住戶送出 → 廠商報價 → 住戶確認 → 廠商完工 ---
+
+    @application.get("/api/v1/vendor/workload")
+    def vendor_workload() -> dict:
+        """廠商工作台：真的來自住戶送出的諮詢單，而非固定展示資料。"""
+        return {"data": life_services.list_vendor_workload()}
+
+    @application.post("/api/v1/inquiries/{inquiry_id}/quote")
+    def create_quote(inquiry_id: str, req: CreateQuoteReq) -> dict:
+        """【廠商】開立報價 → 住戶會在訂單頁看到並可確認。"""
+        try:
+            record = life_services.quote_inquiry(
+                inquiry_id,
+                items=[item.model_dump() for item in req.items],
+                vendor_name=req.vendor_name,
+            )
+        except InquiryTransitionError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        return {"data": record}
+
+    @application.post("/api/v1/inquiries/{inquiry_id}/confirm")
+    def confirm_quote(inquiry_id: str) -> dict:
+        """【住戶】同意報價。"""
+        try:
+            return {"data": life_services.confirm_inquiry_quote(inquiry_id)}
+        except InquiryTransitionError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/inquiries/{inquiry_id}/complete")
+    def complete_inquiry(inquiry_id: str, req: CompleteReq) -> dict:
+        """【廠商】回報完工。"""
+        try:
+            return {"data": life_services.complete_inquiry(inquiry_id, note=req.note)}
+        except InquiryTransitionError as exc:
+            raise HTTPException(409, str(exc)) from exc
 
     @application.get("/", response_class=HTMLResponse)
     def index() -> str:

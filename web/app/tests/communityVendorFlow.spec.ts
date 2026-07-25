@@ -31,10 +31,10 @@ describe('community to vendor workflow', () => {
     expect(wrapper.find('a[href="/partner"]').exists()).toBe(false)
   })
 
-  it('lets the partner workspace return a quote', async () => {
+  it('shows an empty vendor queue when nothing has been submitted yet', async () => {
     const { wrapper } = await mountApp('/partner', { identity: PARTNER, attach: true })
 
-    expect(wrapper.get('h1').text()).toContain('合作廠商')
-    expect(wrapper.find('[data-testid="submit-quote"]').exists()).toBe(false) // 尚未收到詢價
+    expect(wrapper.get('h1').text()).toContain('廠商工作台')
+    expect(wrapper.text()).toContain('目前沒有待報價的需求')
   })
 })

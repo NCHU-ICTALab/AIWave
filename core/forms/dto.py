@@ -77,6 +77,29 @@ def _field_to_dict(form: Form, topic: Topic, today: date) -> dict:
     return field
 
 
+def summarize_feedback(form: Form, feedback_content: dict) -> list[dict]:
+    """把官方 answerList 轉成「題目：答案」的可讀摘要，供廠商與住戶檢視。"""
+    summary: list[dict] = []
+    for entry in feedback_content.get("data", []):
+        topic = form.topic(entry.get("topicId"))
+        if topic is None:
+            continue
+        values: list[str] = []
+        for answer in entry.get("answerList", []):
+            if answer.get("answer") is not None:
+                quantity = f"×{answer['quantity']}" if answer.get("quantity") else ""
+                values.append(f"{answer['answer']}{quantity}")
+            elif answer.get("districtName"):
+                values.append(f"{answer.get('countyName') or ''}{answer['districtName']}")
+            elif answer.get("imgUrl"):
+                values.append(f"{len(answer['imgUrl'])} 張照片")
+            elif answer.get("name"):
+                values.append(f"{answer.get('name')} {answer.get('mobile', '')}".strip())
+        if values:
+            summary.append({"label": topic.title, "value": "、".join(values)})
+    return summary
+
+
 def topic_to_field(form: Form, topic: Topic, *, today: date) -> dict:
     """單一題目的可渲染表示——讓對話介面能把選項畫成按鈕，而不是要使用者打字。"""
     return _field_to_dict(form, topic, today)

@@ -92,6 +92,10 @@ export function stubCatalogFetch(extra?: (url: string, init?: RequestInit) => Re
     }
 
     if (url.endsWith('/api/v1/inquiries')) return json({ data: [] })
+    // 廠商工作台預設為空；需要內容的測試自行以 extra 覆寫
+    if (url.endsWith('/api/v1/vendor/workload')) {
+      return json({ data: { pendingQuote: [], awaitingResident: [], scheduled: [] } })
+    }
 
     // 個人洞察（今日生活中心的數字與推薦）
     if (url.includes('/api/v1/insights/')) {
