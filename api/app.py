@@ -19,7 +19,7 @@ from core.clients import LlmClient, get_llm
 from core.forms import Form, FormError, FormSession
 from core.forms.seed_forms import facility_form, group_buy_form, repair_form
 from core.inquiries import InquiryRepository, SqliteInquiryRepository
-from core.services import LifeServicesService
+from core.services import InsightsService, LifeServicesService
 
 DEMO_TODAY = date(2026, 7, 25)
 FORMS: dict[str, tuple[str, Callable[[], Form]]] = {
@@ -74,6 +74,7 @@ def create_app(
     )
     sessions: dict[str, SessionState] = {}
     life_services = LifeServicesService(inquiry_repository, today=DEMO_TODAY)
+    insights = InsightsService(today=DEMO_TODAY)
     application = FastAPI(title="智慧生活管家 AI API")
 
     @application.get("/api/forms")
@@ -214,6 +215,27 @@ def create_app(
         if life_services.get_service_form(service_id) is None:
             raise HTTPException(404, "查無服務")
         return {"data": life_services.quote(service_id, req.answers).to_dict()}
+
+    # --- 個人洞察：全部由官方 mms_order_record 算出 ---
+
+    @application.get("/api/v1/insights/accounts")
+    def list_insight_accounts() -> dict:
+        return {"data": insights.accounts()}
+
+    @application.get("/api/v1/insights/{account_id}/summary")
+    def insight_summary(account_id: str) -> dict:
+        """消費與跨服務摘要；`me` 解析為展示 persona。"""
+        return {"data": insights.summary(account_id)}
+
+    @application.get("/api/v1/insights/{account_id}/trail")
+    def insight_trail(account_id: str) -> dict:
+        """行為軌跡：跨服務、跨時間的事件序列。"""
+        return {"data": insights.trail(account_id)}
+
+    @application.get("/api/v1/insights/{account_id}/recommendations")
+    def insight_recommendations(account_id: str, limit: int = 3) -> dict:
+        """可解釋推薦：規則產生，每則附官方訂單證據。"""
+        return {"data": insights.recommendations(account_id, limit=limit)}
 
     @application.get("/api/v1/inquiries")
     def list_inquiries() -> dict:

@@ -6,13 +6,11 @@ county_code / district_code。
 
 from __future__ import annotations
 
-import json
 from functools import lru_cache
-from pathlib import Path
 
-from core.config import ROOT
+from .official_source import RAW_DATA, load_tables
 
-_DATA = ROOT / "raw_data" / "縣市區域範例資料.json"
+_DATA = RAW_DATA / "縣市區域範例資料.json"
 
 # 官方競賽檔是範例子集，縣市主檔含台中市、行政區明細卻缺部分台中區域。
 # 使用 namespaced code 補 P0 場景，不偽裝成官方 sys_district 原始列。
@@ -26,31 +24,11 @@ def _normalize_name(value: str) -> str:
     return (value or "").strip().replace("臺", "台")
 
 
-def _iter_objects(text: str):
-    """檔案可能是多個 JSON 物件串接，逐一解析。"""
-    dec = json.JSONDecoder()
-    i = 0
-    while i < len(text):
-        while i < len(text) and text[i] not in "{[":
-            i += 1
-        if i >= len(text):
-            break
-        obj, j = dec.raw_decode(text, i)
-        yield obj
-        i = j
-
-
 @lru_cache(maxsize=1)
 def _tables() -> tuple[dict[str, str], list[dict]]:
     counties: dict[str, str] = {}
     districts: list[dict] = []
-    text = _DATA.read_text(encoding="utf-8")
-    merged: dict[str, list] = {}
-    for obj in _iter_objects(text):
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                if isinstance(v, list):
-                    merged.setdefault(k, []).extend(v)
+    merged = load_tables(_DATA)
     for c in merged.get("sys_county", []):
         counties[c["code"]] = c["name"]
     districts = list(merged.get("sys_district", []))

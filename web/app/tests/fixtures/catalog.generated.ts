@@ -4,6 +4,7 @@
  * 重新產生：`uv run python tools/dump_catalog_fixture.py`
  * 來源：core/forms/service_catalog.py + core/forms/dto.py（展示基準日 2026-07-25）
  */
+import type { BehaviorSummary, Recommendation, TrailEvent } from '@/api/insightsClient'
 import type { CatalogService } from '@/api/serviceCatalogClient'
 import type { ServiceFormDefinition } from '@/domain/serviceIntake'
 
@@ -776,3 +777,205 @@ export const catalogForms: Record<string, ServiceFormDefinition> = {
     ]
   }
 } as unknown as Record<string, ServiceFormDefinition>
+
+export const insightSummary: BehaviorSummary = {
+  "accountId": "019a52d3-7f6b-7da3-b48d-9c9e2522d616",
+  "totalOrders": 10,
+  "completedOrders": 7,
+  "openOrders": 2,
+  "cancelledOrders": 1,
+  "distinctServices": 3,
+  "totalSpend": 2218,
+  "earnedPoints": 0,
+  "firstActivity": "2026-06-02",
+  "lastActivity": "2026-06-16",
+  "services": [
+    {
+      "serviceId": "service-shopping",
+      "serviceName": "商城購物",
+      "count": 7,
+      "lastUsedOn": "2026-06-16",
+      "daysSinceLast": 39,
+      "totalAmount": 1970
+    },
+    {
+      "serviceId": "service-repair",
+      "serviceName": "水電修繕",
+      "count": 2,
+      "lastUsedOn": "2026-06-05",
+      "daysSinceLast": 50,
+      "totalAmount": 0
+    },
+    {
+      "serviceId": "service-delivery",
+      "serviceName": "美食外送",
+      "count": 1,
+      "lastUsedOn": "2026-06-04",
+      "daysSinceLast": 51,
+      "totalAmount": 248
+    }
+  ],
+  "source": "official_order_record"
+} as unknown as BehaviorSummary
+
+export const insightRecommendations: Recommendation[] = [
+  {
+    "id": "resume-1878",
+    "kind": "resume_open",
+    "title": "接續處理水電修繕",
+    "serviceId": "service-repair",
+    "serviceName": "水電修繕",
+    "reasonCodes": [
+      "open_order",
+      "status_11"
+    ],
+    "reasonText": "你有一筆水電修繕尚未完成（訂單 26052200000612）。",
+    "evidence": [
+      {
+        "recordId": 1878,
+        "orderNo": "26052200000612",
+        "serviceName": "水電修繕",
+        "occurredOn": "2026-06-02",
+        "detail": "官方訂單狀態 11"
+      }
+    ],
+    "score": 100,
+    "computedBy": "rules"
+  },
+  {
+    "id": "revisit-service-shopping",
+    "kind": "revisit",
+    "title": "該安排商城購物了",
+    "serviceId": "service-shopping",
+    "serviceName": "商城購物",
+    "reasonCodes": [
+      "days_since_last",
+      "threshold_30d"
+    ],
+    "reasonText": "上次商城購物是 2026-06-16，距今 39 天。",
+    "evidence": [
+      {
+        "recordId": 2003,
+        "orderNo": "PIC20260616000001",
+        "serviceName": "商城購物",
+        "occurredOn": "2026-06-16",
+        "detail": "共使用 7 次"
+      }
+    ],
+    "score": 71,
+    "computedBy": "rules"
+  }
+] as unknown as Recommendation[]
+
+export const insightTrail: TrailEvent[] = [
+  {
+    "occurredOn": "2026-06-02",
+    "serviceName": "水電修繕",
+    "serviceId": "service-repair",
+    "orderNo": "26052200000612",
+    "recordId": 1878,
+    "status": "11",
+    "amount": 0,
+    "itemName": "",
+    "outcome": "open"
+  },
+  {
+    "occurredOn": "2026-06-04",
+    "serviceName": "美食外送",
+    "serviceId": "service-delivery",
+    "orderNo": "1026-006d",
+    "recordId": 1918,
+    "status": "80",
+    "amount": 248,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-05",
+    "serviceName": "水電修繕",
+    "serviceId": "service-repair",
+    "orderNo": "26060500000212",
+    "recordId": 1929,
+    "status": "12",
+    "amount": 300,
+    "itemName": "",
+    "outcome": "open"
+  },
+  {
+    "occurredOn": "2026-06-15",
+    "serviceName": "商城購物",
+    "serviceId": "service-shopping",
+    "orderNo": "PIC20260615000001",
+    "recordId": 1977,
+    "status": "80",
+    "amount": 100,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-15",
+    "serviceName": "商城購物",
+    "serviceId": "service-shopping",
+    "orderNo": "PIC20260615000002",
+    "recordId": 1980,
+    "status": "80",
+    "amount": 100,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-15",
+    "serviceName": "商城購物",
+    "serviceId": "service-shopping",
+    "orderNo": "PIC20260612000016",
+    "recordId": 1999,
+    "status": "80",
+    "amount": 590,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-15",
+    "serviceName": "商城購物",
+    "serviceId": "service-shopping",
+    "orderNo": "PIC20260613000015",
+    "recordId": 1998,
+    "status": "80",
+    "amount": 590,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-15",
+    "serviceName": "商城購物",
+    "serviceId": "service-shopping",
+    "orderNo": "PIC20260615000015",
+    "recordId": 1993,
+    "status": "80",
+    "amount": 590,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-15",
+    "serviceName": "商城購物",
+    "serviceId": "service-shopping",
+    "orderNo": "PIC20260615000017",
+    "recordId": 1995,
+    "status": "80",
+    "amount": 0,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-16",
+    "serviceName": "商城購物",
+    "serviceId": "service-shopping",
+    "orderNo": "PIC20260616000001",
+    "recordId": 2003,
+    "status": "99",
+    "amount": 250,
+    "itemName": "",
+    "outcome": "cancelled"
+  }
+] as unknown as TrailEvent[]

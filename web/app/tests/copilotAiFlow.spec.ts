@@ -8,14 +8,22 @@ import { createMemoryHistory } from 'vue-router'
 import App from '@/App.vue'
 import { createAppRouter } from '@/router'
 
+import { stubCatalogFetch } from './fixtures/catalogClient'
+
+function json(body: unknown) {
+  return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
+}
+
 describe('real AI Copilot flow', () => {
   afterEach(() => vi.unstubAllGlobals())
 
   it('calls the backend and projects the persisted inquiry into order tracking', async () => {
-    const fetcher = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ session_id: 's1', reply: '請問需要修繕的項目？', done: false, awaiting_confirmation: false, progress: { answered: 0, total: 6 }, trace: [{ stage: 'tool', tool: 'get_service_form', status: 'completed' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ reply: '已建立諮詢單 INQ-20260725-001', done: true, awaiting_confirmation: false, progress: { answered: 6, total: 6 }, trace: [{ stage: 'write', tool: 'submit_inquiry', status: 'completed' }], operation: { type: 'inquiry.created', id: 'INQ-20260725-001', status: 'pending_quote' } }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
-    vi.stubGlobal('fetch', fetcher)
+    // 依網址路由，而非依呼叫順序——頁面本身也會取洞察資料
+    const chatReplies = [
+      json({ session_id: 's1', reply: '請問需要修繕的項目？', done: false, awaiting_confirmation: false, progress: { answered: 0, total: 6 }, trace: [{ stage: 'tool', tool: 'get_service_form', status: 'completed' }] }),
+      json({ reply: '已建立諮詢單 INQ-20260725-001', done: true, awaiting_confirmation: false, progress: { answered: 6, total: 6 }, trace: [{ stage: 'write', tool: 'submit_inquiry', status: 'completed' }], operation: { type: 'inquiry.created', id: 'INQ-20260725-001', status: 'pending_quote' } }),
+    ]
+    stubCatalogFetch((url) => (url.includes('/api/chat/') ? chatReplies.shift() : undefined))
     const router = createAppRouter(createMemoryHistory())
     await router.push('/app/today')
     await router.isReady()

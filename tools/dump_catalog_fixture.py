@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.forms import service_catalog  # noqa: E402
 from core.forms.dto import form_to_dict, service_to_dict  # noqa: E402
+from core.services import InsightsService  # noqa: E402
 
 # 與 api.app.DEMO_TODAY 一致，日期題的絕對範圍才對得上
 DEMO_TODAY = date(2026, 7, 25)
@@ -26,6 +27,7 @@ HEADER = """/**
  * 重新產生：`uv run python tools/dump_catalog_fixture.py`
  * 來源：core/forms/service_catalog.py + core/forms/dto.py（展示基準日 2026-07-25）
  */
+import type { BehaviorSummary, Recommendation, TrailEvent } from '@/api/insightsClient'
 import type { CatalogService } from '@/api/serviceCatalogClient'
 import type { ServiceFormDefinition } from '@/domain/serviceIntake'
 
@@ -40,16 +42,26 @@ def main() -> None:
         assert form is not None, service["id"]
         forms[service["id"]] = form_to_dict(form, today=DEMO_TODAY)
 
+    insights = InsightsService(today=DEMO_TODAY)
     body = (
         "export const catalogServices: CatalogService[] = "
         + json.dumps(services, ensure_ascii=False, indent=2)
         + "\n\nexport const catalogForms: Record<string, ServiceFormDefinition> = "
         + json.dumps(forms, ensure_ascii=False, indent=2)
         + " as unknown as Record<string, ServiceFormDefinition>\n"
+        + "\nexport const insightSummary: BehaviorSummary = "
+        + json.dumps(insights.summary(), ensure_ascii=False, indent=2)
+        + " as unknown as BehaviorSummary\n"
+        + "\nexport const insightRecommendations: Recommendation[] = "
+        + json.dumps(insights.recommendations(), ensure_ascii=False, indent=2)
+        + " as unknown as Recommendation[]\n"
+        + "\nexport const insightTrail: TrailEvent[] = "
+        + json.dumps(insights.trail(), ensure_ascii=False, indent=2)
+        + " as unknown as TrailEvent[]\n"
     )
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(HEADER + body, encoding="utf-8")
-    print(f"wrote {OUT.relative_to(Path.cwd())} ({len(services)} services)")
+    print(f"wrote {OUT.relative_to(Path.cwd())} ({len(services)} services, insights included)")
 
 
 if __name__ == "__main__":

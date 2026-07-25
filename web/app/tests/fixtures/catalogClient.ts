@@ -3,7 +3,13 @@ import { vi } from 'vitest'
 import type { ServiceCatalogClient } from '@/api/serviceCatalogClient'
 import type { ServiceAnswers, ServiceQuote } from '@/domain/serviceIntake'
 
-import { catalogForms, catalogServices } from './catalog.generated'
+import {
+  catalogForms,
+  catalogServices,
+  insightRecommendations,
+  insightSummary,
+  insightTrail,
+} from './catalog.generated'
 
 /**
  * 後端試算規則的測試替身。真正的規則在 `core/services/pricing.py`，並由後端測試把關；
@@ -85,6 +91,13 @@ export function stubCatalogFetch(extra?: (url: string, init?: RequestInit) => Re
     }
 
     if (url.endsWith('/api/v1/inquiries')) return json({ data: [] })
+
+    // 個人洞察（今日生活中心的數字與推薦）
+    if (url.includes('/api/v1/insights/')) {
+      if (url.includes('/summary')) return json({ data: insightSummary })
+      if (url.includes('/recommendations')) return json({ data: insightRecommendations })
+      if (url.includes('/trail')) return json({ data: insightTrail })
+    }
 
     return new Response('{}', { status: 404 })
   })
