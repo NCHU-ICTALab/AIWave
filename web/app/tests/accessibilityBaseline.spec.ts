@@ -1,20 +1,16 @@
 // @vitest-environment happy-dom
 
-import { flushPromises, mount } from '@vue/test-utils'
-import { createPinia } from 'pinia'
+import { flushPromises } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createMemoryHistory } from 'vue-router'
-
-import App from '@/App.vue'
-import { createAppRouter } from '@/router'
 
 import { stubCatalogFetch } from './fixtures/catalogClient'
+import { mountApp } from './fixtures/mountApp'
 
 const styles = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
-const routes = ['/app/today', '/app/services', '/app/orders', '/app/community', '/app/vendor', '/app/platform']
+const residentRoutes = ['/user', '/user/services', '/user/orders']
 
 function luminance(hex: string) {
   const normalized = hex.length === 4 ? `#${[...hex.slice(1)].map((value) => value.repeat(2)).join('')}` : hex
@@ -43,12 +39,14 @@ describe('WCAG AA baseline', () => {
     expect(contrast(token('surface'), token('primary'))).toBeGreaterThanOrEqual(4.5)
   })
 
-  it.each(routes)('provides landmarks, a page heading, and named navigation at %s', async (path) => {
-    const router = createAppRouter(createMemoryHistory())
-    await router.push(path)
-    await router.isReady()
-    const wrapper = mount(App, { global: { plugins: [createPinia(), router] } })
-    await flushPromises()
+  it('gives the sign-in page a single heading and a focusable main landmark', async () => {
+    const { wrapper } = await mountApp('/login', { identity: null })
+    expect(wrapper.findAll('h1')).toHaveLength(1)
+    expect(wrapper.get('main').attributes('id')).toBe('main-content')
+  })
+
+  it.each(residentRoutes)('provides landmarks, a page heading, and named navigation at %s', async (path) => {
+    const { wrapper } = await mountApp(path)
 
     expect(wrapper.get('main').attributes('id')).toBe('main-content')
     expect(wrapper.get('nav').attributes('aria-label')).toBe('主要導覽')
@@ -57,10 +55,7 @@ describe('WCAG AA baseline', () => {
   })
 
   it('moves focus into the Copilot dialog, closes on Escape, and returns focus', async () => {
-    const router = createAppRouter(createMemoryHistory())
-    await router.push('/app/today')
-    await router.isReady()
-    const wrapper = mount(App, { global: { plugins: [createPinia(), router] }, attachTo: document.body })
+    const { wrapper } = await mountApp('/user', { attach: true })
     const opener = wrapper.get('[aria-haspopup="dialog"]')
     ;(opener.element as HTMLElement).focus()
     await opener.trigger('click')
@@ -74,11 +69,8 @@ describe('WCAG AA baseline', () => {
   })
 
   it('announces SPA navigation by moving focus to the main landmark', async () => {
-    const router = createAppRouter(createMemoryHistory())
-    await router.push('/app/today')
-    await router.isReady()
-    mount(App, { global: { plugins: [createPinia(), router] }, attachTo: document.body })
-    await router.push('/app/services')
+    const { router } = await mountApp('/user', { attach: true })
+    await router.push('/user/services')
     await flushPromises()
     expect(document.activeElement?.id).toBe('main-content')
   })

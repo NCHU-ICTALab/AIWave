@@ -63,6 +63,29 @@ export interface TrailEvent {
   outcome: 'completed' | 'open' | 'cancelled'
 }
 
+/** 口語需求判讀結果；`null` 表示判讀不出，介面應退回服務目錄。 */
+export interface IntentMatch {
+  serviceId: string
+  serviceName: string
+  confidence: 'high' | 'low'
+  reason: string
+}
+
+export async function matchIntent(need: string, fetcher: typeof fetch = globalThis.fetch): Promise<IntentMatch | null> {
+  try {
+    const response = await fetcher('/api/v1/intent/match', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ need }),
+    })
+    if (!response.ok) return null
+    return ((await response.json()) as { data: IntentMatch | null }).data
+  } catch {
+    return null
+  }
+}
+
 export class InsightsApiError extends Error {
   constructor(readonly status: number, message: string) {
     super(message)

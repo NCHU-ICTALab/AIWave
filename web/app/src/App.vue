@@ -3,36 +3,33 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import CopilotDrawer from '@/components/CopilotDrawer.vue'
-import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import { navItems } from '@/data/demoFixtures'
 import type { AiOperation } from '@/api/aiInquiryClient'
 import { useDemoStore } from '@/stores/demo'
+import { ROLE_LABEL, useSessionStore } from '@/stores/session'
 
 const copilotOpen = ref(false)
-const resetOpen = ref(false)
 const mainContent = ref<HTMLElement | null>(null)
 const router = useRouter()
 const route = useRoute()
 const store = useDemoStore()
+const session = useSessionStore()
 
-const workspaceRoutes: Record<string, string> = {
-  resident: '/app/today', community: '/app/community', vendor: '/app/vendor', platform: '/app/platform',
-}
-const currentWorkspace = computed(() => {
-  if (route.path.startsWith('/app/community')) return 'community'
-  if (route.path.startsWith('/app/vendor')) return 'vendor'
-  if (route.path.startsWith('/app/platform')) return 'platform'
-  return 'resident'
+/** 導覽由身分決定；工作人員的工作台只有單頁，不需要導覽列。 */
+const navItems = computed(() => {
+  if (session.role !== 'user') return []
+  return [
+    { to: '/user', label: '今日' },
+    { to: '/user/services', label: '找服務' },
+    { to: '/user/orders', label: '訂單' },
+  ]
 })
 
-function changeWorkspace(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
-  void router.push(workspaceRoutes[value] ?? '/app/today')
-}
+const showChrome = computed(() => route.name !== 'login')
 
-function confirmReset() {
+async function signOut() {
+  session.signOut()
   store.resetDemo()
-  resetOpen.value = false
+  await router.push('/login')
 }
 
 function handleAiOperation(operation: AiOperation) {
@@ -46,36 +43,44 @@ watch(() => route.fullPath, async () => {
 </script>
 
 <template>
-  <a class="skip-link" href="#main-content">跳至主要內容</a>
-  <header class="topbar">
-    <div class="topbar-main">
-      <RouterLink class="wordmark" to="/app/today" aria-label="回到今日生活中心">
-        <span class="wordmark-mark" aria-hidden="true">生</span>
-        <span>生活 AI 管家<small>名稱待定</small></span>
-      </RouterLink>
-      <nav class="main-nav" aria-label="主要導覽">
-        <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" class="nav-link">
-          <span aria-hidden="true">{{ item.code }}</span> {{ item.label }}
+  <RouterView v-if="!showChrome" />
+
+  <template v-else>
+    <a class="skip-link" href="#main-content">跳至主要內容</a>
+    <header class="topbar">
+      <div class="topbar-main">
+        <RouterLink class="wordmark" to="/user" aria-label="回到首頁">
+          <span class="wordmark-mark" aria-hidden="true">生</span>
+          <span>AI 生活服務平台</span>
         </RouterLink>
-      </nav>
-      <div class="top-actions">
-        <label class="role-field">
-          <span class="visually-hidden">目前工作區</span>
-          <select :value="currentWorkspace" aria-label="切換工作區" @change="changeWorkspace">
-            <option value="resident">個人／住戶</option>
-            <option value="community">社區管理者</option>
-            <option value="vendor">合作廠商</option>
-            <option value="platform">平台營運者</option>
-          </select>
-        </label>
-        <button class="button reset-action" type="button" @click="resetOpen = true">重設</button>
-        <button class="button primary" type="button" aria-haspopup="dialog" @click="copilotOpen = true">問生活管家</button>
+
+        <nav v-if="navItems.length" class="main-nav" aria-label="主要導覽">
+          <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" class="nav-link">
+            {{ item.label }}
+          </RouterLink>
+        </nav>
+
+        <div class="top-actions">
+          <span class="identity-badge">
+            {{ session.identity?.displayName }}
+            <span class="muted">・{{ session.role ? ROLE_LABEL[session.role] : '' }}</span>
+          </span>
+          <button
+            v-if="session.role === 'user'"
+            class="button primary"
+            type="button"
+            aria-haspopup="dialog"
+            @click="copilotOpen = true"
+          >問生活管家</button>
+          <button class="button" type="button" data-testid="sign-out" @click="signOut">登出</button>
+        </div>
       </div>
-    </div>
-  </header>
-  <main id="main-content" ref="mainContent" tabindex="-1">
-    <RouterView />
-  </main>
-  <CopilotDrawer :open="copilotOpen" @close="copilotOpen = false" @inquiry-created="handleAiOperation" />
-  <ConfirmDialog :open="resetOpen" title="確認重設展示資料" description="訂單、推薦偏好與跨角色服務流程將還原成 demo_seed_v1。" @cancel="resetOpen = false" @confirm="confirmReset" />
+    </header>
+
+    <main id="main-content" ref="mainContent" tabindex="-1">
+      <RouterView />
+    </main>
+
+    <CopilotDrawer :open="copilotOpen" @close="copilotOpen = false" @inquiry-created="handleAiOperation" />
+  </template>
 </template>

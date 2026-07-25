@@ -6,6 +6,7 @@ HTTP 與（未來）personal-intelligence MCP 都經此層，不直接碰資料�
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import date
 
 from core.data.official_orders import list_accounts, orders_for
@@ -28,15 +29,19 @@ class InsightsService:
         return account_id  # type: ignore[return-value]
 
     def accounts(self) -> list[dict]:
-        """官方資料中可選的帳號，附規模資訊供展示切換。"""
+        """官方資料中可登入的既有使用者，附行為描述供登入頁辨識。"""
         result = []
         for account_id in list_accounts():
             orders = orders_for(account_id)
+            usage = Counter(order.service_name for order in orders)
+            top_service, top_count = usage.most_common(1)[0] if usage else ("", 0)
             result.append({
                 "accountId": account_id,
                 "orderCount": len(orders),
-                "serviceCount": len({o.service_name for o in orders}),
+                "serviceCount": len(usage),
                 "openCount": sum(1 for o in orders if o.is_open),
+                "topService": top_service,
+                "topServiceCount": top_count,
                 "isDefault": account_id == self.default_account_id,
             })
         result.sort(key=lambda row: (-row["serviceCount"], -row["orderCount"]))

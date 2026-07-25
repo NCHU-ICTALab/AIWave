@@ -1,14 +1,10 @@
 // @vitest-environment happy-dom
 
-import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
-import { createPinia } from 'pinia'
+import { DOMWrapper, flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createMemoryHistory } from 'vue-router'
-
-import App from '@/App.vue'
-import { createAppRouter } from '@/router'
 
 import { stubCatalogFetch } from './fixtures/catalogClient'
+import { mountApp } from './fixtures/mountApp'
 
 function json(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -24,10 +20,8 @@ describe('real AI Copilot flow', () => {
       json({ reply: '已建立諮詢單 INQ-20260725-001', done: true, awaiting_confirmation: false, progress: { answered: 6, total: 6 }, trace: [{ stage: 'write', tool: 'submit_inquiry', status: 'completed' }], operation: { type: 'inquiry.created', id: 'INQ-20260725-001', status: 'pending_quote' } }),
     ]
     stubCatalogFetch((url) => (url.includes('/api/chat/') ? chatReplies.shift() : undefined))
-    const router = createAppRouter(createMemoryHistory())
-    await router.push('/app/today')
-    await router.isReady()
-    const wrapper = mount(App, { global: { plugins: [createPinia(), router] }, attachTo: document.body })
+
+    const { wrapper, router } = await mountApp('/user', { attach: true })
 
     await wrapper.get('[aria-haspopup="dialog"]').trigger('click')
     const startButton = document.querySelector<HTMLButtonElement>('[data-testid="start-ai-inquiry"]')
@@ -47,7 +41,7 @@ describe('real AI Copilot flow', () => {
     await flushPromises()
 
     expect(document.body.textContent).toContain('INQ-20260725-001')
-    await router.push('/app/orders')
+    await router.push('/user/orders')
     await flushPromises()
     expect(wrapper.text()).toContain('INQ-20260725-001')
     expect(wrapper.text()).toContain('待確認')

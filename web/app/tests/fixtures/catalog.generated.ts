@@ -979,3 +979,96 @@ export const insightTrail: TrailEvent[] = [
     "outcome": "cancelled"
   }
 ] as unknown as TrailEvent[]
+
+export const insightAccounts = [
+  {
+    "accountId": "019eee3f-841e-7048-ae67-0955b144f4f8",
+    "orderCount": 16,
+    "serviceCount": 4,
+    "openCount": 0,
+    "topService": "餐廳訂位",
+    "topServiceCount": 5,
+    "isDefault": false
+  },
+  {
+    "accountId": "019a52d3-7f6b-7da3-b48d-9c9e2522d616",
+    "orderCount": 10,
+    "serviceCount": 3,
+    "openCount": 2,
+    "topService": "商城購物",
+    "topServiceCount": 7,
+    "isDefault": true
+  },
+  {
+    "accountId": "019db86c-201d-700a-ba04-525d90da4b0b",
+    "orderCount": 3,
+    "serviceCount": 2,
+    "openCount": 2,
+    "topService": "餐廳訂位",
+    "topServiceCount": 2,
+    "isDefault": false
+  },
+  {
+    "accountId": "019e6c8c-a061-7197-be0f-b7d341dbafdd",
+    "orderCount": 31,
+    "serviceCount": 1,
+    "openCount": 0,
+    "topService": "商城購物",
+    "topServiceCount": 31,
+    "isDefault": false
+  },
+  {
+    "accountId": "019d7569-19cc-7727-aa60-82644ce67ad7",
+    "orderCount": 23,
+    "serviceCount": 1,
+    "openCount": 0,
+    "topService": "商城購物",
+    "topServiceCount": 23,
+    "isDefault": false
+  },
+  {
+    "accountId": "019c0464-2d01-73f0-9f9b-d1392fdb941a",
+    "orderCount": 8,
+    "serviceCount": 1,
+    "openCount": 8,
+    "topService": "水電修繕",
+    "topServiceCount": 8,
+    "isDefault": false
+  },
+  {
+    "accountId": "019a52d3-7f6b-7f5f-8201-98588d5a5b84",
+    "orderCount": 5,
+    "serviceCount": 1,
+    "openCount": 0,
+    "topService": "餐廳訂位",
+    "topServiceCount": 5,
+    "isDefault": false
+  },
+  {
+    "accountId": "019c08f2-62e1-76be-a7ac-44b8a2d1d290",
+    "orderCount": 1,
+    "serviceCount": 1,
+    "openCount": 0,
+    "topService": "美食外送",
+    "topServiceCount": 1,
+    "isDefault": false
+  },
+  {
+    "accountId": "019cb30b-6a86-739a-832b-38225a2b2fdf",
+    "orderCount": 1,
+    "serviceCount": 1,
+    "openCount": 0,
+    "topService": "水電修繕",
+    "topServiceCount": 1,
+    "isDefault": false
+  },
+  {
+    "accountId": "019ef24a-424e-776e-854c-a1cf7b2b3ed9",
+    "orderCount": 1,
+    "serviceCount": 1,
+    "openCount": 0,
+    "topService": "洗衣機清洗",
+    "topServiceCount": 1,
+    "isDefault": false
+  }
+]

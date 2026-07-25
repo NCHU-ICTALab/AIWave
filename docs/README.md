@@ -42,6 +42,8 @@
 | [0012](adr/0012-consented-minimal-personalization-data.md) | 個人化採明確同意、最小保存與群組資料隔離 |
 | [0013](adr/0013-vue-responsive-accessible-line-ready-frontend.md) | Vue 前端從第一天落實 RWD、WCAG 2.2 AA 與 LINE WebView 相容性 |
 | [0014](adr/0014-line-deep-link-first-liff-optional.md) | LINE 以 Web 深層連結為預設，LIFF 為選配增強層 |
+| [0015](adr/0015-role-separated-entry-points.md) | 角色分離入口與登入身分，取代工作區切換器（**修正 0006**） |
+| [0016](adr/0016-conversation-first-home.md) | 住戶首頁的主動作是自然語言輸入，不是服務目錄 |
 
 ## 已定案速查
 

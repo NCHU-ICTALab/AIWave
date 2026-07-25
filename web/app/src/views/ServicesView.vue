@@ -35,9 +35,18 @@ onMounted(async () => {
 watch(() => store.selectedServiceId, () => { errors.value = {} })
 watch(() => route.params.serviceSlug, (slug) => { void applyRouteService(slug) })
 
+// 從首頁帶過來的原始需求——要讓使用者看到自己說的話有被接住
+const submittedNeed = computed(() => (typeof route.query.need === 'string' ? route.query.need : ''))
+const matchReason = computed(() => (typeof route.query.why === 'string' ? route.query.why : ''))
+const unmatched = computed(() => route.query.unmatched === '1')
+
 async function chooseService(serviceId: string) {
   await store.selectService(serviceId)
-  void router.replace({ name: 'services', params: { serviceSlug: serviceId.replace('service-', '') } })
+  void router.replace({
+    name: 'services',
+    params: { serviceSlug: serviceId.replace('service-', '') },
+    query: { ...route.query },
+  })
 }
 
 async function continueWithService() {
@@ -63,15 +72,24 @@ async function setAnswer(fieldId: string, value: string | number) {
 async function confirmOrder() {
   const order = store.submitSelectedService()
   dialogOpen.value = false
-  if (order) await router.push('/app/orders')
+  if (order) await router.push('/user/orders')
 }
 </script>
 
 <template>
   <header class="page-heading">
-    <div><p class="eyebrow">Personal services</p><h1>需要什麼服務？</h1></div>
-    <span class="page-status">{{ store.services.length }} 項服務已接上統一介面</span>
+    <div><p class="eyebrow">找服務</p><h1>需要什麼服務？</h1></div>
+    <span class="page-status">{{ store.services.length }} 項服務</span>
   </header>
+
+  <!-- 承接首頁輸入的需求：讓使用者看到自己說的話有被接住 -->
+  <p v-if="submittedNeed && !unmatched" class="need-echo" data-testid="need-echo" role="status">
+    你說「{{ submittedNeed }}」<span v-if="matchReason" class="muted">——{{ matchReason }}</span>，
+    已為你選好下方服務，確認資料後就能送出。
+  </p>
+  <p v-else-if="submittedNeed" class="need-echo warn" data-testid="need-unmatched" role="status">
+    你說「{{ submittedNeed }}」——我還無法對應到現有服務，請從下方挑一項，或改個說法再試。
+  </p>
 
   <div class="service-layout">
     <div class="service-main">

@@ -30,7 +30,7 @@ onMounted(async () => {
           <span class="status">{{ order.status }}</span>
         </article>
       </div>
-      <div v-else class="empty-state compact"><h3>目前沒有進行中的訂單</h3><p>從找服務頁選擇服務後，狀態會統一顯示在這裡。</p><RouterLink class="button primary inline" to="/app/services">前往找服務</RouterLink></div>
+      <div v-else class="empty-state compact"><h3>還沒有任何委託</h3><p>在首頁描述你的需求，或直接挑一項服務——送出後進度都會顯示在這裡。</p><RouterLink class="button primary inline" to="/user">回首頁描述需求</RouterLink></div>
     </section>
     <section class="panel span-4" aria-labelledby="order-timeline"><h2 id="order-timeline">接下來</h2><ol class="timeline"><li><div><strong>需求已建立</strong><p>平台保留完整請求紀錄</p></div></li><li><div><strong>等待夥伴回覆</strong><p>不論廠商 API 格式，前台維持一致</p></div></li><li><div><strong>確認排程</strong><p>異常時可轉人工處理</p></div></li></ol></section>
   </div>

@@ -90,6 +90,46 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .agent-progress { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: .8rem; padding: .65rem .8rem; border-radius: 12px; background: var(--primary-soft); color: var(--primary); }.message-list { display: grid; gap: .65rem; max-height: 40vh; overflow: auto; }.message { max-width: 92%; padding: .7rem .85rem; border-radius: 14px; background: var(--surface-2); }.message.user { justify-self: end; background: var(--primary); color: #fff; }.message span { font-size: .68rem; font-weight: 800; }.message p { margin: .2rem 0 0; white-space: pre-wrap; }.tool-trace { margin-top: .8rem; padding: .8rem; border: 1px solid var(--line); border-radius: 14px; }.trace-step { display: flex; justify-content: space-between; gap: .5rem; padding: .35rem 0; }.trace-step code { color: var(--primary); font-weight: 800; }.trace-step span { color: var(--muted); font-size: .75rem; }.operation-success { margin-top: 1rem; padding: 1rem; border: 1px solid #8eb9ad; border-radius: 16px; background: #edf6f3; }.operation-success strong { font-family: var(--font-mono); font-size: 1.1rem; }.operation-success p { margin: .4rem 0 .8rem; }.error-state { margin-top: 1rem; padding: 1rem; border: 1px solid #c87a70; border-radius: 14px; background: #fff1ef; }.error-state p { margin: .3rem 0 .7rem; }
 .modal-layer { position: fixed; z-index: 60; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgb(23 36 43 / 42%); }.modal-card { width: min(560px, 100%); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.5rem; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); box-shadow: 0 28px 80px rgb(23 28 26 / 22%); }.modal-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .5rem; margin-top: 1.25rem; }
 
+/* 登入頁（角色分離入口，ADR-0015） */
+.login-page { width: min(100% - 2rem, 1080px); margin: auto; padding: clamp(2rem, 6vw, 4rem) 0; }
+.login-intro { max-width: 46rem; margin-bottom: 2rem; }
+.login-intro h1 { margin: .3rem 0 .6rem; font-size: clamp(1.9rem, 4.6vw, 2.9rem); }
+.login-lede { max-width: 40rem; color: var(--muted); font-size: 1.02rem; }
+.login-panels { display: grid; grid-template-columns: 1.35fr 1fr; align-items: start; gap: 1rem; }
+.login-card h2 { margin: 0 0 .9rem; font-size: 1.15rem; }
+.login-hint { margin: .55rem 0 0; font-size: .85rem; }
+.login-divider { display: flex; align-items: center; gap: .75rem; margin: 1.2rem 0 .9rem; color: var(--muted); font-size: .8rem; }
+.login-divider::before, .login-divider::after { content: ""; height: 1px; flex: 1; background: var(--line); }
+.account-list { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; max-height: 19rem; overflow: auto; }
+.account-option { display: grid; gap: .15rem; width: 100%; min-height: 44px; padding: .6rem .8rem; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); text-align: left; }
+.account-option:hover { border-color: var(--primary); }
+.account-option strong { font-size: .92rem; }
+.account-option span { font-size: .78rem; }
+.staff-options { display: grid; gap: .5rem; margin-top: .9rem; }
+.identity-badge { display: inline-flex; align-items: center; gap: .2rem; padding: .3rem .7rem; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: .8rem; font-weight: 800; }
+
+/* 首頁主動作：說出需求（ADR-0016） */
+.need-hero { max-width: 46rem; margin: 0 auto 1.5rem; text-align: center; }
+.need-hero h1 { margin: .3rem 0 .5rem; font-size: clamp(1.75rem, 4.4vw, 2.6rem); }
+.need-lede { margin: 0 auto 1.4rem; max-width: 34rem; color: var(--muted); }
+.need-form { display: flex; gap: .5rem; margin-bottom: .9rem; }
+.need-form input { flex: 1; min-height: 52px; padding: 0 1rem; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); font-size: 1rem; }
+.need-form input:focus-visible { border-color: var(--primary); }
+.need-form .button { min-height: 52px; padding: 0 1.5rem; }
+.need-starters { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .4rem; }
+.starter-chip { min-height: 36px; padding: 0 .85rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: .85rem; }
+.starter-chip:hover { border-color: var(--primary); color: var(--primary); }
+.need-alt { margin-top: 1rem; font-size: .85rem; }
+.need-echo { margin: 0 0 1rem; padding: .8rem 1rem; border: 1px solid var(--primary); border-radius: 14px; background: var(--primary-soft); }
+.need-echo.warn { border-color: var(--accent); background: var(--accent-soft); }
+.onboarding-steps { display: grid; gap: .7rem; margin: .9rem 0; padding-left: 1.2rem; }
+.onboarding-steps li { padding-left: .3rem; }
+.onboarding-steps strong { display: block; }
+.onboarding-steps span { color: var(--muted); font-size: .88rem; }
+
+@media (max-width: 1050px) {
+  .login-panels { grid-template-columns: 1fr; }
+}
 @media (max-width: 1050px) {
   .topbar-main { flex-wrap: wrap; }.wordmark { flex: 1; }.main-nav { order: 3; flex: 0 0 100%; justify-content: flex-start; overflow-x: auto; }.hero, .aside, .span-4, .span-5, .span-7, .span-8 { grid-column: 1 / -1; }.service-layout { grid-template-columns: 1fr; }.service-detail { position: static; }
 }

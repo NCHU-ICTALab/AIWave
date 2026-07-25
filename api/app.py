@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from agent.form_agent import FormAgent
+from agent.intent_agent import IntentAgent
 from core.clients import LlmClient, get_llm
 from core.forms import Form, FormError, FormSession
 from core.forms.seed_forms import facility_form, group_buy_form, repair_form
@@ -50,6 +51,10 @@ class MsgReq(BaseModel):
 
 class QuoteReq(BaseModel):
     answers: dict[str, Any] = {}
+
+
+class IntentReq(BaseModel):
+    need: str
 
 
 def _progress(session: FormSession) -> dict[str, int]:
@@ -215,6 +220,12 @@ def create_app(
         if life_services.get_service_form(service_id) is None:
             raise HTTPException(404, "查無服務")
         return {"data": life_services.quote(service_id, req.answers).to_dict()}
+
+    @application.post("/api/v1/intent/match")
+    def match_intent(req: IntentReq) -> dict:
+        """把口語需求判讀成一項服務；判讀不出時回 null，由介面退回服務目錄。"""
+        match = IntentAgent(llm_factory()).match(req.need)
+        return {"data": None if match is None else match.to_dict()}
 
     # --- 個人洞察：全部由官方 mms_order_record 算出 ---
 

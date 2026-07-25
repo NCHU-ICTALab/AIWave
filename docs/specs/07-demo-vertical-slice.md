@@ -1,5 +1,10 @@
 # 07・競賽 Demo 垂直切片與頁面規格
 
+> ⚠️ **路徑與入口已由 [ADR-0015](../adr/0015-role-separated-entry-points.md)／
+> [ADR-0016](../adr/0016-conversation-first-home.md) 修正**：`/app/*` 已改為
+> `/login`、`/user`、`/admin`、`/partner`；住戶首頁的主動作是需求輸入框而非儀表板。
+> 本文的**主線內容與驗收條件仍然有效**，路徑與畫面順序需依 [08 產品體驗](08-product-experience.md) 重讀。
+>
 > 狀態：競賽版實作基線（2026-07-24）  
 > 依據：[00 產品與情境](00-product-and-scenarios.md)、[04 MCP 與統一 API](04-mcp-and-api.md)、[05 Web 工作區模組](05-erp-modules.md)、[06 SRS](06-system-requirements.md)、[ADR-0010](../adr/0010-hero-personal-hub-and-service-breadth.md)  
 > 視覺基線：**08 資訊架構與生活感＋07 青綠／琥珀配色**，採頂部導覽、無彩色陰影。

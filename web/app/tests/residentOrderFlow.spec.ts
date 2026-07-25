@@ -1,42 +1,24 @@
 // @vitest-environment happy-dom
 
-import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
-import { createPinia } from 'pinia'
+import { DOMWrapper, flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
-import { createMemoryHistory } from 'vue-router'
-
-import App from '@/App.vue'
-import { createAppRouter } from '@/router'
 
 import { stubCatalogFetch } from './fixtures/catalogClient'
+import { mountApp } from './fixtures/mountApp'
 
 describe('resident order flow', () => {
-  // 服務目錄與題組來自後端，測試提供 fetch 契約
   beforeEach(() => stubCatalogFetch())
 
   it('opens a service directly from a LINE-ready deep link', async () => {
-    const router = createAppRouter(createMemoryHistory())
-    await router.push('/app/services/aircon')
-    await router.isReady()
-    const wrapper = mount(App, { global: { plugins: [createPinia(), router] } })
-    await flushPromises()
+    const { wrapper } = await mountApp('/user/services/aircon')
 
     expect(wrapper.get('.service-detail h2').text()).toBe('冷氣清洗')
     expect(wrapper.get('[data-field-id="airconType"]').attributes('required')).toBeDefined()
   })
 
-  it('moves from the nine-service catalog through confirmation into order tracking', async () => {
-    const router = createAppRouter(createMemoryHistory())
-    await router.push('/app/services')
-    await router.isReady()
-    const wrapper = mount(App, {
-      global: {
-        plugins: [createPinia(), router],
-      },
-      attachTo: document.body,
-    })
-    await flushPromises()   // 服務目錄由後端載入
+  it('moves from the service catalog through confirmation into order tracking', async () => {
+    const { wrapper, router } = await mountApp('/user/services', { attach: true })
 
     expect(wrapper.get('h1').text()).toBe('需要什麼服務？')
     expect(wrapper.findAll('[data-testid="service-card"]')).toHaveLength(9)
@@ -66,7 +48,7 @@ describe('resident order flow', () => {
     await flushPromises()
     await nextTick()
 
-    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/app/orders'))
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/user/orders'))
     expect(wrapper.text()).toContain('OP-0725-001')
     expect(wrapper.text()).toContain('已成立')
   })

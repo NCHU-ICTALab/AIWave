@@ -58,6 +58,9 @@ def main() -> None:
         + "\nexport const insightTrail: TrailEvent[] = "
         + json.dumps(insights.trail(), ensure_ascii=False, indent=2)
         + " as unknown as TrailEvent[]\n"
+        + "\nexport const insightAccounts = "
+        + json.dumps(insights.accounts(), ensure_ascii=False, indent=2)
+        + "\n"
     )
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(HEADER + body, encoding="utf-8")

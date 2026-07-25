@@ -6,6 +6,7 @@ import type { ServiceAnswers, ServiceQuote } from '@/domain/serviceIntake'
 import {
   catalogForms,
   catalogServices,
+  insightAccounts,
   insightRecommendations,
   insightSummary,
   insightTrail,
@@ -94,6 +95,7 @@ export function stubCatalogFetch(extra?: (url: string, init?: RequestInit) => Re
 
     // 個人洞察（今日生活中心的數字與推薦）
     if (url.includes('/api/v1/insights/')) {
+      if (url.endsWith('/accounts')) return json({ data: insightAccounts })
       if (url.includes('/summary')) return json({ data: insightSummary })
       if (url.includes('/recommendations')) return json({ data: insightRecommendations })
       if (url.includes('/trail')) return json({ data: insightTrail })

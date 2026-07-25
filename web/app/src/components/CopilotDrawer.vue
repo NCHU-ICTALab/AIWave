@@ -89,10 +89,10 @@ function onKeydown(event: KeyboardEvent) {
         </div>
 
         <section v-if="!sessionId" class="chat-block">
-          <strong>這不是固定文案聊天框。</strong>
-          <p>AI 會理解口語回答，題組引擎負責驗證；最後經你確認才由後端建立諮詢單。</p>
+          <strong>家裡有東西壞了？</strong>
+          <p>用你自己的話說明狀況就好，我會逐項確認需要的資訊，最後讓你過目再送出。</p>
           <button class="button primary full" type="button" data-testid="start-ai-inquiry" :disabled="loading" @click="startInquiry">
-            {{ loading ? '正在連接 AI…' : '開始 AI 修繕諮詢' }}
+            {{ loading ? '連線中…' : '開始描述修繕需求' }}
           </button>
         </section>
 
@@ -118,9 +118,9 @@ function onKeydown(event: KeyboardEvent) {
             <button class="button primary" type="submit" :disabled="loading || !prompt.trim()">{{ loading ? 'AI 解析中…' : '送出回答' }}</button>
           </form>
           <div v-else class="operation-success" role="status">
-            <p class="eyebrow">後端寫入成功</p><strong>{{ operation.id }}</strong>
-            <p>諮詢單已寫入 SQLite repository，並同步到訂單中心。</p>
-            <RouterLink class="button primary inline" to="/app/orders" @click="close">查看訂單進度</RouterLink>
+            <p class="eyebrow">已送出</p><strong>{{ operation.id }}</strong>
+            <p>合作夥伴收到需求後會回覆報價，進度可在訂單頁追蹤。</p>
+            <RouterLink class="button primary inline" to="/user/orders" @click="close">查看進度</RouterLink>
           </div>
         </template>
 

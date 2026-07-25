@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 
-import { DOMWrapper, flushPromises, mount } from '@vue/test-utils'
-import { createPinia } from 'pinia'
-import { describe, expect, it } from 'vitest'
-import { createMemoryHistory } from 'vue-router'
+import { DOMWrapper, flushPromises } from '@vue/test-utils'
+import { beforeEach, describe, expect, it } from 'vitest'
 
-import App from '@/App.vue'
-import { createAppRouter } from '@/router'
+import { stubCatalogFetch } from './fixtures/catalogClient'
+import { mountApp } from './fixtures/mountApp'
+
+const ADMIN = { role: 'admin' as const, accountId: null, displayName: '社區管理者' }
+const PARTNER = { role: 'partner' as const, accountId: null, displayName: '合作廠商' }
 
 async function confirmDialog() {
   const button = document.querySelector<HTMLButtonElement>('[data-testid="confirm-action"]')
@@ -16,28 +17,24 @@ async function confirmDialog() {
 }
 
 describe('community to vendor workflow', () => {
-  it('publishes a request, returns a quote, and assigns the vendor through confirmations', async () => {
-    const router = createAppRouter(createMemoryHistory())
-    await router.push('/app/community')
-    await router.isReady()
-    const wrapper = mount(App, { global: { plugins: [createPinia(), router] }, attachTo: document.body })
+  beforeEach(() => stubCatalogFetch())
+
+  it('publishes a request from the community workspace and reports it as awaiting a quote', async () => {
+    const { wrapper } = await mountApp('/admin', { identity: ADMIN, attach: true })
 
     await wrapper.get('[data-testid="publish-campaign"]').trigger('click')
     expect(document.body.textContent).toContain('確認發送聯合服務需求')
     await confirmDialog()
 
-    await router.push('/app/vendor')
-    await flushPromises()
-    await wrapper.get('[data-testid="submit-quote"]').trigger('click')
-    expect(document.body.textContent).toContain('確認送出 18 戶清潔報價')
-    await confirmDialog()
+    // 管理者不會「切換成廠商」——真實產品裡那是另一個身分的工作台
+    expect(wrapper.text()).toContain('等待合作廠商回覆報價')
+    expect(wrapper.find('a[href="/partner"]').exists()).toBe(false)
+  })
 
-    await router.push('/app/community')
-    await flushPromises()
-    await wrapper.get('[data-testid="assign-vendor"]').trigger('click')
-    await confirmDialog()
+  it('lets the partner workspace return a quote', async () => {
+    const { wrapper } = await mountApp('/partner', { identity: PARTNER, attach: true })
 
-    expect(wrapper.text()).toContain('已安排履約')
-    expect(wrapper.text()).toContain('7/27 開始履約')
+    expect(wrapper.get('h1').text()).toContain('合作廠商')
+    expect(wrapper.find('[data-testid="submit-quote"]').exists()).toBe(false) // 尚未收到詢價
   })
 })
