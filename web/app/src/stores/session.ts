@@ -9,7 +9,14 @@ import { computed, ref } from 'vue'
  * `signIn` 取得身分的方式，路由與畫面不變。
  */
 
-export type Role = 'user' | 'admin' | 'partner'
+/**
+ * 角色是「人」，不是「範圍」。
+ *
+ * 社區是住戶共享的**範圍**（見 ADR-0003），不是一種身分——所以住戶端本身就看得到
+ * 社區的團購與公設；`manager` 指的是管委會／物業那個**管理者**，負責開團、結單、審核。
+ * 先前叫 `admin` 把兩者混為一談，也與「平台管理者」語意衝突。
+ */
+export type Role = 'user' | 'manager' | 'partner'
 
 export interface Identity {
   role: Role
@@ -22,13 +29,13 @@ const STORAGE_KEY = 'life-ai.identity'
 
 export const ROLE_HOME: Record<Role, string> = {
   user: '/user',
-  admin: '/admin',
+  manager: '/community',
   partner: '/partner',
 }
 
 export const ROLE_LABEL: Record<Role, string> = {
   user: '住戶',
-  admin: '社區管理者',
+  manager: '社區管理者',
   partner: '合作廠商',
 }
 

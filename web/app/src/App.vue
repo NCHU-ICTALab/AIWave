@@ -18,6 +18,7 @@ const navItems = computed(() => {
     { to: '/user', label: '今日' },
     { to: '/user/services', label: '找服務' },
     { to: '/user/orders', label: '訂單' },
+    { to: '/user/community', label: '社區' },
   ]
 })
 

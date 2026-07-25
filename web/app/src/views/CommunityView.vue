@@ -1,26 +1,152 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 
-import ConfirmDialog from '@/components/ConfirmDialog.vue'
-import { useDemoStore } from '@/stores/demo'
+import { createCommunityClient, type Campaign, type PurchaseOrder } from '@/api/communityClient'
 
-const store = useDemoStore()
-const pendingAction = ref<'publish' | 'assign' | null>(null)
-const statusLabel = computed(() => ({ draft: '草稿', published: '等待報價', quoted: '報價待指派', scheduled: '已安排履約' })[store.campaignStatus])
+/** 管委會工作台：開團、看跟團狀況、結單並產出給廠商的採購彙總。 */
+const client = createCommunityClient()
 
-function confirmAction() {
-  if (pendingAction.value === 'publish') store.publishCampaign()
-  if (pendingAction.value === 'assign') store.assignVendor()
-  pendingAction.value = null
+const campaigns = ref<Campaign[]>([])
+const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
+const acting = ref<number | null>(null)
+const error = ref('')
+const purchaseOrder = ref<PurchaseOrder | null>(null)
+const creating = ref(false)
+
+const draft = reactive({ title: '', item_name: '', unit_price: 0, min_quantity: 10, pickup: '社區管理室' })
+const currency = (value: number) => `NT$ ${(value ?? 0).toLocaleString('zh-TW')}`
+
+async function load() {
+  try {
+    campaigns.value = await client.listAll()
+    status.value = 'ready'
+  } catch {
+    status.value = 'unavailable'
+  }
 }
+
+async function createCampaign() {
+  if (!draft.title.trim() || !draft.item_name.trim() || draft.unit_price <= 0) {
+    error.value = '請填寫團購名稱、品項與單價。'
+    return
+  }
+  creating.value = true
+  error.value = ''
+  try {
+    await client.create({ ...draft, unit_price: Number(draft.unit_price), min_quantity: Number(draft.min_quantity) })
+    Object.assign(draft, { title: '', item_name: '', unit_price: 0, min_quantity: 10, pickup: '社區管理室' })
+    await load()
+  } catch (reason) {
+    error.value = reason instanceof Error ? reason.message : '開團未完成，請稍後再試。'
+  } finally {
+    creating.value = false
+  }
+}
+
+async function close(campaign: Campaign) {
+  acting.value = campaign.id
+  error.value = ''
+  try {
+    const result = await client.close(campaign.id)
+    purchaseOrder.value = result.purchaseOrder
+    await load()
+  } catch (reason) {
+    error.value = reason instanceof Error ? reason.message : '結單未完成，請稍後再試。'
+  } finally {
+    acting.value = null
+  }
+}
+
+onMounted(load)
 </script>
 
 <template>
-  <header class="page-heading"><div><p class="eyebrow">Community workspace</p><h1>社區服務中心</h1></div><span class="page-status">18 戶已加入</span></header>
-  <div class="grid">
-    <section class="panel span-8"><p class="eyebrow">Group service</p><div class="section-title-row"><h2>夏季居家清潔聯合服務</h2><span class="status">{{ statusLabel }}</span></div><p class="muted">AI 已將住戶需求整理成統一題組，冷氣、洗衣機與公共區域清潔可合併詢價。</p><div class="metric-row"><div class="metric"><span>目前登記</span><strong>18 戶</strong></div><div class="metric"><span>預估折扣</span><strong>15%</strong></div></div><div class="button-row"><button v-if="store.campaignStatus === 'draft'" class="button primary" type="button" data-testid="publish-campaign" @click="pendingAction = 'publish'">預覽並送廠商詢價</button><button v-else-if="store.campaignStatus === 'quoted'" class="button primary" type="button" data-testid="assign-vendor" @click="pendingAction = 'assign'">預覽報價並指派</button><span v-else-if="store.campaignStatus === 'published'" class="feedback-inline" role="status">已送出詢價，等待合作廠商回覆報價。</span><span v-else class="feedback-inline" role="status">已指派安心清潔，7/27 開始履約。</span><button class="button" type="button">分享至 LINE 群組</button></div></section>
-    <aside class="panel span-4"><h2>AI 群組摘要</h2><ul class="plain-list"><li><strong>8 戶</strong>詢問冷氣清洗</li><li><strong>3 戶</strong>需要週末時段</li><li><strong>1 戶</strong>尚未確認機型</li></ul></aside>
-    <section class="panel span-12"><div class="section-title-row"><h2>社區待處理事項</h2><span class="status warn">3 項</span></div><div class="queue-row"><span class="row-index">01</span><div><strong>清潔團購需求確認</strong><div class="row-meta">AI 已將 LINE 的 +1 訊息整理成表格</div></div><span class="status">可送出</span></div><div class="queue-row"><span class="row-index">02</span><div><strong>黑貓包裹集中通知</strong><div class="row-meta">通知 5 位住戶領取</div></div><span class="status warn">待確認</span></div></section>
+  <header class="page-heading">
+    <div><p class="eyebrow">社區管理</p><h1>團購管理</h1></div>
+    <span class="page-status">{{ campaigns.filter((item) => item.status === 'open').length }} 檔收單中</span>
+  </header>
+
+  <p v-if="error" class="need-error" role="alert">{{ error }}</p>
+  <p v-if="status === 'unavailable'" class="panel muted" role="status">
+    無法取得團購資料，請確認後端服務是否啟動。
+  </p>
+
+  <div v-else class="grid">
+    <section class="panel span-7" aria-labelledby="campaign-list">
+      <h2 id="campaign-list">目前團購</h2>
+      <p v-if="!campaigns.length" class="muted">還沒有開過團，右側可以建立第一檔。</p>
+
+      <article v-for="campaign in campaigns" :key="campaign.id" class="inquiry-card" :data-campaign-id="campaign.id">
+        <div class="inquiry-head">
+          <div>
+            <strong>{{ campaign.itemName }}</strong>
+            <div class="row-meta">{{ campaign.title }}・{{ currency(campaign.unitPrice) }}／{{ campaign.unit }}</div>
+          </div>
+          <span class="status" :data-status="campaign.status">{{ campaign.statusLabel }}</span>
+        </div>
+
+        <div class="metric-row">
+          <div class="metric"><span>跟團戶數</span><strong>{{ campaign.householdCount }}</strong></div>
+          <div class="metric"><span>總數量</span><strong>{{ campaign.totalQuantity }}</strong></div>
+          <div class="metric"><span>金額</span><strong>{{ currency(campaign.totalAmount) }}</strong></div>
+          <div class="metric"><span>成團門檻</span><strong>{{ campaign.reachedMinimum ? '已達標' : `差 ${campaign.minQuantity - campaign.totalQuantity}` }}</strong></div>
+        </div>
+
+        <ul v-if="campaign.joins.length" class="plain-list" :data-joins-for="campaign.id">
+          <li v-for="join in campaign.joins" :key="join.account_id">
+            <strong>{{ join.display_name }}</strong> {{ join.quantity }} {{ campaign.unit }}
+          </li>
+        </ul>
+        <p v-else class="muted">還沒有住戶跟團。</p>
+
+        <button
+          v-if="campaign.status === 'open'"
+          class="button primary"
+          type="button"
+          :data-testid="`close-${campaign.id}`"
+          :disabled="acting === campaign.id"
+          @click="close(campaign)"
+        >{{ acting === campaign.id ? '結單中…' : '結單並彙總給廠商' }}</button>
+      </article>
+    </section>
+
+    <aside class="panel span-5" aria-labelledby="new-campaign">
+      <h2 id="new-campaign">開一檔新團購</h2>
+      <div class="campaign-form">
+        <label class="field">團購名稱
+          <input v-model="draft.title" type="text" data-testid="campaign-title" placeholder="例如：八月社區團購" />
+        </label>
+        <label class="field">品項
+          <input v-model="draft.item_name" type="text" data-testid="campaign-item" placeholder="例如：愛文芒果 5 斤" />
+        </label>
+        <label class="field">單價
+          <input v-model.number="draft.unit_price" type="number" min="0" data-testid="campaign-price" />
+        </label>
+        <label class="field">成團門檻
+          <input v-model.number="draft.min_quantity" type="number" min="1" data-testid="campaign-min" />
+        </label>
+        <label class="field">取貨方式
+          <input v-model="draft.pickup" type="text" />
+        </label>
+        <button class="button primary full" type="button" data-testid="create-campaign" :disabled="creating" @click="createCampaign">
+          {{ creating ? '建立中…' : '開團' }}
+        </button>
+      </div>
+
+      <div v-if="purchaseOrder" class="quote-box" data-testid="purchase-order">
+        <p class="eyebrow">給廠商的採購單</p>
+        <dl class="summary-list compact">
+          <div><dt>品項</dt><dd>{{ purchaseOrder.itemName }}</dd></div>
+          <div><dt>總數量</dt><dd>{{ purchaseOrder.totalQuantity }}</dd></div>
+          <div><dt>戶數</dt><dd>{{ purchaseOrder.householdCount }}</dd></div>
+          <div><dt>金額</dt><dd><strong>{{ currency(purchaseOrder.totalAmount) }}</strong></dd></div>
+        </dl>
+        <ul class="plain-list">
+          <li v-for="household in purchaseOrder.households" :key="household.name">
+            {{ household.name }} × {{ household.quantity }}
+          </li>
+        </ul>
+      </div>
+    </aside>
   </div>
-  <ConfirmDialog :open="pendingAction !== null" :title="pendingAction === 'assign' ? '確認指派安心清潔' : '確認發送聯合服務需求'" :description="pendingAction === 'assign' ? '將採用 NT$ 27,540 的 18 戶方案，並通知住戶與廠商。' : '將把 AI 草稿中的服務範圍、18 戶需求與截止時間送給合作廠商詢價。'" @cancel="pendingAction = null" @confirm="confirmAction" />
 </template>

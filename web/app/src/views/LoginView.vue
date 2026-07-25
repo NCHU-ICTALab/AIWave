@@ -88,7 +88,7 @@ async function enter(role: Role, accountId: string | null, displayName: string) 
         <p class="muted login-hint">社區管理者與合作廠商使用各自的工作台。</p>
         <div class="staff-options">
           <button
-            v-for="role in (['admin', 'partner'] as Role[])"
+            v-for="role in (['manager', 'partner'] as Role[])"
             :key="role"
             class="button full"
             type="button"

@@ -22,8 +22,9 @@ from core.forms.dto import topic_to_field
 from core.forms.service_catalog import get_service as catalog_service
 from core.forms.service_catalog import get_service_form as catalog_service_form
 from core.forms.service_catalog import list_services as list_catalog_services
+from core.community import GroupBuyError, GroupBuyRepository, SqliteGroupBuyRepository
 from core.inquiries import InquiryRepository, InquiryTransitionError, SqliteInquiryRepository
-from core.services import InsightsService, LifeServicesService
+from core.services import CommunityService, InsightsService, LifeServicesService
 
 DEMO_TODAY = date(2026, 7, 25)
 _CONFIRM_WORDS = {"對", "好", "沒問題", "確認", "確認送出", "送出", "可以", "ok", "yes", "是", "嗯"}
@@ -71,6 +72,22 @@ class CompleteReq(BaseModel):
     note: str | None = None
 
 
+class CreateCampaignReq(BaseModel):
+    title: str
+    item_name: str
+    unit_price: int
+    unit: str = "份"
+    min_quantity: int = 1
+    close_time: str | None = None
+    pickup: str | None = None
+
+
+class JoinCampaignReq(BaseModel):
+    account_id: str
+    display_name: str = "住戶"
+    quantity: int = 1
+
+
 def _progress(session: FormSession) -> dict[str, int]:
     return session.progress()
 
@@ -85,15 +102,17 @@ def _is_confirmation(text: str) -> bool:
 def create_app(
     *,
     repository: InquiryRepository | None = None,
+    group_buys: GroupBuyRepository | None = None,
     llm_factory: Callable[[], LlmClient] = get_llm,
 ) -> FastAPI:
-    inquiry_repository = repository or SqliteInquiryRepository(
-        Path(__file__).resolve().parents[1] / "tmp" / "life_ai_demo.sqlite3",
-        now=lambda: datetime(2026, 7, 25, 0, 0, tzinfo=timezone.utc),
-    )
+    demo_db = Path(__file__).resolve().parents[1] / "tmp" / "life_ai_demo.sqlite3"
+    demo_now = lambda: datetime(2026, 7, 25, 0, 0, tzinfo=timezone.utc)  # noqa: E731
+    inquiry_repository = repository or SqliteInquiryRepository(demo_db, now=demo_now)
+    group_buy_repository = group_buys or SqliteGroupBuyRepository(demo_db, now=demo_now)
     sessions: dict[str, SessionState] = {}
     life_services = LifeServicesService(inquiry_repository, today=DEMO_TODAY)
     insights = InsightsService(today=DEMO_TODAY)
+    community = CommunityService(group_buy_repository)
     life_services_catalog = list_catalog_services
     application = FastAPI(title="智慧生活管家 AI API")
 
@@ -292,6 +311,40 @@ def create_app(
         if record is None:
             raise HTTPException(404, "查無諮詢單")
         return {"data": record}
+
+    # --- 社區團購：住戶與管委會看同一批資料，可做的動作不同 ---
+
+    @application.get("/api/v1/community/campaigns")
+    def list_campaigns(only_open: bool = False) -> dict:
+        return {"data": community.list_open_campaigns() if only_open else community.list_all_campaigns()}
+
+    @application.post("/api/v1/community/campaigns")
+    def create_campaign(req: CreateCampaignReq) -> dict:
+        """【管委會】開團。"""
+        return {"data": community.create_campaign(**req.model_dump())}
+
+    @application.post("/api/v1/community/campaigns/{campaign_id}/join")
+    def join_campaign(campaign_id: int, req: JoinCampaignReq) -> dict:
+        """【住戶】跟團。"""
+        try:
+            return {"data": community.join_campaign(
+                campaign_id, account_id=req.account_id, display_name=req.display_name, quantity=req.quantity,
+            )}
+        except GroupBuyError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/community/campaigns/{campaign_id}/close")
+    def close_campaign(campaign_id: int) -> dict:
+        """【管委會】結單，並產出給廠商的採購彙總。"""
+        try:
+            campaign = community.close_campaign(campaign_id)
+        except GroupBuyError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        return {"data": {"campaign": campaign, "purchaseOrder": community.purchase_order(campaign_id)}}
+
+    @application.get("/api/v1/community/my-participation")
+    def my_participation(account_id: str) -> dict:
+        return {"data": community.my_participation(account_id)}
 
     # --- 諮詢單生命週期：住戶送出 → 廠商報價 → 住戶確認 → 廠商完工 ---
 

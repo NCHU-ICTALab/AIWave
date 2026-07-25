@@ -61,12 +61,12 @@ describe('entry points and identity', () => {
   it('keeps staff workspaces separate from the resident app', async () => {
     const { wrapper, router } = await mountApp('/login', { identity: null })
 
-    await wrapper.get('[data-testid="enter-admin"]').trigger('click')
-    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin'))
+    await wrapper.get('[data-testid="enter-manager"]').trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/community'))
 
     // 管理者不能直接進住戶頁——會被導回自己的工作台
     await router.push('/user/orders')
-    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin'))
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/community'))
   })
 
   it('has no workspace switcher or reset control in the shell', async () => {
