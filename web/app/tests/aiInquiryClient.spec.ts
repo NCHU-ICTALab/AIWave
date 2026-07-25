@@ -9,12 +9,13 @@ describe('AI inquiry API client', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ reply: '第二題', done: false, progress: { answered: 1, total: 7 }, trace: [{ tool: 'extract_form_answer', status: 'completed' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
     const client = createAiInquiryClient({ fetcher })
 
-    const started = await client.start('repair')
+    // 以服務目錄的 service_id 開始，與網頁表單同一份題組定義
+    const started = await client.start('service-aircon')
     const replied = await client.message(started.session_id, '兩台分離式冷氣')
 
     expect(started.session_id).toBe('s1')
     expect(replied.progress.answered).toBe(1)
-    expect(fetcher).toHaveBeenNthCalledWith(1, '/api/chat/start', expect.objectContaining({ method: 'POST', credentials: 'same-origin', body: JSON.stringify({ form_id: 'repair' }) }))
+    expect(fetcher).toHaveBeenNthCalledWith(1, '/api/chat/start', expect.objectContaining({ method: 'POST', credentials: 'same-origin', body: JSON.stringify({ service_id: 'service-aircon' }) }))
     expect(fetcher).toHaveBeenNthCalledWith(2, '/api/chat/message', expect.objectContaining({ body: JSON.stringify({ session_id: 's1', message: '兩台分離式冷氣' }) }))
   })
 

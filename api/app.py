@@ -18,16 +18,14 @@ from agent.form_agent import FormAgent
 from agent.intent_agent import IntentAgent
 from core.clients import LlmClient, get_llm
 from core.forms import Form, FormError, FormSession
-from core.forms.seed_forms import facility_form, group_buy_form, repair_form
+from core.forms.dto import topic_to_field
+from core.forms.service_catalog import get_service as catalog_service
+from core.forms.service_catalog import get_service_form as catalog_service_form
+from core.forms.service_catalog import list_services as list_catalog_services
 from core.inquiries import InquiryRepository, SqliteInquiryRepository
 from core.services import InsightsService, LifeServicesService
 
 DEMO_TODAY = date(2026, 7, 25)
-FORMS: dict[str, tuple[str, Callable[[], Form]]] = {
-    "repair": ("水電修繕諮詢", repair_form),
-    "groupbuy": ("團購跟團（愛文芒果）", lambda: group_buy_form("愛文芒果", 5)),
-    "facility": ("公設預約", facility_form),
-}
 _CONFIRM_WORDS = {"對", "好", "沒問題", "確認", "確認送出", "送出", "可以", "ok", "yes", "是", "嗯"}
 
 
@@ -41,7 +39,9 @@ class SessionState:
 
 
 class StartReq(BaseModel):
-    form_id: str
+    """以服務目錄的 service_id 開啟對話——與網頁表單讀同一份題組定義。"""
+
+    service_id: str
 
 
 class MsgReq(BaseModel):
@@ -80,27 +80,40 @@ def create_app(
     sessions: dict[str, SessionState] = {}
     life_services = LifeServicesService(inquiry_repository, today=DEMO_TODAY)
     insights = InsightsService(today=DEMO_TODAY)
+    life_services_catalog = list_catalog_services
     application = FastAPI(title="智慧生活管家 AI API")
 
     @application.get("/api/forms")
     def list_forms() -> list[dict]:
-        return [{"id": key, "name": name} for key, (name, _) in FORMS.items()]
+        """沿用舊路徑：回傳可對話的服務（即服務目錄）。"""
+        return [{"id": service.id, "name": service.name} for service in life_services_catalog()]
+
+    def _question(state: SessionState, topic) -> dict | None:
+        """把當前題目序列化成可渲染的形式，讓介面能畫成按鈕。"""
+        return None if topic is None else topic_to_field(state.form, topic, today=DEMO_TODAY)
 
     @application.post("/api/chat/start")
     def start(req: StartReq) -> dict:
-        if req.form_id not in FORMS:
-            raise HTTPException(404, "無此題組")
-        name, factory = FORMS[req.form_id]
-        form = factory()
+        service = catalog_service(req.service_id)
+        form = catalog_service_form(req.service_id)
+        if service is None or form is None:
+            raise HTTPException(404, "查無服務")
         session = FormSession(form, today=DEMO_TODAY)
         agent = FormAgent(llm_factory(), today=DEMO_TODAY)
         session_id = uuid4().hex
-        sessions[session_id] = SessionState(form, session, agent)
+        state = SessionState(form, session, agent)
+        sessions[session_id] = state
         first = session.next_topic()
-        reply = f"好的，我幫您處理「{name}」。\n{agent.question_text(first)}" if first else f"好的，我幫您處理「{name}」。"
+        reply = (
+            f"好的，我幫您安排「{service.name}」。\n{agent.question_text(first)}"
+            if first else f"好的，我幫您安排「{service.name}」。"
+        )
         return {
             "session_id": session_id,
+            "service_id": service.id,
+            "service_name": service.name,
             "reply": reply,
+            "question": _question(state, first),
             "done": first is None,
             "awaiting_confirmation": False,
             "progress": _progress(session),
@@ -134,7 +147,7 @@ def create_app(
                     "trace": [{"stage": "write", "tool": "submit_inquiry", "status": "completed", "result_id": record["id"]}],
                 }
             return {
-                "reply": "尚未送出。若內容正確請輸入「確認送出」；需要修改時可回到服務表單調整。",
+                "reply": "還沒送出。內容沒問題的話按「確認送出」，需要修改請告訴我要改哪一項。",
                 "done": False,
                 "awaiting_confirmation": True,
                 "progress": _progress(state.session),
@@ -160,6 +173,7 @@ def create_app(
         if interpretation.action == "unclear":
             return {
                 "reply": f"{interpretation.note}\n{state.agent.question_text(current)}",
+                "question": _question(state, current),
                 "done": False,
                 "awaiting_confirmation": False,
                 "progress": _progress(state.session),
@@ -174,6 +188,7 @@ def create_app(
             trace.append({"stage": "rule", "tool": "validate_form_answer", "status": "rejected", "topic_id": current.id})
             return {
                 "reply": f"{exc}\n{state.agent.question_text(current)}",
+                "question": _question(state, current),
                 "done": False,
                 "awaiting_confirmation": False,
                 "progress": _progress(state.session),
@@ -185,6 +200,7 @@ def create_app(
         if next_topic is not None:
             return {
                 "reply": state.agent.question_text(next_topic),
+                "question": _question(state, next_topic),
                 "done": False,
                 "awaiting_confirmation": False,
                 "extracted": {"topic_id": current.id, "action": interpretation.action, "value": jsonable_encoder(interpretation.value), "note": interpretation.note},

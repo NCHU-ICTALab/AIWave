@@ -77,6 +77,11 @@ def _field_to_dict(form: Form, topic: Topic, today: date) -> dict:
     return field
 
 
+def topic_to_field(form: Form, topic: Topic, *, today: date) -> dict:
+    """單一題目的可渲染表示——讓對話介面能把選項畫成按鈕，而不是要使用者打字。"""
+    return _field_to_dict(form, topic, today)
+
+
 def form_to_dict(form: Form, *, today: date) -> dict:
     """序列化成前端 `ServiceFormDefinition` 的形狀。"""
     return {

@@ -67,23 +67,31 @@ onMounted(load)
 watch(() => session.accountId, load)
 
 const matching = ref(false)
+const needError = ref('')
 
-/** 判讀需求 → 直接進入對應服務；判讀不出就退回目錄，不硬猜（ADR-0016）。 */
+/**
+ * 判讀需求 → 直接開始對話；判讀不出退回目錄，連線失敗則老實說連線失敗
+ * （不要讓使用者以為是自己表達有問題）。
+ */
 async function submitNeed(text: string) {
   const description = text.trim()
   if (!description || matching.value) return
   matching.value = true
+  needError.value = ''
   try {
-    const match = await matchIntent(description)
-    if (match) {
-      await router.push({
-        name: 'services',
-        params: { serviceSlug: match.serviceId.replace('service-', '') },
-        query: { need: description, why: match.reason },
-      })
-    } else {
-      await router.push({ name: 'services', query: { need: description, unmatched: '1' } })
+    const outcome = await matchIntent(description)
+    if (outcome.status === 'error') {
+      needError.value = outcome.message
+      return
     }
+    if (outcome.status === 'matched') {
+      await router.push({
+        name: 'assistant',
+        query: { service: outcome.match.serviceId, need: description },
+      })
+      return
+    }
+    await router.push({ name: 'services', query: { need: description, unmatched: '1' } })
   } finally {
     matching.value = false
   }
@@ -111,6 +119,8 @@ async function submitNeed(text: string) {
         {{ matching ? '判讀中…' : '開始' }}
       </button>
     </form>
+
+    <p v-if="needError" class="need-error" role="alert" data-testid="need-error">{{ needError }}</p>
 
     <div class="need-starters">
       <span class="muted">試試看：</span>

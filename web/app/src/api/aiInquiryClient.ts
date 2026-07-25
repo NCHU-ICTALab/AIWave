@@ -12,9 +12,33 @@ export interface AiOperation {
   status: 'pending_quote'
 }
 
+export interface AiQuestionOption {
+  value: string
+  label: string
+  optionId?: number
+}
+
+/** 當前題目的可渲染形式——讓介面把選項畫成按鈕，使用者不必打字。 */
+export interface AiQuestion {
+  id: string
+  topicId?: number
+  label: string
+  type: number
+  required?: boolean
+  hint?: string
+  options?: AiQuestionOption[]
+  min?: number
+  max?: number
+  minDate?: string
+  maxDate?: string
+}
+
 export interface AiChatResponse {
   session_id?: string
+  service_id?: string
+  service_name?: string
   reply: string
+  question?: AiQuestion | null
   done: boolean
   awaiting_confirmation?: boolean
   progress: { answered: number; total: number }
@@ -64,14 +88,15 @@ export function createAiInquiryClient(options: AiInquiryClientOptions = {}) {
   async function listInquiries(): Promise<PersistedInquiry[]> {
     const fetcher = options.fetcher ?? globalThis.fetch
     const response = await fetcher(`${baseUrl}/v1/inquiries`, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-    if (!response.ok) throw new AiInquiryApiError(response.status, '無法同步後端諮詢單')
+    if (!response.ok) throw new AiInquiryApiError(response.status, '無法同步後端諮詢紀錄')
     const payload = await response.json() as { data: PersistedInquiry[] }
     return payload.data
   }
 
   return {
-    start: async (formId: string) => {
-      const response = await post('/chat/start', { form_id: formId })
+    /** 以服務目錄的 service_id 開始對話——與網頁表單同一份題組定義。 */
+    start: async (serviceId: string) => {
+      const response = await post('/chat/start', { service_id: serviceId })
       if (!response.session_id) throw new AiInquiryApiError(502, 'AI 工作階段回應不完整')
       return response as AiChatResponse & { session_id: string }
     },

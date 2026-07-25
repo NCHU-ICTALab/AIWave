@@ -46,7 +46,7 @@ describe('resident home', () => {
     expect(wrapper.text()).toContain('非語言模型生成')
   })
 
-  it('routes a described need to the matched service', async () => {
+  it('starts the assistant conversation for the matched service', async () => {
     stubCatalogFetch((url) =>
       url.includes('/api/v1/intent/match')
         ? new Response(JSON.stringify({ data: { serviceId: 'service-repair', serviceName: '水電修繕', confidence: 'high', reason: '燈具故障' } }), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -56,8 +56,25 @@ describe('resident home', () => {
 
     await wrapper.get('[data-testid="need-input"]').setValue('浴室的燈不亮了')
     await wrapper.get('[data-testid="need-submit"]').trigger('submit')
-    await vi.waitFor(() => expect(router.currentRoute.value.params.serviceSlug).toBe('repair'))
-    expect(router.currentRoute.value.query.need).toBe('浴室的燈不亮了')
+    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('assistant'))
+    expect(router.currentRoute.value.query.service).toBe('service-repair')
+  })
+
+  it('says the service is unreachable rather than blaming how the user phrased it', async () => {
+    stubCatalogFetch((url) =>
+      url.includes('/api/v1/intent/match')
+        ? new Response('{}', { status: 500 })
+        : undefined,
+    )
+    const { wrapper, router } = await mountApp('/user')
+
+    await wrapper.get('[data-testid="need-input"]').setValue('浴室的燈不亮了')
+    await wrapper.get('[data-testid="need-submit"]').trigger('submit')
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="need-error"]').exists()).toBe(true))
+
+    expect(wrapper.get('[data-testid="need-error"]').text()).toContain('異常')
+    expect(wrapper.text()).not.toContain('我還無法對應')
+    expect(router.currentRoute.value.name).toBe('user-home')   // 不該把人丟去目錄
   })
 
   it('falls back to the catalog when the need cannot be matched', async () => {

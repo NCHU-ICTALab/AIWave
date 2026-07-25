@@ -71,7 +71,19 @@ export interface IntentMatch {
   reason: string
 }
 
-export async function matchIntent(need: string, fetcher: typeof fetch = globalThis.fetch): Promise<IntentMatch | null> {
+/**
+ * 判讀結果必須區分三種情況——把「連線失敗」講成「我聽不懂」是在說謊，
+ * 使用者會以為是自己表達有問題。
+ */
+export type IntentOutcome =
+  | { status: 'matched'; match: IntentMatch }
+  | { status: 'unmatched' }
+  | { status: 'error'; message: string }
+
+export async function matchIntent(
+  need: string,
+  fetcher: typeof fetch = globalThis.fetch,
+): Promise<IntentOutcome> {
   try {
     const response = await fetcher('/api/v1/intent/match', {
       method: 'POST',
@@ -79,10 +91,13 @@ export async function matchIntent(need: string, fetcher: typeof fetch = globalTh
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ need }),
     })
-    if (!response.ok) return null
-    return ((await response.json()) as { data: IntentMatch | null }).data
+    if (!response.ok) {
+      return { status: 'error', message: `服務回應異常（${response.status}）` }
+    }
+    const match = ((await response.json()) as { data: IntentMatch | null }).data
+    return match ? { status: 'matched', match } : { status: 'unmatched' }
   } catch {
-    return null
+    return { status: 'error', message: '無法連線到服務，請確認後端已啟動。' }
   }
 }
 

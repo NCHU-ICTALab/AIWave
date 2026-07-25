@@ -3,7 +3,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { stubCatalogFetch } from './fixtures/catalogClient'
 import { mountApp } from './fixtures/mountApp'
@@ -54,18 +54,23 @@ describe('WCAG AA baseline', () => {
     expect(wrapper.get('.skip-link').attributes('href')).toBe('#main-content')
   })
 
-  it('moves focus into the Copilot dialog, closes on Escape, and returns focus', async () => {
-    const { wrapper } = await mountApp('/user', { attach: true })
-    const opener = wrapper.get('[aria-haspopup="dialog"]')
-    ;(opener.element as HTMLElement).focus()
-    await opener.trigger('click')
+  it('reaches the assistant as a normal page and moves focus to its main landmark', async () => {
+    const { wrapper, router } = await mountApp('/user', { attach: true })
+
+    await wrapper.get('a[href="/user/assistant"]').trigger('click')
+    // 路由採 lazy import
+    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('assistant'))
     await flushPromises()
 
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('關閉生活管家')
-    document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-    await flushPromises()
-    expect(document.querySelector('[aria-labelledby="copilot-title"]')).toBeNull()
-    expect(document.activeElement).toBe(opener.element)
+    // 對話是頁面而非對話框，因此不需要焦點陷阱，只需把焦點交給主要內容
+    expect(document.activeElement?.id).toBe('main-content')
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  it('labels the assistant conversation for screen readers', async () => {
+    const { wrapper } = await mountApp('/user/assistant?service=service-repair')
+    expect(wrapper.get('[aria-label="對話內容"]').attributes('aria-live')).toBe('polite')
+    expect(wrapper.findAll('h1')).toHaveLength(1)
   })
 
   it('announces SPA navigation by moving focus to the main landmark', async () => {

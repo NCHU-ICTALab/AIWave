@@ -25,6 +25,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/ServicesView.vue'),
     meta: { role: 'user' },
   },
+  { path: '/user/assistant', name: 'assistant', component: () => import('@/views/AssistantView.vue'), meta: { role: 'user' } },
   { path: '/user/orders', name: 'orders', component: () => import('@/views/OrdersView.vue'), meta: { role: 'user' } },
 
   // 社區管理者／合作廠商

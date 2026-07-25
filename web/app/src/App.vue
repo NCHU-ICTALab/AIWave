@@ -2,12 +2,9 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import CopilotDrawer from '@/components/CopilotDrawer.vue'
-import type { AiOperation } from '@/api/aiInquiryClient'
 import { useDemoStore } from '@/stores/demo'
 import { ROLE_LABEL, useSessionStore } from '@/stores/session'
 
-const copilotOpen = ref(false)
 const mainContent = ref<HTMLElement | null>(null)
 const router = useRouter()
 const route = useRoute()
@@ -30,10 +27,6 @@ async function signOut() {
   session.signOut()
   store.resetDemo()
   await router.push('/login')
-}
-
-function handleAiOperation(operation: AiOperation) {
-  if (operation.type === 'inquiry.created') store.recordAiInquiry(operation.id)
 }
 
 watch(() => route.fullPath, async () => {
@@ -65,13 +58,9 @@ watch(() => route.fullPath, async () => {
             {{ session.identity?.displayName }}
             <span class="muted">・{{ session.role ? ROLE_LABEL[session.role] : '' }}</span>
           </span>
-          <button
-            v-if="session.role === 'user'"
-            class="button primary"
-            type="button"
-            aria-haspopup="dialog"
-            @click="copilotOpen = true"
-          >問生活管家</button>
+          <RouterLink v-if="session.role === 'user'" class="button primary" to="/user/assistant">
+            問生活管家
+          </RouterLink>
           <button class="button" type="button" data-testid="sign-out" @click="signOut">登出</button>
         </div>
       </div>
@@ -80,7 +69,5 @@ watch(() => route.fullPath, async () => {
     <main id="main-content" ref="mainContent" tabindex="-1">
       <RouterView />
     </main>
-
-    <CopilotDrawer :open="copilotOpen" @close="copilotOpen = false" @inquiry-created="handleAiOperation" />
   </template>
 </template>
