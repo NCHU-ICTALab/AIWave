@@ -270,7 +270,7 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .need-error { margin: 0 0 .9rem; padding: .75rem 1rem; border: 2px solid var(--danger); border-radius: var(--radius-sm); background: var(--danger-soft); color: var(--danger); }
 
 /* 生活管家：獨立的全頁工作區；對話列撐滿可用高度，composer 固定留在卡片底部。 */
-.assistant { display: flex; flex-direction: column; gap: 1rem; width: min(100%, 1040px); min-height: calc(100dvh - 8rem); margin: auto; }
+.assistant { display: flex; height: calc(100dvh - 8rem); min-height: 32rem; flex-direction: column; gap: 1rem; width: min(100%, 1040px); margin: auto; }
 .assistant-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; }
 /* flex 子元素的 min-width 預設是 auto，中文長句不會斷行就會被裁掉左半——
    規劃模式的標題是 LLM 產生的整句話，長度不可控，一定要允許縮到 0 再換行。 */
@@ -282,7 +282,7 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .progress-bar { width: 120px; height: 12px; margin-top: .35rem; border: 2px solid var(--ink); border-radius: 999px; background: var(--line); overflow: hidden; }
 .progress-bar span { display: block; height: 100%; border-radius: 999px; background: var(--cta); transition: width .25s ease; }
 .assistant-body { display: flex; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; border: var(--border-chunky) solid var(--ink); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
-.assistant .message-list { display: grid; flex: 1; min-height: 18rem; align-content: start; gap: 1rem; max-height: none; overflow-y: auto; overscroll-behavior: contain; padding: clamp(1rem, 3vw, 2rem); scroll-padding-bottom: 1rem; }
+.assistant .message-list { display: grid; flex: 1 1 0; min-height: 0; align-content: start; gap: 1rem; max-height: none; overflow-y: auto; overscroll-behavior: contain; padding: clamp(1rem, 3vw, 2rem); scroll-padding-bottom: 1rem; scrollbar-gutter: stable; }
 /* 訊息的角色 class 前綴 from-：早先直接用 role 當 class，「assistant」正好撞到
    上方的頁面容器 .assistant，讓每顆管家泡泡都繼承了 min-height: calc(100vh - 9rem)，
    泡泡下方因此空出一大片，內容被擠到看不見的地方。 */
@@ -304,7 +304,7 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .choice-button:hover:not(:disabled) { background: var(--mint); transform: translate(1px, 1px); box-shadow: 2px 2px 0 var(--ink); }
 .choice-button:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
 .choice-button:disabled { opacity: .5; }
-.assistant-composer { display: grid; gap: var(--space-3); padding: 1rem 1.25rem 1.25rem; border-top: 2px solid var(--ink); background: var(--surface); }
+.assistant-composer { display: grid; flex: 0 0 auto; gap: var(--space-3); padding: 1rem 1.25rem 1.25rem; border-top: 2px solid var(--ink); background: var(--surface); }
 .assistant-form { display: flex; gap: .5rem; align-items: flex-end; padding: .4rem; border: 2px solid var(--ink); border-radius: 18px; background: var(--surface-2); box-shadow: 3px 3px 0 var(--ink); }
 .assistant-form:focus-within { outline: 3px solid var(--ink); outline-offset: 2px; }
 .assistant-form textarea { flex: 1; min-height: 48px; max-height: 160px; padding: .7rem .75rem; border: 0; border-radius: 12px; background: transparent; font: inherit; resize: none; overflow-y: hidden; }
@@ -455,7 +455,7 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 }
 @media (max-width: 650px) {
   /* 手機不做內捲區——巢狀捲動會跟主捲軸打架；由整頁自然捲動 */
-  .assistant { min-height: calc(100dvh - 10rem); }
+  .assistant { height: calc(100dvh - 10rem); min-height: 30rem; }
   .assistant .message-list { max-height: none; padding: 1rem; }
   .assistant .message { max-width: 90%; }
   .choice-button { width: 100%; }
