@@ -19,19 +19,28 @@ URGENCY_NORMAL = 1080    # 一般，可安排時段
 
 
 class ScriptedLlm:
-    """只在外部 LLM 邊界做測試替身。"""
+    """只在外部 LLM 邊界做測試替身。
 
-    def __init__(self) -> None:
-        self._responses = iter([
-            {"action": "answer", "value": {"option_id": REPAIR_LIGHTING, "quantity": None}, "note": "辨識為燈具問題"},
-            {"action": "answer", "value": {"option_id": URGENCY_NORMAL, "quantity": None}, "note": "可安排時段"},
-        ])
+    **依題目回答，而不是依呼叫順序。** 服務是無狀態的（見 `core.sessions`），
+    每次請求都會建立新的 LLM 客戶端；照順序播放的腳本會在每次請求重頭開始，
+    測到的其實是「同一行程內連續呼叫」這個不該依賴的假設。
+    真實的 LLM 也是看到什麼題目就答什麼，與是第幾次呼叫無關。
+    """
+
+    ANSWERS = {
+        "修繕項目": {"action": "answer", "value": {"option_id": REPAIR_LIGHTING, "quantity": None}, "note": "辨識為燈具問題"},
+        "緊急程度": {"action": "answer", "value": {"option_id": URGENCY_NORMAL, "quantity": None}, "note": "可安排時段"},
+    }
 
     def chat(self, messages: list[dict[str, str]], *, temperature: float = 0.0, max_tokens: int = 512) -> str:
         raise AssertionError("FormAgent should request structured JSON")
 
     def json(self, messages: list[dict[str, str]], *, temperature: float = 0.0, max_tokens: int = 512) -> object:
-        return next(self._responses)
+        prompt = " ".join(message.get("content", "") for message in messages)
+        for title, answer in self.ANSWERS.items():
+            if f"題目：{title}" in prompt:
+                return answer
+        return {"action": "unclear", "value": None, "note": f"沒有為這題準備答案：{prompt[:60]}"}
 
 
 def test_real_ai_flow_requires_confirmation_then_persists_inquiry(tmp_path: Path) -> None:

@@ -11,12 +11,13 @@ describe('AI inquiry API client', () => {
 
     // 以服務目錄的 service_id 開始，與網頁表單同一份題組定義
     const started = await client.start('service-aircon')
-    const replied = await client.message(started.session_id, '兩台分離式冷氣')
+    const replied = await client.message(started.session_id, '兩台分離式冷氣', 'A001')
 
     expect(started.session_id).toBe('s1')
     expect(replied.progress.answered).toBe(1)
     expect(fetcher).toHaveBeenNthCalledWith(1, '/api/chat/start', expect.objectContaining({ method: 'POST', credentials: 'same-origin', body: JSON.stringify({ service_id: 'service-aircon' }) }))
-    expect(fetcher).toHaveBeenNthCalledWith(2, '/api/chat/message', expect.objectContaining({ body: JSON.stringify({ session_id: 's1', message: '兩台分離式冷氣' }) }))
+    // 帶上帳號，否則送出的諮詢單不屬於任何人，住戶在「我的委託」看不到自己的單
+    expect(fetcher).toHaveBeenNthCalledWith(2, '/api/chat/message', expect.objectContaining({ body: JSON.stringify({ session_id: 's1', message: '兩台分離式冷氣', account_id: 'A001' }) }))
   })
 
   it('throws a safe typed error instead of reporting AI success on HTTP failure', async () => {

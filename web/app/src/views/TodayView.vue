@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 
 import {
   createInsightsClient,
-  matchIntent,
   type BehaviorSummary,
   type Recommendation,
 } from '@/api/insightsClient'

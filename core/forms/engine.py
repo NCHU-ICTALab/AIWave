@@ -58,6 +58,24 @@ class FormSession:
             return {s.option_id for s in value}
         return set()
 
+    @property
+    def skipped_ids(self) -> set[int]:
+        """已略過的題目。
+
+        跨請求重建工作階段時要一併還原（見 `core.sessions`）——只還原答案的話，
+        使用者略過的題目會被重新問一次。
+        """
+        return set(self._skipped)
+
+    def mark_skipped(self, topic_id: int) -> None:
+        """還原略過紀錄，不重跑 `skip()` 的驗證。
+
+        與 `skip()` 的差別：`skip()` 是使用者當下的動作，必須擋下「略過必填題」；
+        這裡處理的是**已經發生過**的略過，重播時題目可見性可能因為後續答案而改變，
+        再驗一次只會製造假錯誤。
+        """
+        self._skipped.add(topic_id)
+
     def is_visible(self, topic: Topic) -> bool:
         """跳題判斷：無 skip_logic 一律顯示；有則依賴題答案須命中。"""
         sl = topic.skip_logic

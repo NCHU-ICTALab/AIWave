@@ -178,7 +178,7 @@ async function send(text: string) {
   error.value = ''
   void scrollToEnd()
   try {
-    applyResponse(await client.message(sessionId.value, content))
+    applyResponse(await client.message(sessionId.value, content, session.accountId))
   } catch (reason) {
     error.value = describeFailure(reason)
   } finally {

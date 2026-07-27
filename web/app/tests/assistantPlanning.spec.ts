@@ -182,7 +182,7 @@ describe('assistant planning', () => {
     }))
     const { wrapper } = await mountApp('/user/assistant?need=' + encodeURIComponent('幫我跟團兩份'))
 
-    expect(wrapper.get('[data-testid="plan-approve"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="plan-approve"]').exists()).toBe(true)
     expect(posted.some((call) => call.url.includes('/execute'))).toBe(false)
   })
 

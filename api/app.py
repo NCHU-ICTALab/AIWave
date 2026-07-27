@@ -26,6 +26,7 @@ from core.forms.service_catalog import list_services as list_catalog_services
 from core.community import GroupBuyError, GroupBuyRepository, SqliteGroupBuyRepository
 from core.inquiries import InquiryRepository, InquiryTransitionError, SqliteInquiryRepository
 from core.services import CommunityService, InsightsService, LifeServicesService
+from core.sessions import ConversationState, InMemorySessionStore, SessionStore
 from core.tools.catalog import build_registry
 from core.tools.registry import ToolContext
 
@@ -34,12 +35,17 @@ _CONFIRM_WORDS = {"對", "好", "沒問題", "確認", "確認送出", "送出",
 
 
 @dataclass
-class SessionState:
+class LiveSession:
+    """由 `ConversationState` 重建出來的請求內物件。
+
+    只在單一請求存活；狀態一律回寫 `SessionStore`（[ADR-0018]）。
+    `FormAgent` 無狀態、`FormSession` 可由既有答案重建，所以不需要跨請求保存物件。
+    """
+
+    state: ConversationState
     form: Form
     session: FormSession
     agent: FormAgent
-    awaiting_confirm: bool = False
-    submitted_id: str | None = None
 
 
 class StartReq(BaseModel):
@@ -51,6 +57,8 @@ class StartReq(BaseModel):
 class MsgReq(BaseModel):
     session_id: str
     message: str
+    #: 送出諮詢單時要記錄是誰的委託（住戶只能看到自己的單）
+    account_id: str | None = None
 
 
 class QuoteReq(BaseModel):
@@ -122,13 +130,14 @@ def create_app(
     *,
     repository: InquiryRepository | None = None,
     group_buys: GroupBuyRepository | None = None,
+    sessions: SessionStore | None = None,
     llm_factory: Callable[[], LlmClient] = get_llm,
 ) -> FastAPI:
     demo_db = Path(__file__).resolve().parents[1] / "tmp" / "life_ai_demo.sqlite3"
     demo_now = lambda: datetime(2026, 7, 25, 0, 0, tzinfo=timezone.utc)  # noqa: E731
     inquiry_repository = repository or SqliteInquiryRepository(demo_db, now=demo_now)
     group_buy_repository = group_buys or SqliteGroupBuyRepository(demo_db, now=demo_now)
-    sessions: dict[str, SessionState] = {}
+    session_store: SessionStore = sessions or InMemorySessionStore()
     life_services = LifeServicesService(inquiry_repository, today=DEMO_TODAY)
     insights = InsightsService(today=DEMO_TODAY)
     community = CommunityService(group_buy_repository)
@@ -142,9 +151,30 @@ def create_app(
         """沿用舊路徑：回傳可對話的服務（即服務目錄）。"""
         return [{"id": service.id, "name": service.name} for service in life_services_catalog()]
 
-    def _question(state: SessionState, topic) -> dict | None:
+    def _question(live: LiveSession, topic) -> dict | None:
         """把當前題目序列化成可渲染的形式，讓介面能畫成按鈕。"""
-        return None if topic is None else topic_to_field(state.form, topic, today=DEMO_TODAY)
+        return None if topic is None else topic_to_field(live.form, topic, today=DEMO_TODAY)
+
+    def _revive(state: ConversationState) -> LiveSession:
+        """由儲存的狀態重建這次請求要用的物件。"""
+        form = catalog_service_form(state.service_id)
+        if form is None:
+            raise HTTPException(404, "查無服務")
+        session = FormSession(form, today=DEMO_TODAY, known=dict(state.answers))
+        for topic_id in state.skipped:
+            # 略過紀錄要一併還原，否則重建後又會問一次已經略過的題目
+            session.mark_skipped(topic_id)
+        return LiveSession(state=state, form=form, session=session, agent=FormAgent(llm_factory(), today=DEMO_TODAY))
+
+    def _persist(live: LiveSession) -> None:
+        """把狀態寫回儲存層。
+
+        刻意**不**存 `session.answers`——那裡放的是驗證後的 `Selection` 物件，
+        序列化不了。狀態保存的是使用者/AI 提供的原始答案，重建時重新走一次
+        `submit_answer` 驗證。這樣規則永遠是權威，也不會有「存進去的值繞過了驗證」。
+        """
+        live.state.skipped = sorted(live.session.skipped_ids)
+        session_store.save(live.state)
 
     @application.post("/api/chat/start")
     def start(req: StartReq) -> dict:
@@ -152,11 +182,11 @@ def create_app(
         form = catalog_service_form(req.service_id)
         if service is None or form is None:
             raise HTTPException(404, "查無服務")
-        session = FormSession(form, today=DEMO_TODAY)
-        agent = FormAgent(llm_factory(), today=DEMO_TODAY)
         session_id = uuid4().hex
-        state = SessionState(form, session, agent)
-        sessions[session_id] = state
+        state = ConversationState(session_id=session_id, service_id=req.service_id)
+        live = _revive(state)
+        session, agent = live.session, live.agent
+        _persist(live)
         first = session.next_topic()
         reply = (
             f"好的，我幫您安排「{service.name}」。\n{agent.question_text(first)}"
@@ -167,7 +197,7 @@ def create_app(
             "service_id": service.id,
             "service_name": service.name,
             "reply": reply,
-            "question": _question(state, first),
+            "question": _question(live, first),
             "done": first is None,
             "awaiting_confirmation": False,
             "progress": _progress(session),
@@ -176,104 +206,122 @@ def create_app(
 
     @application.post("/api/chat/message")
     def message(req: MsgReq) -> dict:
-        state = sessions.get(req.session_id)
-        if state is None:
+        stored = session_store.get(req.session_id)
+        if stored is None:
             raise HTTPException(404, "工作階段不存在，請重新開始")
+        live = _revive(stored)
+        state = live.state
         text = req.message.strip()
 
         if state.submitted_id:
             record = life_services.get_inquiry(state.submitted_id)
             assert record is not None
             operation = {"type": "inquiry.created", "id": record["id"], "status": record["status"]}
-            return {"reply": "諮詢單已建立。", "done": True, "operation": operation, "progress": _progress(state.session), "trace": []}
+            return {"reply": "諮詢單已建立。", "done": True, "operation": operation, "progress": _progress(live.session), "trace": []}
 
         if state.awaiting_confirm:
             if _is_confirmation(text):
                 record = life_services.submit_inquiry(
-                    form_id=state.form.id,
-                    feedback_content=state.session.to_feedback_content(),
-                    service_id=state.form.service_id,
+                    form_id=live.form.id,
+                    feedback_content=live.session.to_feedback_content(),
+                    service_id=live.form.service_id,
+                    account_id=req.account_id,
                 )
                 state.submitted_id = record["id"]
+                _persist(live)
                 operation = {"type": "inquiry.created", "id": record["id"], "status": record["status"]}
                 return {
                     "reply": f"已建立諮詢單 {record['id']}，合作夥伴稍後會回覆報價。",
                     "done": True,
                     "awaiting_confirmation": False,
                     "operation": operation,
-                    "progress": _progress(state.session),
+                    "progress": _progress(live.session),
                     "trace": [{"stage": "write", "tool": "submit_inquiry", "status": "completed", "result_id": record["id"]}],
                 }
             return {
                 "reply": "還沒送出。內容沒問題的話按「確認送出」，需要修改請告訴我要改哪一項。",
                 "done": False,
                 "awaiting_confirmation": True,
-                "progress": _progress(state.session),
+                "progress": _progress(live.session),
                 "trace": [{"stage": "guard", "tool": "require_confirmation", "status": "waiting"}],
             }
 
-        current = state.session.next_topic()
+        current = live.session.next_topic()
         if current is None:
             state.awaiting_confirm = True
+            _persist(live)
             return {
-                "reply": state.agent.summary_text(state.session.to_feedback_content()),
+                "reply": live.agent.summary_text(live.session.to_feedback_content()),
                 "done": False,
                 "awaiting_confirmation": True,
-                "progress": _progress(state.session),
+                "progress": _progress(live.session),
                 "trace": [{"stage": "guard", "tool": "require_confirmation", "status": "waiting"}],
             }
 
-        interpretation = state.agent.interpret(current, text)
+        interpretation = live.agent.interpret(current, text)
         trace: list[dict[str, Any]] = [{
             "stage": "ai", "tool": "extract_form_answer", "status": "completed" if interpretation.action != "unclear" else "needs_retry",
             "topic_id": current.id,
         }]
         if interpretation.action == "unclear":
             return {
-                "reply": f"{interpretation.note}\n{state.agent.question_text(current)}",
-                "question": _question(state, current),
+                "reply": f"{interpretation.note}\n{live.agent.question_text(current)}",
+                "question": _question(live, current),
                 "done": False,
                 "awaiting_confirmation": False,
-                "progress": _progress(state.session),
+                "progress": _progress(live.session),
                 "trace": trace,
             }
         try:
             if interpretation.action == "skip":
-                state.session.skip(current.id)
+                live.session.skip(current.id)
             else:
-                state.session.submit_answer(current.id, interpretation.value)
+                live.session.submit_answer(current.id, interpretation.value)
+                # 通過驗證才記錄；記的是原始值，重建時會再驗一次
+                state.answers[current.id] = jsonable_encoder(interpretation.value)
         except FormError as exc:
             trace.append({"stage": "rule", "tool": "validate_form_answer", "status": "rejected", "topic_id": current.id})
             return {
-                "reply": f"{exc}\n{state.agent.question_text(current)}",
-                "question": _question(state, current),
+                "reply": f"{exc}\n{live.agent.question_text(current)}",
+                "question": _question(live, current),
                 "done": False,
                 "awaiting_confirmation": False,
-                "progress": _progress(state.session),
+                "progress": _progress(live.session),
                 "trace": trace,
             }
 
         trace.append({"stage": "rule", "tool": "validate_form_answer", "status": "completed", "topic_id": current.id})
-        next_topic = state.session.next_topic()
+        next_topic = live.session.next_topic()
         if next_topic is not None:
+            _persist(live)
             return {
-                "reply": state.agent.question_text(next_topic),
-                "question": _question(state, next_topic),
+                "reply": live.agent.question_text(next_topic),
+                "question": _question(live, next_topic),
                 "done": False,
                 "awaiting_confirmation": False,
                 "extracted": {"topic_id": current.id, "action": interpretation.action, "value": jsonable_encoder(interpretation.value), "note": interpretation.note},
-                "progress": _progress(state.session),
+                "progress": _progress(live.session),
                 "trace": trace,
             }
         state.awaiting_confirm = True
+        _persist(live)
         return {
-            "reply": state.agent.summary_text(state.session.to_feedback_content()),
+            "reply": live.agent.summary_text(live.session.to_feedback_content()),
             "done": False,
             "awaiting_confirmation": True,
             "extracted": {"topic_id": current.id, "action": interpretation.action, "value": jsonable_encoder(interpretation.value), "note": interpretation.note},
-            "progress": _progress(state.session),
+            "progress": _progress(live.session),
             "trace": trace + [{"stage": "guard", "tool": "require_confirmation", "status": "waiting"}],
         }
+
+    @application.get("/healthz")
+    def healthz() -> dict:
+        """負載平衡器的健康檢查端點。
+
+        只回報「這個執行單元活著」，不去戳資料庫或 LLM——健康檢查若依賴外部服務，
+        一次下游抖動就會讓 ALB 把好好的實例整批換掉。
+        """
+        return {"status": "ok"}
 
     @application.get("/api/v1/services")
     def list_services() -> dict:

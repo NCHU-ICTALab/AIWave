@@ -1,0 +1,11 @@
+.venv/
+tmp/
+web/app/node_modules/
+web/app/dist/
+web/app/tmp/
+tests/
+docs/
+.git/
+.env
+**/__pycache__/
+*.sqlite3

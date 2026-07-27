@@ -100,7 +100,12 @@ export function createAiInquiryClient(options: AiInquiryClientOptions = {}) {
       if (!response.session_id) throw new AiInquiryApiError(502, 'AI 工作階段回應不完整')
       return response as AiChatResponse & { session_id: string }
     },
-    message: (sessionId: string, message: string) => post('/chat/message', { session_id: sessionId, message }),
+    /**
+     * `accountId` 是委託的歸屬。不帶的話送出的諮詢單不屬於任何人，
+     * 住戶就在「我的委託」裡看不到自己剛送出的單。
+     */
+    message: (sessionId: string, message: string, accountId?: string | null) =>
+      post('/chat/message', { session_id: sessionId, message, account_id: accountId ?? null }),
     listInquiries,
   }
 }

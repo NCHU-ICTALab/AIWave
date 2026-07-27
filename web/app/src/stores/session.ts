@@ -66,6 +66,8 @@ export const useSessionStore = defineStore('session', () => {
   const role = computed(() => identity.value?.role ?? null)
   /** 住戶資料的查詢鍵；新使用者沒有帳號，因此不會有任何紀錄。 */
   const accountId = computed(() => identity.value?.accountId ?? null)
+  /** 寫入類操作（跟團、開團）要記錄是誰做的，未登入時退回角色名稱。 */
+  const displayName = computed(() => identity.value?.displayName ?? ROLE_LABEL[identity.value?.role ?? 'user'])
   const isNewUser = computed(() => identity.value?.role === 'user' && identity.value.accountId === null)
 
   function signIn(next: Identity) {
@@ -78,5 +80,5 @@ export const useSessionStore = defineStore('session', () => {
     persist(null)
   }
 
-  return { identity, isSignedIn, role, accountId, isNewUser, signIn, signOut }
+  return { identity, isSignedIn, role, accountId, displayName, isNewUser, signIn, signOut }
 })
