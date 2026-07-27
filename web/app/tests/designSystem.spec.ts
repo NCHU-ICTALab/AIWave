@@ -97,6 +97,13 @@ describe('WCAG 2.2 AA', () => {
     expect(block).toContain('animation-duration')
   })
 
+  it('keeps the focus target clear of the sticky header', () => {
+    // 換頁時焦點移到 #main-content，瀏覽器捲動它——沒有 scroll-margin-top 的話
+    // 標題會被壓在吸頂導覽底下，鍵盤使用者第一眼看到的是被切掉的內容。
+    expect(css).toMatch(/\.topbar\s*\{[^}]*position:\s*sticky/)
+    expect(css).toMatch(/#main-content[^{]*\{[^}]*scroll-margin-top/)
+  })
+
   it('shows disabled controls as non-interactive', () => {
     expect(css).toMatch(/button:disabled\s*\{[^}]*opacity/)
     expect(css).toMatch(/button:disabled\s*\{[^}]*cursor:\s*default/)

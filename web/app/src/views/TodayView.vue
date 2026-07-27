@@ -70,8 +70,14 @@ const matching = ref(false)
 const needError = ref('')
 
 /**
- * 判讀需求 → 直接開始對話；判讀不出退回目錄，連線失敗則老實說連線失敗
- * （不要讓使用者以為是自己表達有問題）。
+ * 需求交給**規劃器**處理，而不是單一意圖比對（ADR-0017）。
+ *
+ * 差別在使用者說「冷氣不冷，順便看看團購」時：意圖比對只會挑到一項服務、
+ * 默默丟掉後半句；規劃器會把兩件事都排進計畫。像「我上次什麼時候叫過清潔」
+ * 這種問題也不必被硬塞進某張表單才能得到答案。
+ *
+ * 這裡不做判讀，直接把話帶到生活管家頁——判讀結果與依據要在那裡攤開給使用者看，
+ * 而不是在首頁默默決定完就跳走。
  */
 async function submitNeed(text: string) {
   const description = text.trim()
@@ -79,19 +85,7 @@ async function submitNeed(text: string) {
   matching.value = true
   needError.value = ''
   try {
-    const outcome = await matchIntent(description)
-    if (outcome.status === 'error') {
-      needError.value = outcome.message
-      return
-    }
-    if (outcome.status === 'matched') {
-      await router.push({
-        name: 'assistant',
-        query: { service: outcome.match.serviceId, need: description },
-      })
-      return
-    }
-    await router.push({ name: 'services', query: { need: description, unmatched: '1' } })
+    await router.push({ name: 'assistant', query: { need: description } })
   } finally {
     matching.value = false
   }

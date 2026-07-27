@@ -37,6 +37,8 @@ from core.tools.catalog import build_registry
 from core.tools.registry import ToolContext, ToolRegistry
 
 SERVER_NAME = "smart-living-butler"
+#: 外部 Agent 在握手時看到的版本。不指定的話會顯示 MCP SDK 的版本，那不是我們的東西。
+SERVER_VERSION = "0.1.0"
 
 
 def build_default_registry(*, today: date | None = None) -> ToolRegistry:
@@ -63,7 +65,7 @@ def create_server(registry: ToolRegistry | None = None, context: ToolContext | N
     """組出 MCP server；參數可注入，方便測試不碰真實資料庫。"""
     resolved_registry = registry or build_default_registry()
     resolved_context = context or context_from_env()
-    server: Server = Server(SERVER_NAME)
+    server: Server = Server(SERVER_NAME, version=SERVER_VERSION)
 
     @server.list_tools()
     async def list_tools() -> list[McpTool]:

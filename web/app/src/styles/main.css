@@ -86,6 +86,11 @@ h3 { margin-bottom: .4rem; }
 .visually-hidden, .skip-link { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .skip-link:focus { z-index: 100; top: .5rem; left: .5rem; width: auto; height: auto; clip: auto; padding: .6rem .9rem; border-radius: .5rem; background: var(--ink); color: #fff; }
 .topbar { position: sticky; z-index: 20; top: 0; border-bottom: 1px solid var(--line); background: rgb(255 255 255 / 95%); backdrop-filter: blur(16px); }
+/* 換頁時焦點會移到 #main-content，瀏覽器把它捲進視野——若不留出吸頂導覽的高度，
+   標題第一行會被壓在導覽底下（實測 390px：導覽 0–112px，h1 落在 83px）。
+   窄螢幕的導覽會換行變高，所以行動版留得多一些。 */
+#main-content, [id]:target { scroll-margin-top: 8rem; }
+@media (min-width: 1051px) { #main-content, [id]:target { scroll-margin-top: 5rem; } }
 .topbar-main { display: flex; align-items: center; gap: 1rem; width: min(100% - 2rem, 1500px); margin: auto; padding: .65rem 0; }
 /* min-width 會在窄螢幕把品牌名擠成多行（實測 390px 折成四行），改由 flex 自然收縮 */
 .wordmark { display: flex; align-items: center; gap: var(--space-2); min-width: 0; color: var(--ink); font-weight: 800; text-decoration: none; white-space: nowrap; }
@@ -195,7 +200,10 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 /* 生活管家：獨立頁面，不再是塞不下的小抽屜 */
 .assistant { display: flex; flex-direction: column; gap: 1rem; width: min(100%, 780px); margin: auto; min-height: calc(100vh - 9rem); }
 .assistant-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; }
-.assistant-head h1 { margin: .2rem 0 0; font-size: clamp(1.35rem, 3vw, 1.8rem); }
+/* flex 子元素的 min-width 預設是 auto，中文長句不會斷行就會被裁掉左半——
+   規劃模式的標題是 LLM 產生的整句話，長度不可控，一定要允許縮到 0 再換行。 */
+.assistant-head > * { min-width: 0; }
+.assistant-head h1 { margin: .2rem 0 0; font-size: clamp(1.35rem, 3vw, 1.8rem); overflow-wrap: anywhere; }
 .assistant-progress { text-align: right; }
 .assistant-progress strong { font-family: var(--font-mono); }
 .progress-bar { width: 120px; height: 6px; margin-top: .35rem; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
@@ -219,6 +227,64 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .assistant-done strong { display: block; margin: .2rem 0 .4rem; font-family: var(--font-mono); font-size: 1.15rem; }
 .assistant-trace { border-top: 1px solid var(--line); padding-top: .8rem; }
 .assistant-trace summary { cursor: pointer; color: var(--muted); font-size: .82rem; }
+
+/* 規劃結果：把系統做了什麼攤開給使用者看（ADR-0017）
+   min-width: 0 是必要的——grid/flex 子元素預設 min-width:auto，
+   中文長詞不會斷行，會把容器撐爆版面（先前 390px 斷點的實測災情）。 */
+/* 規劃模式的內容不需要 .assistant-body 那層 panel：步驟卡片自己就有邊框，
+   套在一起會是雙層框，而且 flex:1 會把空的容器撐到整個視窗高。 */
+.assistant-plan { display: grid; gap: var(--space-4); }
+.assistant-echo { margin: var(--space-2) 0 0; font-size: var(--text-sm); }
+.plan-steps { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+.plan-step { min-width: 0; padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.plan-step.failed { border-color: var(--danger); background: var(--danger-soft); }
+.plan-step.needs_confirmation { border-color: var(--accent); background: var(--accent-soft); }
+.plan-step-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: var(--space-3); }
+.plan-step-head > * { min-width: 0; }
+.plan-step-head h3 { margin: 0; font-size: var(--text-base); }
+.plan-step-head p { margin: var(--space-1) 0 0; font-size: var(--text-sm); }
+.plan-step-mark { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--surface-2); font-weight: 800; }
+.plan-step.done .plan-step-mark { background: var(--success-soft); color: var(--success); }
+.plan-step.failed .plan-step-mark { background: var(--danger-soft); color: var(--danger); }
+/* 狀態不倚賴顏色傳達——文字本身就讀得出來（WCAG 1.4.1） */
+.plan-step-status { font-size: var(--text-xs); font-weight: 800; color: var(--muted); white-space: nowrap; }
+.plan-step-status[data-status="done"] { color: var(--success); }
+.plan-step-status[data-status="failed"] { color: var(--danger); }
+.plan-step-error { margin: var(--space-3) 0 0; font-size: var(--text-sm); color: var(--danger); }
+.plan-step-confirm, .plan-step-cta { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--line); }
+.plan-step-confirm p, .plan-step-cta p { margin: 0 0 var(--space-3); font-size: var(--text-sm); color: var(--muted); }
+.plan-step .plain-list { margin-top: var(--space-3); }
+
+/* 廠商比較（FR-S-04）：不是一個結論，是一張可改選的比較表 */
+.vendor-compare { margin-top: var(--space-3); }
+.vendor-criteria { margin: 0 0 var(--space-3); font-size: var(--text-sm); }
+.vendor-list { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.vendor-card { min-width: 0; padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-2); }
+.vendor-card.recommended { border-color: var(--primary); background: var(--primary-soft); }
+.vendor-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
+.vendor-head > * { min-width: 0; }
+.vendor-name { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.vendor-name h4 { margin: 0; font-size: var(--text-base); }
+.vendor-price { margin: 0; text-align: right; }
+.vendor-price strong { display: block; font-family: var(--font-mono); font-size: var(--text-lg); }
+.vendor-price span { font-size: var(--text-xs); }
+.vendor-intro { margin: var(--space-2) 0 0; font-size: var(--text-sm); }
+.vendor-rating { display: flex; align-items: center; gap: var(--space-1); margin: var(--space-2) 0 0; font-size: var(--text-sm); }
+.vendor-reasons { display: grid; gap: var(--space-1); margin: var(--space-3) 0 0; padding: 0; list-style: none; font-size: var(--text-sm); }
+.vendor-reasons li { display: grid; grid-template-columns: 1.1rem minmax(0, 1fr); gap: var(--space-1); }
+.vendor-reasons li span { color: var(--success); font-weight: 800; }
+.vendor-reasons .concern { color: var(--danger); }
+.vendor-reasons .concern span { color: var(--danger); }
+.vendor-slots { margin: var(--space-3) 0; font-size: var(--text-sm); }
+.vendor-card .button { width: 100%; }
+.badge { display: inline-flex; align-items: center; padding: 0 var(--space-2); border-radius: 999px; font-size: var(--text-xs); font-weight: 800; }
+.badge.primary { background: var(--primary); color: #fff; }
+
+@media (min-width: 720px) {
+  .vendor-list { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+  .vendor-card { display: flex; flex-direction: column; }
+  .vendor-card .button { margin-top: auto; }
+}
 
 /* 諮詢單卡片與報價（住戶訂單頁與廠商工作台共用） */
 .inquiry-card { padding: 1rem; border: 1px solid var(--line); border-radius: 16px; margin-bottom: .8rem; }

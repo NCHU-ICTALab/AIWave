@@ -21,6 +21,9 @@ const PAGES = [
   { name: '01-login', path: '/login', identity: null },
   { name: '02-home', path: '/user', identity: 'resident' },
   { name: '03-assistant', path: '/user/assistant?service=service-repair', identity: 'resident' },
+  // 規劃模式：走真的 LLM，所以這兩頁也順帶驗證規劃器在瀏覽器裡真的跑得通
+  { name: '03b-plan-match', path: `/user/assistant?need=${encodeURIComponent('浴室水管漏水，很急，台北市大同區，預算兩千以內')}`, identity: 'resident' },
+  { name: '03c-plan-multi', path: `/user/assistant?need=${encodeURIComponent('冷氣不冷想找人洗，順便看看社區這個月有什麼團購')}`, identity: 'resident' },
   { name: '04-services', path: '/user/services/aircon', identity: 'resident' },
   { name: '05-orders', path: '/user/orders', identity: 'resident' },
   { name: '06-community', path: '/user/community', identity: 'resident' },
@@ -69,6 +72,20 @@ for (const vp of VIEWPORTS) {
       .slice(0, 6)
       .map((el) => { const r = el.getBoundingClientRect(); return `${el.tagName.toLowerCase()}"${(el.textContent || '').trim().slice(0, 12)}" ${Math.round(r.width)}x${Math.round(r.height)}` }))
     if (smallTargets.length) problems.push(`[${vp.name}] ${target.name} 觸控過小：${smallTargets.join(' / ')}`)
+
+    // 吸頂導覽壓住標題——橫向溢出檢查抓不到這個，但使用者第一眼就會看到被切掉的標題
+    const covered = await page.evaluate(() => {
+      const bar = [...document.querySelectorAll('body *')]
+        .find((el) => ['sticky', 'fixed'].includes(getComputedStyle(el).position) && el.getBoundingClientRect().top <= 0)
+      const heading = document.querySelector('main h1')
+      if (!bar || !heading) return null
+      const barBottom = bar.getBoundingClientRect().bottom
+      const top = heading.getBoundingClientRect().top
+      return top < barBottom ? { top: Math.round(top), barBottom: Math.round(barBottom) } : null
+    })
+    if (covered) {
+      problems.push(`[${vp.name}] ${target.name} 標題被吸頂導覽蓋住（h1 top ${covered.top} < 導覽底 ${covered.barBottom}）`)
+    }
 
     if (consoleErrors.length) problems.push(`[${vp.name}] ${target.name} console error：${consoleErrors[0].slice(0, 100)}`)
 

@@ -18,7 +18,7 @@ from core.inquiries import SqliteInquiryRepository
 from core.services import LifeServicesService
 from core.tools.catalog import build_registry
 from core.tools.registry import ToolContext
-from mcp_server.server import SERVER_NAME, create_server
+from mcp_server.server import SERVER_NAME, SERVER_VERSION, create_server
 
 TODAY = date(2026, 7, 27)
 
@@ -141,5 +141,8 @@ async def test_an_unauthenticated_server_still_serves_public_tools(registry):
     assert "需要先登入" in personal["error"]
 
 
-def test_server_is_named_for_the_product(registry):
-    assert create_server(registry, ToolContext()).name == SERVER_NAME
+def test_server_identifies_itself_as_this_product_not_the_sdk(registry):
+    """握手時外部 Agent 看到的名稱與版本必須是我們的，不是 MCP SDK 的。"""
+    server = create_server(registry, ToolContext())
+    assert server.name == SERVER_NAME
+    assert server.version == SERVER_VERSION

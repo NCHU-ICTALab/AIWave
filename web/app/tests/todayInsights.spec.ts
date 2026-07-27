@@ -46,49 +46,34 @@ describe('resident home', () => {
     expect(wrapper.text()).toContain('非語言模型生成')
   })
 
-  it('starts the assistant conversation for the matched service', async () => {
-    stubCatalogFetch((url) =>
-      url.includes('/api/v1/intent/match')
-        ? new Response(JSON.stringify({ data: { serviceId: 'service-repair', serviceName: '水電修繕', confidence: 'high', reason: '燈具故障' } }), { status: 200, headers: { 'Content-Type': 'application/json' } })
-        : undefined,
-    )
+  /**
+   * 需求交給規劃器（ADR-0017），首頁不再自己做意圖判讀。
+   *
+   * 原因：意圖比對只挑得出一項服務，「冷氣不冷，順便看團購」的後半句會被默默丟掉；
+   * 而且判讀依據應該攤開給使用者看，不該在首頁默默決定完就跳走。
+   * 判讀失敗與無法對應的處理都移到生活管家頁，見 assistantPlanning.spec.ts。
+   */
+  it('hands the need to the assistant instead of deciding the service on the home page', async () => {
     const { wrapper, router } = await mountApp('/user')
 
-    await wrapper.get('[data-testid="need-input"]').setValue('浴室的燈不亮了')
+    await wrapper.get('[data-testid="need-input"]').setValue('冷氣不冷，順便看看社區團購')
     await wrapper.get('[data-testid="need-submit"]').trigger('submit')
     await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('assistant'))
-    expect(router.currentRoute.value.query.service).toBe('service-repair')
+
+    expect(router.currentRoute.value.query.need).toBe('冷氣不冷，順便看看社區團購')
+    // 首頁不預先決定服務——那是規劃器的工作，而且可能不只一項
+    expect(router.currentRoute.value.query.service).toBeUndefined()
   })
 
-  it('says the service is unreachable rather than blaming how the user phrased it', async () => {
-    stubCatalogFetch((url) =>
-      url.includes('/api/v1/intent/match')
-        ? new Response('{}', { status: 500 })
-        : undefined,
-    )
+  it('carries a starter through the same path as a typed need', async () => {
     const { wrapper, router } = await mountApp('/user')
 
-    await wrapper.get('[data-testid="need-input"]').setValue('浴室的燈不亮了')
-    await wrapper.get('[data-testid="need-submit"]').trigger('submit')
-    await vi.waitFor(() => expect(wrapper.find('[data-testid="need-error"]').exists()).toBe(true))
+    const starter = wrapper.findAll('[data-testid="need-starter"]')[0]!
+    const label = starter.text()
+    await starter.trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('assistant'))
 
-    expect(wrapper.get('[data-testid="need-error"]').text()).toContain('異常')
-    expect(wrapper.text()).not.toContain('我還無法對應')
-    expect(router.currentRoute.value.name).toBe('user-home')   // 不該把人丟去目錄
-  })
-
-  it('falls back to the catalog when the need cannot be matched', async () => {
-    stubCatalogFetch((url) =>
-      url.includes('/api/v1/intent/match')
-        ? new Response(JSON.stringify({ data: null }), { status: 200, headers: { 'Content-Type': 'application/json' } })
-        : undefined,
-    )
-    const { wrapper, router } = await mountApp('/user')
-
-    await wrapper.get('[data-testid="need-input"]').setValue('幫我養一隻貓')
-    await wrapper.get('[data-testid="need-submit"]').trigger('submit')
-    await vi.waitFor(() => expect(router.currentRoute.value.query.unmatched).toBe('1'))
-    expect(wrapper.get('[data-testid="need-unmatched"]').text()).toContain('幫我養一隻貓')
+    expect(router.currentRoute.value.query.need).toBe(label)
   })
 
   it('degrades to a status message instead of crashing on a malformed payload', async () => {
