@@ -113,10 +113,30 @@ interface InsightsClientOptions {
   baseUrl?: string
 }
 
+/**
+ * 今日摘要的一則。
+ *
+ * `source` 與 `evidence` 一定有值——每一則都指得出對應的真實事物
+ * （諮詢單編號、團購活動、官方訂單）。`computedBy: 'rules'` 表示非 LLM 生成。
+ */
+export interface BriefingItem {
+  id: string
+  kind: 'needs_your_decision' | 'closing_soon' | 'in_progress' | 'waiting_on_vendor' | 'suggestion'
+  title: string
+  detail: string
+  actionLabel: string | null
+  actionRoute: string | null
+  source: string
+  score: number
+  evidence: Array<Record<string, unknown>>
+  computedBy: string
+}
+
 export interface InsightsClient {
   summary(accountId?: string): Promise<BehaviorSummary>
   recommendations(accountId?: string, limit?: number): Promise<Recommendation[]>
   trail(accountId?: string): Promise<TrailEvent[]>
+  today(accountId: string, limit?: number): Promise<BriefingItem[]>
 }
 
 export function createInsightsClient(options: InsightsClientOptions = {}): InsightsClient {
@@ -138,5 +158,6 @@ export function createInsightsClient(options: InsightsClientOptions = {}): Insig
     recommendations: (accountId = 'me', limit = 3) =>
       request<Recommendation[]>(`/insights/${accountId}/recommendations?limit=${limit}`),
     trail: (accountId = 'me') => request<TrailEvent[]>(`/insights/${accountId}/trail`),
+    today: (accountId: string, limit = 5) => request<BriefingItem[]>(`/today/${accountId}?limit=${limit}`),
   }
 }

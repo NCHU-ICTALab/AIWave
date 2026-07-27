@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.forms import service_catalog  # noqa: E402
 from core.forms.dto import form_to_dict, service_to_dict  # noqa: E402
+from core.insights.today import build_briefing  # noqa: E402
 from core.services import InsightsService  # noqa: E402
 
 # 與 api.app.DEMO_TODAY 一致，日期題的絕對範圍才對得上
@@ -27,7 +28,7 @@ HEADER = """/**
  * 重新產生：`uv run python tools/dump_catalog_fixture.py`
  * 來源：core/forms/service_catalog.py + core/forms/dto.py（展示基準日 2026-07-25）
  */
-import type { BehaviorSummary, Recommendation, TrailEvent } from '@/api/insightsClient'
+import type { BehaviorSummary, BriefingItem, Recommendation, TrailEvent } from '@/api/insightsClient'
 import type { CatalogService } from '@/api/serviceCatalogClient'
 import type { ServiceFormDefinition } from '@/domain/serviceIntake'
 
@@ -43,6 +44,13 @@ def main() -> None:
         forms[service["id"]] = form_to_dict(form, today=DEMO_TODAY)
 
     insights = InsightsService(today=DEMO_TODAY)
+    # 今日摘要用展示帳號的真實推薦算出來；沒有諮詢單／團購時只會有 suggestion 類
+    briefing = build_briefing(
+        account_id=insights.summary()["accountId"],
+        inquiries=[],
+        campaigns=[],
+        today=DEMO_TODAY,
+    )
     body = (
         "export const catalogServices: CatalogService[] = "
         + json.dumps(services, ensure_ascii=False, indent=2)
@@ -58,6 +66,9 @@ def main() -> None:
         + "\nexport const insightTrail: TrailEvent[] = "
         + json.dumps(insights.trail(), ensure_ascii=False, indent=2)
         + " as unknown as TrailEvent[]\n"
+        + "\nexport const todayBriefing: BriefingItem[] = "
+        + json.dumps([item.to_dict() for item in briefing], ensure_ascii=False, indent=2)
+        + " as unknown as BriefingItem[]\n"
         + "\nexport const insightAccounts = "
         + json.dumps(insights.accounts(), ensure_ascii=False, indent=2)
         + "\n"

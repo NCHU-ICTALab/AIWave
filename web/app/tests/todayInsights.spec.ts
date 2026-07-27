@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { insightRecommendations, insightSummary } from './fixtures/catalog.generated'
+import { insightRecommendations, insightSummary, todayBriefing } from './fixtures/catalog.generated'
 import { stubCatalogFetch } from './fixtures/catalogClient'
 import { mountApp, NEW_USER } from './fixtures/mountApp'
 
@@ -15,6 +15,25 @@ describe('resident home', () => {
     expect(wrapper.get('h1').text()).toBe('今天需要什麼？')
     expect(wrapper.find('[data-testid="need-input"]').exists()).toBe(true)
     expect(wrapper.findAll('[data-testid="need-starter"]').length).toBeGreaterThan(0)
+  })
+
+  /**
+   * 首頁要先回答「我現在該做什麼」（spec 08 產品原則第一條）。
+   * 摘要由規則從真實待辦算出，每一則都指得出來源——這條測試守住的是後者。
+   */
+  it('answers “what should I do now” with items that point at something real', async () => {
+    const { wrapper } = await mountApp('/user')
+
+    const items = wrapper.findAll('[data-testid="briefing-item"]')
+    expect(items.length).toBeGreaterThan(0)
+    expect(wrapper.get('[data-testid="today-briefing"]').text()).toContain(todayBriefing[0]!.title)
+    expect(wrapper.text()).toContain('非語言模型生成')
+  })
+
+  it('shows nothing to do rather than filler for a brand-new user', async () => {
+    const { wrapper } = await mountApp('/user', { identity: NEW_USER })
+
+    expect(wrapper.find('[data-testid="today-briefing"]').exists()).toBe(false)
   })
 
   it('teaches a brand-new user what happens next instead of showing empty panels', async () => {
@@ -33,17 +52,43 @@ describe('resident home', () => {
     expect(wrapper.get('[data-testid="metric-open"]').text()).toBe(String(insightSummary.openOrders))
   })
 
-  it('renders the top rule-computed recommendation with its evidence', async () => {
+  /**
+   * 推薦已併入今日摘要——先前它自成一個「值得先處理」面板，
+   * 導致同一則建議在畫面上出現兩次（實際開瀏覽器才看到）。
+   * 併入後可解釋性不能打折：每一則仍要攤得出證據。
+   */
+  it('shows the evidence behind each briefing item', async () => {
     const { wrapper } = await mountApp('/user')
-    const top = insightRecommendations[0]!
+    const withEvidence = todayBriefing.find((item) => item.evidence.length > 0)!
 
-    expect(wrapper.get('[data-testid="recommendation-title"]').text()).toBe(top.title)
-    expect(wrapper.text()).toContain(top.reasonText)
+    await wrapper.get(`[data-testid="today-briefing"] .reason-details summary`).trigger('click')
+    const evidence = wrapper.get(`[data-testid="briefing-evidence-${withEvidence.id}"]`).text()
 
-    await wrapper.get('.reason-details summary').trigger('click')
-    const evidence = wrapper.get('[data-testid="recommendation-evidence"]').text()
-    expect(evidence).toContain(top.evidence[0]!.serviceName)
+    expect(evidence.length).toBeGreaterThan(0)
     expect(wrapper.text()).toContain('非語言模型生成')
+  })
+
+  it('does not repeat the same recommendation in a second panel', async () => {
+    const { wrapper } = await mountApp('/user')
+    const title = insightRecommendations[0]!.title
+
+    const occurrences = wrapper.text().split(title).length - 1
+    expect(occurrences).toBe(1)
+  })
+
+  it('lets the user mute a suggestion but not a real to-do', async () => {
+    const { wrapper } = await mountApp('/user')
+
+    // 待辦不是偏好問題，不該提供「不感興趣」
+    const dismissable = wrapper.findAll('[data-testid="briefing-dismiss"]')
+    const suggestions = todayBriefing.filter((item) => item.kind === 'suggestion')
+    expect(dismissable).toHaveLength(suggestions.length)
+
+    if (dismissable.length) {
+      await dismissable[0]!.trigger('click')
+      expect(wrapper.find('[data-testid="briefing-dismissed"]').exists()).toBe(true)
+      expect(wrapper.findAll('[data-testid="briefing-dismiss"]')).toHaveLength(0)
+    }
   })
 
   /**

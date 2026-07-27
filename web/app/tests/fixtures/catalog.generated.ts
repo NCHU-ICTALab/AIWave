@@ -4,7 +4,7 @@
  * 重新產生：`uv run python tools/dump_catalog_fixture.py`
  * 來源：core/forms/service_catalog.py + core/forms/dto.py（展示基準日 2026-07-25）
  */
-import type { BehaviorSummary, Recommendation, TrailEvent } from '@/api/insightsClient'
+import type { BehaviorSummary, BriefingItem, Recommendation, TrailEvent } from '@/api/insightsClient'
 import type { CatalogService } from '@/api/serviceCatalogClient'
 import type { ServiceFormDefinition } from '@/domain/serviceIntake'
 
@@ -979,6 +979,49 @@ export const insightTrail: TrailEvent[] = [
     "outcome": "cancelled"
   }
 ] as unknown as TrailEvent[]
+
+export const todayBriefing: BriefingItem[] = [
+  {
+    "id": "rec-resume-1878",
+    "kind": "suggestion",
+    "title": "接續處理水電修繕",
+    "detail": "你有一筆水電修繕尚未完成（訂單 26052200000612）。",
+    "actionLabel": "安排服務",
+    "actionRoute": "/user/services/repair",
+    "source": "resume-1878",
+    "score": 20,
+    "evidence": [
+      {
+        "recordId": 1878,
+        "orderNo": "26052200000612",
+        "serviceName": "水電修繕",
+        "occurredOn": "2026-06-02",
+        "detail": "官方訂單狀態 11"
+      }
+    ],
+    "computedBy": "rules"
+  },
+  {
+    "id": "rec-revisit-service-shopping",
+    "kind": "suggestion",
+    "title": "該安排商城購物了",
+    "detail": "上次商城購物是 2026-06-16，距今 39 天。",
+    "actionLabel": "安排服務",
+    "actionRoute": "/user/services/shopping",
+    "source": "revisit-service-shopping",
+    "score": 20,
+    "evidence": [
+      {
+        "recordId": 2003,
+        "orderNo": "PIC20260616000001",
+        "serviceName": "商城購物",
+        "occurredOn": "2026-06-16",
+        "detail": "共使用 7 次"
+      }
+    ],
+    "computedBy": "rules"
+  }
+] as unknown as BriefingItem[]
 
 export const insightAccounts = [
   {

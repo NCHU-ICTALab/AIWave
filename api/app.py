@@ -25,6 +25,7 @@ from core.forms.service_catalog import get_service_form as catalog_service_form
 from core.forms.service_catalog import list_services as list_catalog_services
 from core.community import GroupBuyError, GroupBuyRepository, SqliteGroupBuyRepository
 from core.inquiries import InquiryRepository, InquiryTransitionError, SqliteInquiryRepository
+from core.insights.today import build_briefing
 from core.services import CommunityService, InsightsService, LifeServicesService
 from core.sessions import ConversationState, InMemorySessionStore, SessionStore
 from core.tools.catalog import build_registry
@@ -439,6 +440,19 @@ def create_app(
     def insight_recommendations(account_id: str, limit: int = 3) -> dict:
         """可解釋推薦：規則產生，每則附官方訂單證據。"""
         return {"data": insights.recommendations(account_id, limit=limit)}
+
+    @application.get("/api/v1/today/{account_id}")
+    def today_briefing(account_id: str, limit: int = 5) -> dict:
+        """今日摘要：由真實待辦與行為軌跡彙整，規則產生（非 LLM 生成）。"""
+        resolved = None if account_id in ("", "none", "null") else account_id
+        items = build_briefing(
+            account_id=resolved,
+            inquiries=life_services.list_inquiries(),
+            campaigns=community.list_open_campaigns(),
+            today=DEMO_TODAY,
+            limit=limit,
+        )
+        return {"data": [item.to_dict() for item in items]}
 
     @application.get("/api/v1/inquiries")
     def list_inquiries() -> dict:

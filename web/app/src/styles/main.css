@@ -231,6 +231,22 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 /* 規劃結果：把系統做了什麼攤開給使用者看（ADR-0017）
    min-width: 0 是必要的——grid/flex 子元素預設 min-width:auto，
    中文長詞不會斷行，會把容器撐爆版面（先前 390px 斷點的實測災情）。 */
+/* 今日摘要：先回答「我現在該做什麼」 */
+.briefing-list { display: grid; gap: var(--space-3); margin: var(--space-3) 0 0; padding: 0; list-style: none; }
+.briefing-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); min-width: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-2); }
+.briefing-item > * { min-width: 0; }
+.briefing-item.needs_your_decision { border-color: var(--accent); background: var(--accent-soft); }
+.briefing-body { flex: 1 1 14rem; }
+.briefing-body strong { display: block; margin-top: var(--space-1); }
+.briefing-body p { margin: var(--space-1) 0 0; font-size: var(--text-sm); }
+.briefing-tag { display: inline-flex; align-items: center; padding: 0 var(--space-2); border-radius: 999px; background: var(--surface); font-size: var(--text-xs); font-weight: 800; color: var(--muted); }
+.briefing-tag[data-kind="needs_your_decision"] { background: var(--accent); color: #fff; }
+.briefing-tag[data-kind="closing_soon"] { background: var(--danger); color: #fff; }
+.briefing-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); flex: 0 0 auto; }
+/* 摘要裡的證據是次要資訊，收合時不該是一條整寬灰底橫幅搶走注意力 */
+.briefing-body .reason-details { display: inline-block; max-width: 100%; margin-top: var(--space-2); padding: var(--space-1) var(--space-3); background: transparent; font-size: var(--text-sm); }
+.briefing-body .reason-details[open] { display: block; background: var(--surface); }
+
 /* 規劃模式的內容不需要 .assistant-body 那層 panel：步驟卡片自己就有邊框，
    套在一起會是雙層框，而且 flex:1 會把空的容器撐到整個視窗高。 */
 .assistant-plan { display: grid; gap: var(--space-4); }

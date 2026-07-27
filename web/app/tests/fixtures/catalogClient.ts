@@ -10,6 +10,7 @@ import {
   insightRecommendations,
   insightSummary,
   insightTrail,
+  todayBriefing,
 } from './catalog.generated'
 
 /**
@@ -95,6 +96,11 @@ export function stubCatalogFetch(extra?: (url: string, init?: RequestInit) => Re
     // 廠商工作台預設為空；需要內容的測試自行以 extra 覆寫
     if (url.endsWith('/api/v1/vendor/workload')) {
       return json({ data: { pendingQuote: [], awaitingResident: [], scheduled: [] } })
+    }
+
+    // 今日摘要（首頁「我現在該做什麼」）
+    if (url.includes('/api/v1/today/')) {
+      return json({ data: url.includes('/today/none') ? [] : todayBriefing })
     }
 
     // 個人洞察（今日生活中心的數字與推薦）
