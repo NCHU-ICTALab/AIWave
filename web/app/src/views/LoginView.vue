@@ -52,13 +52,39 @@ async function enter(role: Role, accountId: string | null, displayName: string) 
 
 <template>
   <main id="main-content" class="login-page" tabindex="-1">
-    <section class="login-intro">
-      <p class="eyebrow">AI 生活服務平台</p>
-      <h1>說一句話，生活的事就有人接手</h1>
-      <p class="login-lede">
-        描述你的需求，平台會判讀該用哪項服務、引導你填好必要資訊，並媒合能服務你的合作夥伴。
-      </p>
-    </section>
+    <div class="login-hero">
+      <section class="login-intro">
+        <p class="eyebrow">AI 生活服務平台</p>
+        <h1>說一句話，<br />生活的事就有人接手</h1>
+        <p class="login-lede">
+          描述你的需求，平台會判讀該用哪項服務、引導你填好必要資訊，並媒合能服務你的合作夥伴。
+        </p>
+        <ul class="login-trust" aria-label="平台特色">
+          <li>先確認再送出</li>
+          <li>進度隨時可追蹤</li>
+          <li>推薦理由看得懂</li>
+        </ul>
+      </section>
+
+      <aside class="panel login-preview" aria-labelledby="login-preview-title">
+        <p class="eyebrow">HOW IT WORKS</p>
+        <h2 id="login-preview-title">從需求到完成，三步就好</h2>
+        <ol class="login-preview-list">
+          <li>
+            <span aria-hidden="true">1</span>
+            <div><strong>說出需求</strong><small>日常說法就可以，不必先找服務分類。</small></div>
+          </li>
+          <li>
+            <span aria-hidden="true">2</span>
+            <div><strong>確認方案</strong><small>價格、廠商與必要資料都會先讓你看過。</small></div>
+          </li>
+          <li>
+            <span aria-hidden="true">3</span>
+            <div><strong>追蹤進度</strong><small>從送出到完成，每一步都有清楚紀錄。</small></div>
+          </li>
+        </ol>
+      </aside>
+    </div>
 
     <div class="login-panels">
       <section class="panel login-card" aria-labelledby="resident-entry">

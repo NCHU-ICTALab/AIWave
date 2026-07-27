@@ -39,11 +39,13 @@ const KIND_LABELS: Record<BriefingItem['kind'], string> = {
   suggestion: '建議',
 }
 
-/** 說「不感興趣」之後只收起建議；真正的待辦不是偏好問題，不該被關掉。 */
+/** 說「不感興趣」只收起被點的那一則；真正的待辦不受影響。 */
 const visibleBriefing = computed(() =>
-  store.recommendationDismissed
-    ? briefing.value.filter((item) => item.kind !== 'suggestion')
-    : briefing.value,
+  briefing.value.filter((item) => !store.dismissedRecommendationIds.includes(item.id)),
+)
+
+const lastDismissedRecommendation = computed(() =>
+  briefing.value.find((item) => item.id === store.lastDismissedRecommendationId) ?? null,
 )
 
 /**
@@ -211,14 +213,15 @@ async function submitNeed(text: string) {
             class="text-button"
             type="button"
             data-testid="briefing-dismiss"
-            @click="store.dismissRecommendation"
+            :aria-label="`不顯示「${item.title}」這則建議`"
+            @click="store.dismissRecommendation(item.id)"
           >不感興趣</button>
         </div>
       </li>
     </ul>
-    <p v-if="store.recommendationDismissed" class="muted" role="status" data-testid="briefing-dismissed">
-      已調整你的偏好，之後會減少這類建議；這不會永久封鎖相關服務。
-      <button class="text-button" type="button" @click="store.undoDismissRecommendation">復原</button>
+    <p v-if="lastDismissedRecommendation" class="recommendation-feedback" role="status" data-testid="briefing-dismissed">
+      已收起「{{ lastDismissedRecommendation.title }}」，其他建議不受影響。
+      <button class="text-button" type="button" @click="store.undoDismissRecommendation(lastDismissedRecommendation.id)">復原</button>
     </p>
     <p class="muted source-note">依你的委託、社區活動與使用紀錄以規則整理，非語言模型生成。</p>
   </section>

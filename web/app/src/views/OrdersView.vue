@@ -91,14 +91,24 @@ onMounted(load)
     <section class="panel span-8" aria-labelledby="active-orders">
       <h2 id="active-orders">進行中</h2>
 
-      <article v-for="inquiry in inquiries" :key="inquiry.id" class="inquiry-card" :data-inquiry-id="inquiry.id">
-        <div class="inquiry-head">
-          <div>
+      <details
+        v-for="(inquiry, index) in inquiries"
+        :key="inquiry.id"
+        class="inquiry-card order-disclosure"
+        :data-inquiry-id="inquiry.id"
+        data-testid="order-disclosure"
+        :open="index === 0"
+      >
+        <summary class="inquiry-head order-summary">
+          <span class="order-summary-copy">
             <strong>{{ lines(inquiry)[0]?.value || '服務委託' }}</strong>
-            <div class="row-meta">{{ inquiry.id }}</div>
-          </div>
+            <span class="row-meta">{{ inquiry.id }}</span>
+          </span>
           <span class="status" :data-status="inquiry.status">{{ inquiry.status_label }}</span>
-        </div>
+          <span class="disclosure-mark" aria-hidden="true"></span>
+        </summary>
+
+        <div class="order-disclosure-body">
 
         <dl v-if="lines(inquiry).length" class="summary-list compact">
           <div v-for="line in lines(inquiry)" :key="line.label">
@@ -208,7 +218,8 @@ onMounted(load)
             <span v-if="event.detail" class="muted">・{{ event.detail }}</span>
           </li>
         </ol>
-      </article>
+        </div>
+      </details>
 
       <article v-for="order in store.orders" :key="order.id" class="order-row">
         <div><strong>{{ order.service.name }}</strong><div class="row-meta">{{ order.id }} · {{ order.service.partner }}</div></div>

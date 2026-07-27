@@ -64,6 +64,8 @@ describe('WCAG 2.2 AA', () => {
       ['muted', 'surface', '次要文字於卡片'],
       ['muted', 'bg', '次要文字於頁面背景'],
       ['surface', 'primary', '主要按鈕文字'],
+      ['ink', 'cta', '主要按鈕文字'],
+      ['ink', 'cta-dark', '主要按鈕 hover 文字'],
       ['danger', 'danger-soft', '錯誤訊息'],
       ['success', 'success-soft', '成功狀態'],
     ]

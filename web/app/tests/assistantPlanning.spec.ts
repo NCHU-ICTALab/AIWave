@@ -222,6 +222,28 @@ describe('assistant planning', () => {
     expect(router.currentRoute.value.query.service).toBe('service-aircon')
   })
 
+  it('turns a service catalog result into actions instead of a dead list', async () => {
+    stubPlanner(plan({
+      understanding: '找人打掃環境',
+      steps: [{
+        tool: 'list_services', arguments: {}, why: '確認打掃對應的服務', writes: false, status: 'done', error: null,
+        result: [
+          { id: 'service-cleaning', name: '專業清潔', summary: '居家空間重點清潔' },
+          { id: 'service-housework', name: '計時家事', summary: '小時計時家事協助' },
+        ],
+      }],
+    }))
+    const { wrapper, router } = await mountApp('/user/assistant?need=' + encodeURIComponent('想找人來打掃'))
+
+    const actions = wrapper.findAll('[data-testid="plan-service-action"]')
+    expect(actions).toHaveLength(2)
+    expect(actions[0]!.text()).toContain('專業清潔')
+
+    await actions[0]!.trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.service).toBe('service-cleaning')
+  })
+
   // ---- 誠實 ----
 
   it('explains that it cannot help and offers the catalog, without pretending', async () => {

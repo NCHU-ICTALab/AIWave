@@ -52,4 +52,30 @@ describe('resident order flow', () => {
     expect(wrapper.text()).toContain('OP-0725-001')
     expect(wrapper.text()).toContain('已成立')
   })
+
+  it('presents orders as accessible disclosure cards instead of one long wall', async () => {
+    const inquiries = [
+      {
+        id: 'INQ-001', status: 'quoted', status_label: '等待你確認',
+        summary: [{ label: '服務', value: '居家清潔' }], events: [],
+        quote: { vendorName: '安心清潔', amount: 1200, items: [{ name: '基本清潔', amount: 1200 }] },
+      },
+      {
+        id: 'INQ-002', status: 'pending_quote', status_label: '等待報價',
+        summary: [{ label: '服務', value: '冷氣清洗' }], events: [], quote: null,
+      },
+    ]
+    stubCatalogFetch((url) => (url.endsWith('/api/v1/inquiries')
+      ? new Response(JSON.stringify({ data: inquiries }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      : undefined))
+    const { wrapper } = await mountApp('/user/orders')
+
+    const cards = wrapper.findAll('[data-testid="order-disclosure"]')
+    expect(cards).toHaveLength(2)
+    expect(cards[0]!.element.tagName).toBe('DETAILS')
+    expect(cards[0]!.attributes('open')).toBeDefined()
+    expect(cards[1]!.attributes('open')).toBeUndefined()
+    expect(cards[0]!.get('summary').text()).toContain('居家清潔')
+    expect(cards[0]!.get('summary').text()).toContain('等待你確認')
+  })
 })

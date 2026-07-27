@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -11,7 +12,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from agent.form_agent import FormAgent
@@ -215,8 +216,7 @@ def create_app(
             "trace": [{"stage": "tool", "tool": "get_service_form", "status": "completed"}],
         }
 
-    @application.post("/api/chat/message")
-    def message(req: MsgReq) -> dict:
+    def _message_payload(req: MsgReq) -> dict:
         stored = session_store.get(req.session_id)
         if stored is None:
             raise HTTPException(404, "工作階段不存在，請重新開始")
@@ -324,6 +324,36 @@ def create_app(
             "progress": _progress(live.session),
             "trace": trace + [{"stage": "guard", "tool": "require_confirmation", "status": "waiting"}],
         }
+
+    @application.post("/api/chat/message")
+    def message(req: MsgReq) -> dict:
+        """非串流相容端點；LINE／既有 client 仍可一次取得完整結果。"""
+        return _message_payload(req)
+
+    @application.post("/api/chat/message/stream")
+    def message_stream(req: MsgReq) -> StreamingResponse:
+        """以 NDJSON 回報安全的處理階段、文字增量與最終結構化狀態。"""
+        if session_store.get(req.session_id) is None:
+            raise HTTPException(404, "工作階段不存在，請重新開始")
+
+        def encode(event: dict[str, Any]) -> str:
+            return json.dumps(jsonable_encoder(event), ensure_ascii=False) + "\n"
+
+        def events():
+            # 第一個 event 在進入同步 LLM 判讀前送出，避免畫面長時間沒有回應。
+            yield encode({"type": "status", "label": "正在理解你的回答"})
+            payload = _message_payload(req)
+            yield encode({"type": "status", "label": "正在整理回覆"})
+            reply = str(payload.get("reply") or "")
+            for offset in range(0, len(reply), 8):
+                yield encode({"type": "delta", "text": reply[offset : offset + 8]})
+            yield encode({"type": "complete", "data": payload})
+
+        return StreamingResponse(
+            events(),
+            media_type="application/x-ndjson",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     @application.get("/healthz")
     def healthz() -> dict:

@@ -21,7 +21,13 @@ const session = useSessionStore()
 const client = createAiInquiryClient()
 const assistant = createAssistantClient()
 
-const messages = ref<Array<{ role: 'assistant' | 'user'; text: string }>>([])
+interface ChatMessage {
+  role: 'assistant' | 'user'
+  text: string
+  streaming?: boolean
+}
+
+const messages = ref<ChatMessage[]>([])
 const question = ref<AiQuestion | null>(null)
 const trace = ref<AiTraceStep[]>([])
 const progress = ref({ answered: 0, total: 0 })
@@ -32,6 +38,7 @@ const sessionId = ref('')
 const prompt = ref('')
 const loading = ref(false)
 const error = ref('')
+const activityLabel = ref('')
 const messageList = ref<HTMLElement | null>(null)
 const input = ref<HTMLTextAreaElement | null>(null)
 
@@ -140,8 +147,8 @@ function applyResponse(response: {
   trace: AiTraceStep[]
   awaiting_confirmation?: boolean
   operation?: AiOperation
-}) {
-  messages.value.push({ role: 'assistant', text: response.reply })
+}, appendReply = true) {
+  if (appendReply) messages.value.push({ role: 'assistant', text: response.reply })
   question.value = response.question ?? null
   progress.value = response.progress
   trace.value = response.trace
@@ -173,18 +180,56 @@ async function send(text: string) {
   const content = text.trim()
   if (!content || !sessionId.value || loading.value) return
   messages.value.push({ role: 'user', text: content })
+  messages.value.push({ role: 'assistant', text: '', streaming: true })
+  const replyIndex = messages.value.length - 1
   prompt.value = ''
+  void nextTick(resizeInput)
   loading.value = true
   error.value = ''
+  activityLabel.value = '正在連線到生活管家'
   void scrollToEnd()
   try {
-    applyResponse(await client.message(sessionId.value, content, session.accountId))
+    const response = await client.messageStream(sessionId.value, content, session.accountId, {
+      onStatus(label) {
+        activityLabel.value = label
+        void scrollToEnd()
+      },
+      onDelta(delta) {
+        const reply = messages.value[replyIndex]
+        if (reply) reply.text += delta
+        activityLabel.value = '正在撰寫回覆'
+        void scrollToEnd()
+      },
+    })
+    const reply = messages.value[replyIndex]
+    if (reply) {
+      if (!reply.text) reply.text = response.reply
+      reply.streaming = false
+    }
+    applyResponse(response, false)
   } catch (reason) {
+    const reply = messages.value[replyIndex]
+    if (reply && !reply.text) messages.value.splice(replyIndex, 1)
+    else if (reply) reply.streaming = false
     error.value = describeFailure(reason)
   } finally {
     loading.value = false
+    activityLabel.value = ''
     if (needsTyping.value) await nextTick(() => input.value?.focus())
   }
+}
+
+/**
+ * 輸入框跟著內容長高，最多到約六行；使用者不需要拉右下角的 resize handle。
+ * 每次先回到 auto 才能在刪除文字時縮回去，否則 scrollHeight 只會愈來愈大。
+ */
+function resizeInput() {
+  const element = input.value
+  if (!element) return
+  element.style.height = 'auto'
+  const maxHeight = 160
+  element.style.height = `${Math.min(element.scrollHeight, maxHeight)}px`
+  element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden'
 }
 
 /** Enter 送出，Shift+Enter 換行。 */
@@ -205,7 +250,7 @@ watch(() => route.fullPath, enter)
 </script>
 
 <template>
-  <div class="assistant">
+  <div class="assistant" data-testid="assistant-workspace">
     <header class="assistant-head">
       <div>
         <p class="eyebrow">生活管家</p>
@@ -259,13 +304,16 @@ watch(() => route.fullPath, enter)
     <div v-else class="assistant-body">
       <section ref="messageList" class="message-list" aria-live="polite" aria-label="對話內容">
         <!-- 角色 class 一律加 from- 前綴，避免與頁面容器的 .assistant 撞名 -->
-        <div v-for="(message, index) in messages" :key="index" class="message" :class="`from-${message.role}`">
-          <span>{{ message.role === 'assistant' ? '生活管家' : '你' }}</span>
-          <p>{{ message.text }}</p>
+        <template v-for="(message, index) in messages" :key="index">
+          <div v-if="message.text" class="message" :class="`from-${message.role}`">
+            <span>{{ message.role === 'assistant' ? '生活管家' : '你' }}</span>
+            <p>{{ message.text }}<span v-if="message.streaming" class="stream-cursor" aria-hidden="true"></span></p>
+          </div>
+        </template>
+        <div v-if="loading && activityLabel" class="assistant-activity" data-testid="assistant-activity" role="status" aria-live="polite">
+          <span class="activity-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>{{ activityLabel }}</span>
         </div>
-        <p v-if="loading" class="message from-assistant thinking" role="status">
-          <span>生活管家</span><em>思考中…</em>
-        </p>
       </section>
 
       <!-- 完成 -->
@@ -279,8 +327,16 @@ watch(() => route.fullPath, enter)
         </div>
       </section>
 
-      <!-- 答題：能點就不要打字 -->
-      <section v-else class="assistant-answer">
+      <details v-if="trace.length" class="assistant-trace">
+        <summary>查看處理過程</summary>
+        <div v-for="step in trace" :key="`${step.tool}-${step.topic_id ?? ''}`" class="trace-step">
+          <code>{{ step.tool }}</code>
+          <span>{{ step.stage === 'ai' ? '理解內容' : step.stage === 'rule' ? '規則驗證' : step.stage === 'write' ? '建立委託' : '檢查資料' }}・{{ step.status }}</span>
+        </div>
+      </details>
+
+      <!-- 選項與輸入框固定組成同一個 composer，選項永遠在輸入框上方 -->
+      <section v-if="!operation" class="assistant-answer assistant-composer" data-testid="assistant-composer">
         <div v-if="error" class="error-state" role="alert">
           <strong>目前無法繼續</strong><p>{{ error }}</p>
           <button class="button" type="button" @click="sessionId ? send(prompt || '重試') : begin()">重試</button>
@@ -307,7 +363,7 @@ watch(() => route.fullPath, enter)
           </button>
         </div>
 
-        <form v-if="needsTyping || awaitingConfirmation" class="assistant-form" @submit.prevent="send(prompt)">
+        <form class="assistant-form" @submit.prevent="send(prompt)">
           <label class="visually-hidden" for="assistant-input">
             {{ awaitingConfirmation ? '說明想修改的內容' : '回答目前問題' }}
           </label>
@@ -315,26 +371,17 @@ watch(() => route.fullPath, enter)
             id="assistant-input"
             ref="input"
             v-model="prompt"
-            rows="2"
+            rows="1"
+            data-autogrow="true"
             :disabled="loading"
             :placeholder="inputPlaceholder"
+            @input="resizeInput"
             @keydown="onKeydown"
           />
           <button class="button primary" type="submit" :disabled="loading || !prompt.trim()">送出</button>
         </form>
-        <p v-else-if="choices.length" class="muted assistant-hint">
-          直接點選上面的選項即可，也可以
-          <button class="text-button" type="button" @click="question = null">自己輸入</button>。
-        </p>
       </section>
 
-      <details v-if="trace.length" class="assistant-trace">
-        <summary>這一步是怎麼完成的</summary>
-        <div v-for="step in trace" :key="`${step.tool}-${step.topic_id ?? ''}`" class="trace-step">
-          <code>{{ step.tool }}</code>
-          <span>{{ step.stage === 'ai' ? 'AI 判讀' : step.stage === 'rule' ? '規則驗證' : step.stage === 'write' ? '寫入' : '檢查' }}・{{ step.status }}</span>
-        </div>
-      </details>
     </div>
   </div>
 </template>

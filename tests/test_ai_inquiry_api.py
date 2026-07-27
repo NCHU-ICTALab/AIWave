@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -111,3 +112,24 @@ def test_unknown_session_never_reports_success(tmp_path: Path) -> None:
     response = client.post("/api/chat/message", json={"session_id": "missing", "message": "確認"})
     assert response.status_code == 404
     assert repository.list_all() == []
+
+
+def test_message_stream_reports_progress_then_text_then_complete(tmp_path: Path) -> None:
+    """串流先回安全的處理階段，再逐段回文字，最後才附完整狀態。"""
+    repository = SqliteInquiryRepository(tmp_path / "inquiries.sqlite3")
+    client = TestClient(create_app(repository=repository, llm_factory=ScriptedLlm))
+    session_id = client.post("/api/chat/start", json={"service_id": "service-repair"}).json()["session_id"]
+
+    with client.stream(
+        "POST",
+        "/api/chat/message/stream",
+        json={"session_id": session_id, "message": "浴室的燈不亮了"},
+    ) as response:
+        events = [json.loads(line) for line in response.iter_lines() if line]
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+    assert events[0] == {"type": "status", "label": "正在理解你的回答"}
+    assert "".join(event["text"] for event in events if event["type"] == "delta").startswith("請問緊急程度")
+    assert events[-1]["type"] == "complete"
+    assert events[-1]["data"]["progress"]["answered"] == 1

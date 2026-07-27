@@ -29,7 +29,7 @@
   --mint: #98ff98;           /* demo --accent-mint */
   --lilac: #e6e6fa;          /* demo --accent-purple */
   --cta: #22c55e;            /* demo --cta：只做填色，不做文字 */
-  --cta-dark: #16a34a;       /* demo --cta-dark */
+  --cta-dark: #1fba59;       /* hover：保留 demo 綠感，且深墨字仍達 AA */
   --primary: #15803d;        /* 承載文字的綠（連結、eyebrow、trace）；demo 綠系最近的 AA 檔 */
   --primary-hover: #166534;
   --primary-soft: #dcfce7;
@@ -211,10 +211,25 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .modal-layer { position: fixed; z-index: 60; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgb(23 36 43 / 42%); }.modal-card { width: min(560px, 100%); max-height: calc(100vh - 2rem); overflow: auto; padding: 1.5rem; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); box-shadow: 0 28px 80px rgb(23 28 26 / 22%); }.modal-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .5rem; margin-top: 1.25rem; }
 
 /* 登入頁（角色分離入口，ADR-0015） */
-.login-page { width: min(100% - 2rem, 1080px); margin: auto; padding: clamp(2rem, 6vw, 4rem) 0; }
-.login-intro { max-width: 46rem; margin-bottom: 2rem; }
-.login-intro h1 { margin: .3rem 0 .6rem; font-size: clamp(1.9rem, 4.6vw, 2.9rem); }
-.login-lede { max-width: 40rem; color: var(--muted); font-size: 1.02rem; }
+.login-page { width: min(100% - 2rem, 1180px); margin: auto; padding: clamp(1.5rem, 5vw, 4rem) 0; }
+.login-hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(19rem, .85fr); align-items: center; gap: clamp(1.5rem, 4vw, 4rem); margin-bottom: clamp(2rem, 5vw, 4rem); }
+.login-intro { max-width: 44rem; }
+.login-intro h1 { margin: .4rem 0 1rem; font-size: clamp(2.35rem, 5.7vw, 4.75rem); line-height: 1.02; letter-spacing: -.045em; }
+.login-lede { max-width: 39rem; margin-bottom: 1.25rem; color: var(--muted); font-size: clamp(1rem, 1.5vw, 1.15rem); }
+.login-trust { display: flex; flex-wrap: wrap; gap: .55rem; margin: 0; padding: 0; list-style: none; }
+.login-trust li { display: inline-flex; align-items: center; min-height: 36px; padding: .25rem .75rem; border: 2px solid var(--ink); border-radius: 999px; background: var(--mint); color: var(--ink); font-size: var(--text-sm); font-weight: 800; }
+.login-trust li:nth-child(2) { background: var(--blue); }
+.login-trust li:nth-child(3) { background: var(--lilac); }
+.login-preview { position: relative; isolation: isolate; overflow: hidden; background: var(--peach); transform: rotate(1deg); }
+.login-preview::after { position: absolute; z-index: -1; right: -2.5rem; bottom: -3.5rem; width: 10rem; height: 10rem; border: var(--border-chunky) solid var(--ink); border-radius: 50%; background: var(--mint); content: ""; }
+.login-preview h2 { max-width: 18rem; margin-bottom: 1rem; font-size: clamp(1.4rem, 2.5vw, 2rem); }
+.login-preview-list { display: grid; gap: .75rem; margin: 0; padding: 0; list-style: none; }
+.login-preview-list li { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr); align-items: center; gap: .75rem; padding: .75rem; border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--surface); box-shadow: 3px 3px 0 var(--ink); }
+.login-preview-list li > span { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border: 2px solid var(--ink); border-radius: 13px; background: var(--blue); font-weight: 900; }
+.login-preview-list li:nth-child(2) > span { background: var(--mint); }
+.login-preview-list li:nth-child(3) > span { background: var(--lilac); }
+.login-preview-list strong, .login-preview-list small { display: block; }
+.login-preview-list small { margin-top: .1rem; color: var(--muted); font-size: .78rem; line-height: 1.45; }
 .login-panels { display: grid; grid-template-columns: 1.35fr 1fr; align-items: start; gap: 1rem; }
 .login-card h2 { margin: 0 0 .9rem; font-size: 1.15rem; }
 .login-hint { margin: .55rem 0 0; font-size: .85rem; }
@@ -229,7 +244,10 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .identity-badge { display: inline-flex; align-items: center; gap: .2rem; padding: .3rem .7rem; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: .8rem; font-weight: 800; }
 
 /* 首頁主動作：說出需求（ADR-0016） */
-.need-hero { max-width: 46rem; margin: 0 auto 1.5rem; text-align: center; }
+.need-hero { position: relative; isolation: isolate; overflow: hidden; max-width: 62rem; margin: 0 auto 2rem; padding: clamp(1.5rem, 4vw, 3rem); border: var(--border-chunky) solid var(--ink); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); text-align: center; }
+.need-hero::before, .need-hero::after { position: absolute; z-index: -1; width: 8rem; height: 8rem; border: var(--border-chunky) solid var(--ink); content: ""; }
+.need-hero::before { top: -4rem; left: -3rem; border-radius: 30% 70% 65% 35%; background: var(--peach); transform: rotate(18deg); }
+.need-hero::after { right: -3.5rem; bottom: -4.5rem; border-radius: 50%; background: var(--blue); }
 .need-hero h1 { margin: .3rem 0 .5rem; font-size: clamp(1.75rem, 4.4vw, 2.6rem); }
 .need-lede { margin: 0 auto 1.4rem; max-width: 34rem; color: var(--muted); }
 .need-form { display: flex; gap: .5rem; margin-bottom: .9rem; }
@@ -251,10 +269,8 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 
 .need-error { margin: 0 0 .9rem; padding: .75rem 1rem; border: 2px solid var(--danger); border-radius: var(--radius-sm); background: var(--danger-soft); color: var(--danger); }
 
-/* 生活管家：獨立頁面，不再是塞不下的小抽屜 */
-/* 不強制撐滿視窗高：對話只有一兩則時，撐滿會在內容下方留一大片空白，
-   看起來像壞掉。長對話由 .message-list 的 max-height 負責內捲。 */
-.assistant { display: flex; flex-direction: column; gap: 1rem; width: min(100%, 780px); margin: auto; }
+/* 生活管家：獨立的全頁工作區；對話列撐滿可用高度，composer 固定留在卡片底部。 */
+.assistant { display: flex; flex-direction: column; gap: 1rem; width: min(100%, 1040px); min-height: calc(100dvh - 8rem); margin: auto; }
 .assistant-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; }
 /* flex 子元素的 min-width 預設是 auto，中文長句不會斷行就會被裁掉左半——
    規劃模式的標題是 LLM 產生的整句話，長度不可控，一定要允許縮到 0 再換行。 */
@@ -265,31 +281,40 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 /* demo 的進度條：淺灰軌＋2px 深墨框＋綠色填滿 */
 .progress-bar { width: 120px; height: 12px; margin-top: .35rem; border: 2px solid var(--ink); border-radius: 999px; background: var(--line); overflow: hidden; }
 .progress-bar span { display: block; height: 100%; border-radius: 999px; background: var(--cta); transition: width .25s ease; }
-.assistant-body { display: flex; flex-direction: column; gap: 1rem; border: var(--border-chunky) solid var(--ink); border-radius: var(--radius-lg); background: var(--surface); padding: 1.15rem; box-shadow: var(--shadow); }
-.assistant .message-list { display: grid; align-content: start; gap: .65rem; max-height: 46vh; overflow-y: auto; }
+.assistant-body { display: flex; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; border: var(--border-chunky) solid var(--ink); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
+.assistant .message-list { display: grid; flex: 1; min-height: 18rem; align-content: start; gap: 1rem; max-height: none; overflow-y: auto; overscroll-behavior: contain; padding: clamp(1rem, 3vw, 2rem); scroll-padding-bottom: 1rem; }
 /* 訊息的角色 class 前綴 from-：早先直接用 role 當 class，「assistant」正好撞到
    上方的頁面容器 .assistant，讓每顆管家泡泡都繼承了 min-height: calc(100vh - 9rem)，
    泡泡下方因此空出一大片，內容被擠到看不見的地方。 */
-.assistant .message { max-width: 88%; padding: .7rem .9rem; border: 2px solid var(--ink); border-radius: 16px; background: var(--surface-2); }
+.assistant .message { justify-self: start; max-width: min(78%, 44rem); padding: .8rem 1rem; border: 2px solid var(--ink); border-radius: 18px 18px 18px 6px; background: var(--surface-2); box-shadow: 2px 2px 0 var(--ink); }
 /* 使用者泡泡＝CTA 綠貼紙；深墨字（白字在此綠上只有 2.28:1） */
-.assistant .message.from-user { justify-self: end; background: var(--cta); color: var(--ink); }
+.assistant .message.from-user { justify-self: end; border-radius: 18px 18px 6px; background: var(--cta); color: var(--ink); }
 .assistant .message span { display: block; font-size: .68rem; font-weight: 800; opacity: .75; }
 .assistant .message p { margin: .25rem 0 0; white-space: pre-wrap; line-height: 1.55; }
-.assistant .message.thinking em { font-style: normal; color: var(--muted); }
+.assistant-activity { display: inline-flex; align-items: center; justify-self: start; gap: var(--space-2); min-height: 44px; padding: .55rem .85rem; border: 2px solid var(--ink); border-radius: 16px; background: var(--blue); color: var(--ink); font-size: var(--text-sm); font-weight: 800; }
+.activity-dots { display: inline-flex; gap: 3px; }
+.activity-dots i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: thinking-dot .9s ease-in-out infinite alternate; }
+.activity-dots i:nth-child(2) { animation-delay: .15s; }.activity-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes thinking-dot { from { opacity: .35; transform: translateY(1px); } to { opacity: 1; transform: translateY(-2px); } }
+.stream-cursor { display: inline-block; width: .55em; height: 1.05em; margin-left: .18rem; border-radius: 2px; background: var(--ink); vertical-align: -.12em; animation: stream-cursor .8s steps(1) infinite; }
+@keyframes stream-cursor { 50% { opacity: 0; } }
 .answer-choices { display: flex; flex-wrap: wrap; gap: .5rem; }
 /* 選項按鈕＝白貼紙，hover 換薄荷底（demo 的可點磚語彙） */
 .choice-button { min-height: 48px; padding: 0 1.1rem; border: 2px solid var(--ink); border-radius: 14px; background: var(--surface); color: var(--ink); font-size: .96rem; font-weight: 700; box-shadow: 3px 3px 0 var(--ink); }
 .choice-button:hover:not(:disabled) { background: var(--mint); transform: translate(1px, 1px); box-shadow: 2px 2px 0 var(--ink); }
 .choice-button:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
 .choice-button:disabled { opacity: .5; }
-.assistant-form { display: flex; gap: .5rem; align-items: flex-end; }
-.assistant-form textarea { flex: 1; padding: .7rem .9rem; border: 2px solid var(--ink); border-radius: 14px; font: inherit; resize: vertical; }
+.assistant-composer { display: grid; gap: var(--space-3); padding: 1rem 1.25rem 1.25rem; border-top: 2px solid var(--ink); background: var(--surface); }
+.assistant-form { display: flex; gap: .5rem; align-items: flex-end; padding: .4rem; border: 2px solid var(--ink); border-radius: 18px; background: var(--surface-2); box-shadow: 3px 3px 0 var(--ink); }
+.assistant-form:focus-within { outline: 3px solid var(--ink); outline-offset: 2px; }
+.assistant-form textarea { flex: 1; min-height: 48px; max-height: 160px; padding: .7rem .75rem; border: 0; border-radius: 12px; background: transparent; font: inherit; resize: none; overflow-y: hidden; }
+.assistant-form textarea:focus { outline: 0; }
 .assistant-form .button { min-height: 48px; }
 .assistant-hint { margin: .6rem 0 0; font-size: .82rem; }
 .assistant-done { padding: 1.1rem; border: var(--border-chunky) solid var(--ink); border-radius: var(--radius-md); background: var(--success-soft); box-shadow: 4px 4px 0 var(--ink); }
 .assistant-done strong { display: block; margin: .2rem 0 .4rem; font-family: var(--font-mono); font-size: 1.15rem; }
-.assistant-trace { border-top: 1px solid var(--line); padding-top: .8rem; }
-.assistant-trace summary { cursor: pointer; color: var(--muted); font-size: .82rem; }
+.assistant-trace { margin: 0; padding: .65rem 1.25rem; border-top: 1px solid var(--line); background: var(--surface); }
+.assistant-trace summary { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; color: var(--primary); font-size: .82rem; font-weight: 800; }
 
 /* 規劃結果：把系統做了什麼攤開給使用者看（ADR-0017）
    min-width: 0 是必要的——grid/flex 子元素預設 min-width:auto，
@@ -336,6 +361,12 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .plan-step-confirm, .plan-step-cta { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--line); }
 .plan-step-confirm p, .plan-step-cta p { margin: 0 0 var(--space-3); font-size: var(--text-sm); color: var(--muted); }
 .plan-step .plain-list { margin-top: var(--space-3); }
+.service-result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--space-3); margin: var(--space-3) 0 0; padding: 0; list-style: none; }
+.service-result-action { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); width: 100%; min-height: 76px; padding: var(--space-3) var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--surface); text-align: left; box-shadow: 3px 3px 0 var(--ink); }
+.service-result-action:hover { background: var(--mint); transform: translate(1px, 1px); box-shadow: 2px 2px 0 var(--ink); }
+.service-result-action strong, .service-result-action small { display: block; }
+.service-result-action small { margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); line-height: 1.4; }
+.service-result-next { font-size: var(--text-sm); font-weight: 900; }
 
 /* 廠商比較（FR-S-04）：不是一個結論，是一張可改選的比較表 */
 .vendor-compare { margin-top: var(--space-3); }
@@ -371,6 +402,16 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 /* 諮詢單卡片與報價（住戶訂單頁與廠商工作台共用） */
 .inquiry-card { padding: 1rem; border: 2px solid var(--ink); border-radius: 16px; margin-bottom: .9rem; background: var(--surface); box-shadow: 3px 3px 0 var(--ink); }
 .inquiry-head { display: flex; justify-content: space-between; align-items: start; gap: 1rem; margin-bottom: .6rem; }
+.order-disclosure { padding: 0; overflow: clip; }
+.order-summary { position: relative; align-items: center; min-height: 72px; margin: 0; padding: var(--space-4) 3.5rem var(--space-4) var(--space-4); cursor: pointer; list-style: none; }
+.order-summary::-webkit-details-marker { display: none; }
+.order-summary-copy { display: grid; min-width: 0; }
+.order-summary-copy strong { overflow-wrap: anywhere; }
+.disclosure-mark { position: absolute; right: var(--space-4); width: 14px; height: 14px; border-right: 3px solid var(--ink); border-bottom: 3px solid var(--ink); transform: rotate(45deg) translateY(-3px); transition: transform var(--motion-base) var(--ease-out); }
+.order-disclosure[open] .disclosure-mark { transform: rotate(225deg) translate(-2px, -2px); }
+.order-disclosure[open] .order-summary { border-bottom: 2px solid var(--ink); background: var(--surface-2); }
+.order-disclosure-body { padding: var(--space-4); }
+.recommendation-feedback { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: var(--space-4) 0 0; padding: var(--space-3) var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--mint); color: var(--ink); font-size: var(--text-sm); }
 .summary-list.compact { display: grid; gap: .25rem; margin: .5rem 0; }
 .summary-list.compact > div { display: flex; justify-content: space-between; gap: 1rem; font-size: .88rem; }
 .summary-list.compact dt { color: var(--muted); margin: 0; }
@@ -407,16 +448,21 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .status[data-status="cancelled"] { background: var(--surface-2); color: var(--muted); }
 
 @media (max-width: 1050px) {
+  .login-hero { grid-template-columns: 1fr; }
+  .login-intro { max-width: 48rem; }
+  .login-preview { width: min(100%, 38rem); transform: none; }
   .login-panels { grid-template-columns: 1fr; }
 }
 @media (max-width: 650px) {
-  .quote-form { grid-template-columns: 1fr 1fr; }
-  .quote-form .button { grid-column: 1 / -1; }
-}
-@media (max-width: 650px) {
   /* 手機不做內捲區——巢狀捲動會跟主捲軸打架；由整頁自然捲動 */
-  .assistant .message-list { max-height: none; }
+  .assistant { min-height: calc(100dvh - 10rem); }
+  .assistant .message-list { max-height: none; padding: 1rem; }
+  .assistant .message { max-width: 90%; }
   .choice-button { width: 100%; }
+  .assistant-composer { padding: .75rem; }
+  .assistant-form { align-items: stretch; }
+  .service-result-grid { grid-template-columns: 1fr; }
+  .order-summary { align-items: flex-start; flex-wrap: wrap; padding-right: 3rem; }
 }
 @media (max-width: 1050px) {
   .topbar-main { flex-wrap: wrap; }.wordmark { flex: 1; }.main-nav { order: 3; flex: 0 0 100%; justify-content: flex-start; overflow-x: auto; }.hero, .aside, .span-4, .span-5, .span-7, .span-8 { grid-column: 1 / -1; }.service-layout { grid-template-columns: 1fr; }.service-detail { position: static; }
@@ -424,6 +470,8 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 @media (max-width: 650px) {
   .topbar-main { width: calc(100% - 1.5rem); gap: .5rem; padding-bottom: .3rem; }.wordmark { min-width: 0; }.wordmark small, .role-field, .reset-action { display: none; }.top-actions .button { padding: 0 .7rem; }.main-nav { gap: 0; }.nav-link { padding: 0 .65rem; font-size: .78rem; }
   main { width: calc(100% - 1.5rem); padding-top: 1rem; }.page-heading { align-items: start; flex-direction: column; gap: .5rem; }.grid { display: flex; flex-direction: column; }.panel, .hero { min-height: 0; padding: 1rem; border-radius: 20px; }.hero h2 { font-size: 1.95rem; }
+  .login-page { width: calc(100% - 1.5rem); padding-top: 1.5rem; }.login-hero { gap: 1.5rem; margin-bottom: 2rem; }.login-intro h1 { font-size: clamp(2.25rem, 12vw, 3.2rem); }.login-preview { padding: 1rem; }.login-preview::after { display: none; }
+  .need-hero { padding: 1.5rem 1rem; }.need-hero::before, .need-hero::after { width: 5rem; height: 5rem; opacity: .7; }
   .service-search { padding: .4rem; }.service-search .button { padding: 0 .7rem; }.quick-grid, .catalog-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }.context-banner { grid-template-columns: 1fr; padding: 1rem; }.context-score { text-align: left; }.context-score strong { display: inline; margin-right: .4rem; font-size: 1.7rem; }
   .value-grid { grid-template-columns: 1fr; }.modal-card { padding: 1.1rem; }.modal-actions .button { flex: 1; }
 }

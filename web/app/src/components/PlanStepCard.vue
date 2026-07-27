@@ -119,10 +119,18 @@ const currency = (value: unknown) => `NT$ ${Number(value ?? 0).toLocaleString('z
       <li v-if="!rows.length" class="muted">目前沒有任何委託。</li>
     </ul>
 
-    <!-- 服務目錄 -->
-    <ul v-else-if="step.tool === 'list_services' && rows.length" class="plain-list">
-      <li v-for="row in rows.slice(0, 5)" :key="text(row.id)">
-        <strong>{{ text(row.name) }}</strong><span class="muted">{{ text(row.summary) }}</span>
+    <!-- 服務目錄：AI 結果一定要有下一步，不能只丟一串不能按的文字 -->
+    <ul v-else-if="step.tool === 'list_services' && rows.length" class="service-result-grid">
+      <li v-for="row in rows" :key="text(row.id)">
+        <button
+          class="service-result-action"
+          type="button"
+          data-testid="plan-service-action"
+          @click="emit('openForm', text(row.id))"
+        >
+          <span><strong>{{ text(row.name) }}</strong><small>{{ text(row.summary) }}</small></span>
+          <span class="service-result-next" aria-hidden="true">選擇</span>
+        </button>
       </li>
     </ul>
   </li>

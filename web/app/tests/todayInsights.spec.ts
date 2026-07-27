@@ -76,7 +76,7 @@ describe('resident home', () => {
     expect(occurrences).toBe(1)
   })
 
-  it('lets the user mute a suggestion but not a real to-do', async () => {
+  it('dismisses only the selected suggestion and lets the user undo that item', async () => {
     const { wrapper } = await mountApp('/user')
 
     // 待辦不是偏好問題，不該提供「不感興趣」
@@ -85,9 +85,17 @@ describe('resident home', () => {
     expect(dismissable).toHaveLength(suggestions.length)
 
     if (dismissable.length) {
+      const dismissedTitle = suggestions[0]!.title
+      const remainingTitle = suggestions[1]!.title
       await dismissable[0]!.trigger('click')
       expect(wrapper.find('[data-testid="briefing-dismissed"]').exists()).toBe(true)
-      expect(wrapper.findAll('[data-testid="briefing-dismiss"]')).toHaveLength(0)
+      const visibleItems = wrapper.findAll('[data-testid="briefing-item"]').map((item) => item.text()).join('\n')
+      expect(visibleItems).not.toContain(dismissedTitle)
+      expect(visibleItems).toContain(remainingTitle)
+      expect(wrapper.findAll('[data-testid="briefing-dismiss"]')).toHaveLength(suggestions.length - 1)
+
+      await wrapper.get('[data-testid="briefing-dismissed"] button').trigger('click')
+      expect(wrapper.text()).toContain(dismissedTitle)
     }
   })
 

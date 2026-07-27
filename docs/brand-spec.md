@@ -25,7 +25,7 @@
 
 - Ink `#2D3748`（demo `--text`：文字＝邊框＝陰影，三位一體）
 - Background `#FFF9F5`（demo `--bg-cream`）／Surface `#FFFFFF`／Surface 2 `#FDF1EC`
-- CTA 綠 `#22C55E`（hover `#16A34A`）——**只做填色**；承載文字的綠用 `#15803D`（AA）
+- CTA 綠 `#22C55E`（hover `#1FBA59`）——**只做填色**；承載文字的綠用 `#15803D`（AA）。demo 的 hover `#16A34A` 與深墨字對比不足，故微調亮度
 - 粉彩磚：蜜桃 `#FDBCB4`（dark `#F5A69D`）、嬰兒藍 `#ADD8E6`、薄荷 `#98FF98`、薰衣草 `#E6E6FA`
 - Muted `#5A6478`（demo `#64748B` 微降過 AA）／Line `#E2E8F0`
 - Danger `#B91C1C`／Success `#15803D`

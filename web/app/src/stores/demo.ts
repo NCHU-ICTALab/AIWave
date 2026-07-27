@@ -51,7 +51,9 @@ export const useDemoStore = defineStore('demo', () => {
   const serviceAnswers = ref<Record<string, ServiceAnswers>>({})
   const pricing = ref<ServiceQuote>(emptyQuote)
   const orders = ref<DemoOrder[]>(seedOrders())
-  const recommendationDismissed = ref(false)
+  const dismissedRecommendationIds = ref<string[]>([])
+  const lastDismissedRecommendationId = ref<string | null>(null)
+  const recommendationDismissed = computed(() => dismissedRecommendationIds.value.length > 0)
   const campaignStatus = ref<CampaignStatus>('draft')
 
   const selectedService = computed(() => services.value.find(({ id }) => id === selectedServiceId.value) ?? null)
@@ -151,12 +153,17 @@ export const useDemoStore = defineStore('demo', () => {
     return null
   }
 
-  function dismissRecommendation() {
-    recommendationDismissed.value = true
+  function dismissRecommendation(id: string) {
+    if (!dismissedRecommendationIds.value.includes(id)) {
+      dismissedRecommendationIds.value = [...dismissedRecommendationIds.value, id]
+    }
+    lastDismissedRecommendationId.value = id
   }
 
-  function undoDismissRecommendation() {
-    recommendationDismissed.value = false
+  function undoDismissRecommendation(id = lastDismissedRecommendationId.value) {
+    if (!id) return
+    dismissedRecommendationIds.value = dismissedRecommendationIds.value.filter((item) => item !== id)
+    if (lastDismissedRecommendationId.value === id) lastDismissedRecommendationId.value = null
   }
 
   function publishCampaign() {
@@ -176,7 +183,8 @@ export const useDemoStore = defineStore('demo', () => {
     serviceAnswers.value = {}
     pricing.value = emptyQuote
     orders.value = seedOrders()
-    recommendationDismissed.value = false
+    dismissedRecommendationIds.value = []
+    lastDismissedRecommendationId.value = null
     campaignStatus.value = 'draft'
   }
 
@@ -202,8 +210,10 @@ export const useDemoStore = defineStore('demo', () => {
     createReservation,
     createShipment,
     dismissRecommendation,
+    dismissedRecommendationIds,
     forms,
     getServiceForm,
+    lastDismissedRecommendationId,
     loadCatalog,
     loadServiceForm,
     orders,

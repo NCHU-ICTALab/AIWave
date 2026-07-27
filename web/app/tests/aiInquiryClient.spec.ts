@@ -26,6 +26,35 @@ describe('AI inquiry API client', () => {
     await expect(client.message('missing', '確認')).rejects.toMatchObject({ status: 404, message: '工作階段不存在' })
   })
 
+  it('consumes NDJSON progress and text deltas even when chunks split between events', async () => {
+    const encoder = new TextEncoder()
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('{"type":"status","label":"正在理解你的回答"}\n{"type":"del'))
+        controller.enqueue(encoder.encode('ta","text":"請問緊急"}\n{"type":"delta","text":"程度？"}\n'))
+        controller.enqueue(encoder.encode('{"type":"complete","data":{"reply":"請問緊急程度？","done":false,"progress":{"answered":1,"total":2},"trace":[]}}\n'))
+        controller.close()
+      },
+    })
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(body, {
+      status: 200, headers: { 'Content-Type': 'application/x-ndjson' },
+    }))
+    const statuses: string[] = []
+    const deltas: string[] = []
+
+    const result = await createAiInquiryClient({ fetcher }).messageStream('s1', '燈壞了', 'A001', {
+      onStatus: (label) => statuses.push(label),
+      onDelta: (text) => deltas.push(text),
+    })
+
+    expect(statuses).toEqual(['正在理解你的回答'])
+    expect(deltas.join('')).toBe('請問緊急程度？')
+    expect(result.progress.answered).toBe(1)
+    expect(fetcher).toHaveBeenCalledWith('/api/chat/message/stream', expect.objectContaining({
+      method: 'POST', headers: expect.objectContaining({ Accept: 'application/x-ndjson' }),
+    }))
+  })
+
   it('reloads persisted inquiries from the backend repository', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ data: [{ id: 'INQ-20260725-001', form_id: 901, status: 'pending_quote', created_at: '2026-07-25T00:00:00Z', events: [] }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
     const inquiries = await createAiInquiryClient({ fetcher }).listInquiries()
