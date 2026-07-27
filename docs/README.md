@@ -5,7 +5,7 @@
 - 工作追蹤：[work-management/](work-management/)（工作票與驗收條件）
 - 封存：[archive/](archive/)（早期提案、設計探索——**歷史參考，非現行依據**）
 
-## 核心規格（必讀，9 份）
+## 核心規格（必讀，10 份）
 
 | # | 文件 | 內容 | 讀者 |
 | --- | --- | --- | --- |
@@ -13,11 +13,12 @@
 | 01 | [系統架構](specs/01-system-architecture.md) | 分層架構、訊息時序、地端優先可移植、多 Agent 升級版 | 全員 |
 | 02 | [資料模型](specs/02-data-model.md) | ERD（官方表＋擴充表）、資料字典、seed 計畫 | 後端 |
 | 03 | [題組引擎](specs/03-form-engine.md) | 題型、跳題、引導狀態機、三份題組定義 | 後端／Agent |
-| 04 | [MCP 與統一 API](specs/04-mcp-and-api.md) | 6 個 MCP server 工具＋其下模擬 REST API＋事件推播 | Agent／後端 |
+| 04 | [MCP 與統一 API](specs/04-mcp-and-api.md) | 能力藍圖＋模擬 REST API＋事件推播（**6-server 拆法已由 ADR-0017 取代**） | Agent／後端 |
 | 05 | [Web 工作區模組](specs/05-erp-modules.md) | 住戶、社區營運、合作廠商、平台整合四工作區與權限 | 前端／後端 |
 | 06 | [系統需求規格書 SRS](specs/06-system-requirements.md) | 正式需求基線（FR 編號＋優先級）、NFR、資料需求、建置階段、待議 | 全員 |
 | 07 | [競賽 Demo 垂直切片](specs/07-demo-vertical-slice.md) | 兩條主線、五分鐘腳本、六個主畫面、API／AI／Mock 邊界與 P0 驗收 | 全員／前後端 |
 | 08 | [產品體驗](specs/08-product-experience.md) | **從「能 demo」到「能用」**：demo 化痕跡清單、首次使用旅程、零狀態、三項待決策 | 全員／前端 |
+| 09 | [AWS 架構](specs/09-aws-architecture.md) | 部署架構圖、**每個選擇消除了哪一段等待**、環境變數契約、未完成清單 | 全員／簡報 |
 
 > 建議閱讀順序：00 →（決策脈絡看下方 ADR）→ 06 SRS 掌握全貌 → 07 Demo 垂直切片掌握交付範圍 → 依角色深入 01–05。
 >
