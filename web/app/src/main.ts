@@ -1,6 +1,16 @@
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 
+// Claymorphism 字型（skill 規格：Nunito 標題＋DM Sans 內文）。
+// 自帶打包而非 Google Fonts CDN——部署到 CloudFront 後不多一個外部往返（ADR-0018），
+// LINE WebView 離線降級時也不會缺字型。中文字自然回落 Noto Sans TC。
+import '@fontsource/nunito/700.css'
+import '@fontsource/nunito/800.css'
+import '@fontsource/nunito/900.css'
+import '@fontsource/dm-sans/400.css'
+import '@fontsource/dm-sans/500.css'
+import '@fontsource/dm-sans/700.css'
+
 import App from './App.vue'
 import { createAppRouter } from './router'
 import './styles/main.css'

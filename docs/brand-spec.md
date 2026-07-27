@@ -17,24 +17,31 @@
 
 ## 輔助視覺系統
 
-以下 token 來自已選定的 `08 柔和指揮台＋07 青綠琥珀` UI 方向，只代表本產品原型：
+2026-07-27 改版：採 ui-ux-pro-max 的 **Claymorphism 教育平台**方向
+（styles.csv「Claymorphism」＋ colors.csv「Educational App」），取代先前的青綠琥珀。
+質感要點：靛白背景（不用純白）、粗邊框 3px、圓角 16–28px、雙層陰影
+（外柔靛色調＋內上高光）、按鈕底座陰影與按壓回彈。
 
-- Primary：`#0E5E6F`
-- Primary soft：`#E1ECEF`
-- Accent：`#C77400`
-- Accent soft：`#FBF1DF`
-- Background：`#F4F6F8`
-- Surface：`#FFFFFF`
-- Ink：`#17242B`
-- Muted：`#4A5A63`
-- Border：`#C8D1D6`
-- Danger：`#A33B2E`
-- Shadow：中性黑低透明度，不使用彩色陰影。
+- Primary：`#4F46E5`（deep `#3730A3` 作按鈕底座）
+- Primary soft：`#E0E7FF`
+- Accent：`#C2410C`（skill 原表 `#EA580C` 當白字底色僅 3.6:1，降為 orange-700 過 4.5:1；
+  更亮的 `#F97316` 只做漸層等裝飾，不承載文字）
+- Accent soft：`#FFEDD5`／Accent ink：`#9A3412`
+- Background：`#EEF2FF`
+- Surface：`#FFFFFF`／Surface 2：`#E4E9FC`
+- Ink：`#1E1B4B`
+- Muted：`#475569`
+- Border：`#C7D2FE`
+- Danger：`#B91C1C`／Success：`#15803D`
+- Shadow：靛色調柔陰影（`rgb(79 70 229 / …)`）＋內上白高光，構成黏土的 double shadow。
 
 ## 字型
 
-- Display／Body：`Noto Sans TC`；無網路時回退至 `Microsoft JhengHei`。
+- Display：`Nunito`（800/900，圓端點）→ 中文回落 `Noto Sans TC`。
+- Body：`DM Sans` → `Noto Sans TC`；無網路時回退至 `Microsoft JhengHei`。
 - Data／Code：`IBM Plex Mono`；無網路時回退至 `Consolas`。
+- 掛載方式：`@fontsource` 自帶打包，不走 Google Fonts CDN（部署後不多外部往返，
+  LINE WebView 離線也不缺字）。
 
 ## 氣質關鍵詞
 
