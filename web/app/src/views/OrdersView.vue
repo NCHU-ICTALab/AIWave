@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import { createInquiryLifecycleClient, type Inquiry } from '@/api/inquiryLifecycleClient'
+import { createInquiryLifecycleClient, type Inquiry, type PlatformOrder } from '@/api/inquiryLifecycleClient'
 import { useDemoStore } from '@/stores/demo'
+import { useSessionStore } from '@/stores/session'
 
 const store = useDemoStore()
+const session = useSessionStore()
 const client = createInquiryLifecycleClient()
 const inquiries = ref<Inquiry[]>([])
+const platformOrders = ref<PlatformOrder[]>([])
 const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
 const acting = ref<string | null>(null)
 const error = ref('')
 
-const hasAnything = computed(() => inquiries.value.length > 0 || store.orders.length > 0)
+const hasAnything = computed(() => inquiries.value.length > 0 || platformOrders.value.length > 0 || store.orders.length > 0)
 const currency = (value: number) => `NT$ ${(value ?? 0).toLocaleString('zh-TW')}`
 
 /** 舊資料或部分回應可能沒有摘要，畫面不該因此崩掉。 */
@@ -21,6 +24,9 @@ const events = (inquiry: Inquiry) => inquiry.events ?? []
 async function load() {
   try {
     inquiries.value = await client.listMine()
+    platformOrders.value = session.accountId
+      ? await client.listOrders(session.accountId).catch(() => [])
+      : []
     status.value = 'ready'
   } catch {
     status.value = 'unavailable'
@@ -81,7 +87,7 @@ onMounted(load)
   <header class="page-heading">
     <div><p class="eyebrow">訂單與進度</p><h1>你的委託</h1></div>
     <span class="page-status">
-      {{ status === 'ready' ? `${inquiries.length} 件` : status === 'loading' ? '載入中…' : '離線' }}
+      {{ status === 'ready' ? `${inquiries.length + platformOrders.length} 件` : status === 'loading' ? '載入中…' : '離線' }}
     </span>
   </header>
 
@@ -90,6 +96,32 @@ onMounted(load)
   <div v-if="status === 'ready' && hasAnything" class="grid">
     <section class="panel span-8" aria-labelledby="active-orders">
       <h2 id="active-orders">進行中</h2>
+
+      <details
+        v-for="order in platformOrders"
+        :key="order.id"
+        class="inquiry-card order-disclosure"
+        data-testid="platform-order-disclosure"
+      >
+        <summary class="inquiry-head order-summary">
+          <span class="order-summary-copy"><strong>日用品補貨訂單</strong><span class="row-meta">{{ order.id }}</span></span>
+          <span class="status" :data-status="order.status">{{ order.statusLabel }}</span>
+          <span class="disclosure-mark" aria-hidden="true"></span>
+        </summary>
+        <div class="order-disclosure-body">
+          <dl class="summary-list compact">
+            <div><dt>應付金額</dt><dd><strong>{{ currency(order.amount) }}</strong></dd></div>
+            <div><dt>計價方式</dt><dd>確定性優惠規則</dd></div>
+          </dl>
+          <ol class="timeline compact">
+            <li v-for="event in order.events" :key="`${event.type}-${event.occurred_at}`">
+              <strong>{{ event.type === 'order.created' ? '訂單已建立' : event.type }}</strong>
+              <span v-if="event.detail" class="muted">・{{ event.detail }}</span>
+            </li>
+          </ol>
+          <p class="muted source-note">平台訂單已持久化；品牌履約接入目前為競賽模擬。</p>
+        </div>
+      </details>
 
       <details
         v-for="(inquiry, index) in inquiries"

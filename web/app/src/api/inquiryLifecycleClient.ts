@@ -42,6 +42,18 @@ export interface VendorWorkload {
   scheduled: Inquiry[]
 }
 
+export interface PlatformOrder {
+  id: string
+  accountId: string
+  serviceId: string
+  status: string
+  statusLabel: string
+  amount: number
+  pricingSource: string
+  createdAt: string
+  events: Array<{ type: string; occurred_at: string; detail?: string | null }>
+}
+
 export class InquiryApiError extends Error {
   constructor(readonly status: number, message: string) {
     super(message)
@@ -73,6 +85,7 @@ export function createInquiryLifecycleClient(options: ClientOptions = {}) {
 
   return {
     listMine: () => request<Inquiry[]>('/inquiries'),
+    listOrders: (accountId: string) => request<PlatformOrder[]>(`/orders?account_id=${encodeURIComponent(accountId)}`),
     vendorWorkload: () => request<VendorWorkload>('/vendor/workload'),
     quote: (inquiryId: string, items: InquiryQuoteItem[], vendorName: string) =>
       request<Inquiry>(`/inquiries/${inquiryId}/quote`, {

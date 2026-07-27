@@ -23,6 +23,9 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
+import time
+from copy import deepcopy
 from datetime import date
 
 from mcp.server import Server
@@ -32,9 +35,12 @@ from mcp.types import TextContent, Tool as McpTool
 from core.community.group_buy import SqliteGroupBuyRepository
 from core.config import get_settings
 from core.inquiries import SqliteInquiryRepository
+from core.personalization import PersonalizationService, SqlitePersonalizationRepository
+from core.orders import SqliteOrderRepository
+from core.retail import RetailService, SqliteRetailRepository
 from core.services import LifeServicesService
 from core.tools.catalog import build_registry
-from core.tools.registry import ToolContext, ToolRegistry
+from core.tools.registry import ToolContext, ToolError, ToolRegistry, validate_arguments
 
 SERVER_NAME = "smart-living-butler"
 #: 外部 Agent 在握手時看到的版本。不指定的話會顯示 MCP SDK 的版本，那不是我們的東西。
@@ -46,8 +52,16 @@ def build_default_registry(*, today: date | None = None) -> ToolRegistry:
     config = get_settings()
     resolved_today = today or config.demo_today
     return build_registry(
-        services=LifeServicesService(SqliteInquiryRepository(config.inquiry_db_path), today=resolved_today),
+        services=LifeServicesService(
+            SqliteInquiryRepository(config.inquiry_db_path),
+            orders=SqliteOrderRepository(config.inquiry_db_path),
+            today=resolved_today,
+        ),
         group_buys=SqliteGroupBuyRepository(config.group_buy_db_path),
+        personalization=PersonalizationService(
+            SqlitePersonalizationRepository(config.inquiry_db_path), today=resolved_today
+        ),
+        retail=RetailService(SqliteRetailRepository(config.inquiry_db_path)),
         today=resolved_today,
     )
 
@@ -66,20 +80,68 @@ def create_server(registry: ToolRegistry | None = None, context: ToolContext | N
     resolved_registry = registry or build_default_registry()
     resolved_context = context or context_from_env()
     server: Server = Server(SERVER_NAME, version=SERVER_VERSION)
+    # MCP 沒有內建 human-in-the-loop 欄位。寫入工具採一次性、短效、payload-bound token：
+    # 第一次呼叫只回預覽；外部 Agent 顯示給人確認後，原封不動帶 token 再呼叫才會寫入。
+    confirmations: dict[str, tuple[str, float]] = {}
+
+    def fingerprint(name: str, arguments: dict) -> str:
+        return json.dumps({
+            "tool": name,
+            "arguments": arguments,
+            "accountId": resolved_context.account_id,
+            "role": resolved_context.role,
+        }, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
     @server.list_tools()
     async def list_tools() -> list[McpTool]:
-        return [
-            McpTool(name=tool.name, description=tool.description, inputSchema=tool.parameters)
-            for tool in resolved_registry.list(role=resolved_context.role)
-        ]
+        exposed: list[McpTool] = []
+        for tool in resolved_registry.list(role=resolved_context.role):
+            schema = deepcopy(tool.parameters)
+            if tool.writes:
+                schema.setdefault("properties", {})["_confirmation_token"] = {
+                    "type": "string",
+                    "description": "第一次呼叫取得的一次性確認 token；只有使用者確認完全相同的預覽後才可帶入。",
+                }
+            exposed.append(McpTool(name=tool.name, description=tool.description, inputSchema=schema))
+        return exposed
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict | None) -> list[TextContent]:
         # 錯誤照樣回傳成文字結果，而不是讓連線炸掉——外部 Agent 需要看得懂為什麼失敗
         try:
-            result = resolved_registry.call(name, arguments, resolved_context)
-            payload = {"ok": True, "result": result}
+            supplied = dict(arguments or {})
+            confirmation_token = supplied.pop("_confirmation_token", None)
+            tool = resolved_registry.get(name)
+            if tool is not None and not tool.allows(resolved_context.role):
+                raise ToolError(f"目前身分無法使用「{tool.name}」")
+            if tool is not None and tool.writes:
+                cleaned = validate_arguments(tool.parameters, supplied)
+                expected = fingerprint(name, cleaned)
+                if not confirmation_token:
+                    token = secrets.token_urlsafe(24)
+                    confirmations[token] = (expected, time.monotonic() + 300)
+                    payload = {
+                        "ok": True,
+                        "requiresConfirmation": True,
+                        "confirmationToken": token,
+                        "expiresInSeconds": 300,
+                        "preview": {
+                            "tool": name,
+                            "description": tool.description,
+                            "arguments": cleaned,
+                        },
+                    }
+                else:
+                    pending = confirmations.pop(str(confirmation_token), None)
+                    if pending is None or pending[1] < time.monotonic():
+                        raise ValueError("確認已失效，請重新取得預覽")
+                    if pending[0] != expected:
+                        raise ValueError("確認內容與本次寫入不一致，已拒絕執行")
+                    result = resolved_registry.call(name, cleaned, resolved_context)
+                    payload = {"ok": True, "result": result}
+            else:
+                result = resolved_registry.call(name, supplied, resolved_context)
+                payload = {"ok": True, "result": result}
         except Exception as error:  # noqa: BLE001
             payload = {"ok": False, "error": str(error)}
         return [TextContent(type="text", text=json.dumps(payload, ensure_ascii=False, default=str))]

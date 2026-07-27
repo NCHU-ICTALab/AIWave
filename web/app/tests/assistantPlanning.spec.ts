@@ -244,6 +244,75 @@ describe('assistant planning', () => {
     expect(router.currentRoute.value.query.service).toBe('service-cleaning')
   })
 
+  it('renders grounded service-search matches as choices instead of the whole catalog', async () => {
+    stubPlanner(plan({
+      understanding: '找打掃服務',
+      steps: [{
+        tool: 'search_services', arguments: { query: '想找人打掃' }, why: '搜尋相關服務', writes: false, status: 'done', error: null,
+        result: { confidence: 'high', matches: [
+          { id: 'service-cleaning', name: '專業清潔', summary: '居家空間重點清潔', matchedTerms: ['打掃'] },
+          { id: 'service-housework', name: '計時家事', summary: '兩小時計時家事協助', matchedTerms: ['打掃'] },
+        ] },
+      }],
+    }))
+    const { wrapper } = await mountApp('/user/assistant?need=' + encodeURIComponent('想找人打掃'))
+
+    expect(wrapper.findAll('[data-testid="plan-service-action"]')).toHaveLength(2)
+    expect(wrapper.text()).not.toContain('寄件服務')
+    expect(wrapper.text()).not.toContain('美食外送')
+  })
+
+  it('shows the restock evidence and deterministic savings with usable actions', async () => {
+    stubPlanner(plan({
+      understanding: '月初補貨',
+      steps: [{ tool: 'get_restock_plan', arguments: {}, why: '計算優惠', writes: false, status: 'done', error: null, result: {
+        recommendation: { id: 'restock-monthly', title: '月初日用品補貨', serviceId: 'service-shopping', reasonText: '近三個月都在月初購買。', suppressed: false },
+        wallet: { openpointBalance: 180, dataSource: 'competition_seed_wallet' },
+        bestOffer: { baseAmount: 699, finalAmount: 579, savedAmount: 120, applied: ['優惠券折抵 NT$70'], computedBy: 'deterministic_rules' },
+        evidence: [{ orderNo: '2601', occurredOn: '2026-07-01' }], source: 'official_orders+competition_seed_wallet',
+      } }],
+    }))
+    const { wrapper } = await mountApp('/user/assistant?need=' + encodeURIComponent('月初幫我補貨'))
+
+    expect(wrapper.get('[data-testid="restock-result"]').text()).toContain('省下 NT$ 120')
+    expect(wrapper.find('[data-testid="restock-open-shopping"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="restock-dismiss"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="restock-reminder"]').exists()).toBe(true)
+  })
+
+  it('shows an in-stock alternative and an actionable waitlist for the nearby sold-out store', async () => {
+    stubPlanner(plan({
+      understanding: '找限定杯',
+      steps: [{ tool: 'search_store_inventory', arguments: { query: '吉伊卡哇限定杯', district: '大同區', capability: '列印' }, why: '查庫存', writes: false, status: 'done', error: null, result: {
+        product: { id: 'limited-cup', name: '吉伊卡哇限定杯' }, exactMatches: [],
+        alternatives: [{ storeId: 'zhongxing', storeName: '7-ELEVEN 中興門市', district: '中山區', stock: 12, distanceMeters: 920, capabilities: ['列印'] }],
+        unavailableNearby: [{ storeId: 'qingchuan', storeName: '7-ELEVEN 晴川門市', stock: 0 }],
+        dataSource: 'competition_seed', asOf: '2026-07-25T09:00:00+08:00',
+      } }],
+    }))
+    const { wrapper } = await mountApp('/user/assistant?need=' + encodeURIComponent('哪裡有吉伊卡哇限定杯'))
+
+    expect(wrapper.get('[data-testid="retail-result"]').text()).toContain('中興門市')
+    expect(wrapper.get('[data-testid="retail-result"]').text()).toContain('庫存 12')
+    expect(wrapper.get('[data-testid="stock-watch-action"]').text()).toContain('加入到貨候補')
+    expect(wrapper.text()).toContain('競賽建置資料')
+  })
+
+  it('shows exact in-district stores when the requested product is in stock', async () => {
+    stubPlanner(plan({
+      understanding: '找衛生紙',
+      steps: [{ tool: 'search_store_inventory', arguments: { query: '衛生紙', district: '中山區' }, why: '查庫存', writes: false, status: 'done', error: null, result: {
+        product: { id: 'tissue-pack', name: '舒潔衛生紙' },
+        exactMatches: [{ storeId: 'zhongxing', storeName: '7-ELEVEN 中興門市', district: '中山區', stock: 8, distanceMeters: 420, capabilities: ['取貨'] }],
+        alternatives: [], unavailableNearby: [], dataSource: 'competition_seed', asOf: '2026-07-25T09:00:00+08:00',
+      } }],
+    }))
+    const { wrapper } = await mountApp('/user/assistant?need=' + encodeURIComponent('中山區哪裡有衛生紙'))
+
+    expect(wrapper.get('[data-testid="retail-result"]').text()).toContain('中興門市')
+    expect(wrapper.get('[data-testid="retail-result"]').text()).toContain('庫存 8')
+  })
+
   // ---- 誠實 ----
 
   it('explains that it cannot help and offers the catalog, without pretending', async () => {

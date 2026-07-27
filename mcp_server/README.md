@@ -59,14 +59,16 @@ uv run python -m mcp_server.server
 
 上 AWS 後這裡要換成由 OIDC token 解出身分，`ToolContext` 的建構是唯一需要改的地方。
 
-## 能力一覽（`MCP_ROLE=user` 時 14 項）
+## 能力一覽（完整 Registry 30 項）
 
 | 工具 | 寫入 | 說明 |
 | --- | --- | --- |
 | `list_services` | | 服務目錄 |
+| `search_services` | | 依自然語言與匹配證據回傳相關服務，零分服務不進候選 |
 | `get_service_form` | | 該服務的諮詢單題組 |
 | `estimate_price` | | 參考價與可用折扣 |
 | `match_vendors` | | **FR-S-04 服務媒合**：依地區／時段／預算／緊急程度／評分列 2–3 家並附理由 |
+| `submit_inquiry` | ✎ | 驗證題組後建立可追蹤諮詢單 |
 | `list_my_inquiries` | | 我的委託與進度 |
 | `get_inquiry` | | 單一委託詳情 |
 | `confirm_quote` | ✎ | 同意廠商報價 |
@@ -77,10 +79,21 @@ uv run python -m mcp_server.server
 | `get_behavior_summary` | | 跨服務使用摘要 |
 | `get_activity_trail` | | 行為軌跡 |
 | `get_recommendations` | | 可解釋推薦（附官方訂單證據） |
+| `get_restock_plan` | | 官方行為證據＋競賽帳本的補貨與最佳優惠方案 |
+| `record_recommendation_feedback` | ✎ | 單筆不感興趣／復原，不關閉其他推薦 |
+| `create_restock_reminder` | ✎ | 建立週期補貨提醒 |
+| `list_reminders` | | 查看提醒 |
+| `create_order` | ✎ | 題組驗證與規則計價後建立持久化訂單 |
+| `list_my_orders` | | 查看平台訂單與事件 |
+| `search_store_inventory` | | 查商品、門市能力、庫存與替代門市 |
+| `join_stock_waitlist` | ✎ | 缺貨門市加入候補 |
+| `list_stock_watches` | | 查看到貨候補 |
 
-`MCP_ROLE=manager` 另有 `open_group_buy`、`close_group_buy`；
+完整 Registry 共 30 項；實際 `tools/list` 仍依角色過濾。`MCP_ROLE=manager` 另有 `open_group_buy`、`close_group_buy`；
 `MCP_ROLE=partner` 另有 `list_vendor_workload`、`submit_quote`、`complete_inquiry`。
 
 標記 ✎ 的會寫入資料。系統內的規劃器對這類工具一律先向使用者確認才執行
 （見 [ADR-0008](../docs/adr/0008-permission-bound-operations-copilot.md)）；
-外部 Agent 呼叫時則由該 Agent 自行負責確認流程。
+MCP transport 也強制二階段確認：第一次呼叫只回傳完整參數預覽與 5 分鐘一次性
+`_confirmation_token`，外部 Agent 必須先向使用者展示；第二次以完全相同的參數、角色與帳號
+帶回 token 才會執行。token 與 payload 綁定且使用後失效，不能拿去確認另一筆操作。

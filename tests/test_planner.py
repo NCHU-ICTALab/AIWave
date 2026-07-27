@@ -315,20 +315,20 @@ def test_confirming_one_write_does_not_approve_another(registry, group_buys, res
 
 # ---- 降級：失敗要說實話 -------------------------------------------------
 
-def test_degrades_with_a_reason_when_the_llm_fails(registry, resident):
+def test_degrades_to_grounded_search_when_the_llm_fails(registry, resident):
     planner, _ = _planner(registry, error=RuntimeError("connection reset"))
     plan = planner.plan("冷氣壞了", resident)
 
-    assert plan.is_empty
-    assert plan.rejected_reason == "規劃暫時無法使用"
+    assert [step.tool for step in plan.steps] == ["search_services"]
+    assert plan.rejected_reason is None
 
 
-def test_degrades_when_the_llm_returns_nonsense(registry, resident):
+def test_degrades_to_grounded_search_when_the_llm_returns_nonsense(registry, resident):
     planner, _ = _planner(registry, "我不知道")
     plan = planner.plan("冷氣壞了", resident)
 
-    assert plan.is_empty
-    assert plan.rejected_reason == "規劃結果格式不正確"
+    assert [step.tool for step in plan.steps] == ["search_services"]
+    assert plan.rejected_reason is None
 
 
 def test_empty_input_is_rejected_without_calling_the_llm(registry, resident):

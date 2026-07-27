@@ -10,6 +10,7 @@ import {
   type AiTraceStep,
 } from '@/api/aiInquiryClient'
 import { createAssistantClient, type Plan, type PlanStep } from '@/api/assistantClient'
+import { createLifestyleClient } from '@/api/lifestyleClient'
 import PlanStepCard from '@/components/PlanStepCard.vue'
 import { useDemoStore } from '@/stores/demo'
 import { useSessionStore } from '@/stores/session'
@@ -20,6 +21,7 @@ const store = useDemoStore()
 const session = useSessionStore()
 const client = createAiInquiryClient()
 const assistant = createAssistantClient()
+const lifestyle = createLifestyleClient()
 
 interface ChatMessage {
   role: 'assistant' | 'user'
@@ -71,6 +73,7 @@ const generalStarters = [
 
 const plan = ref<Plan | null>(null)
 const planError = ref('')
+const planNotice = ref('')
 const planBusy = ref(false)
 
 async function buildPlan() {
@@ -121,6 +124,46 @@ function stepArgumentsOf(step: PlanStep) {
   return step.arguments
 }
 
+async function changeFeedback(step: PlanStep, recommendationId: string, action: 'dismiss' | 'undo') {
+  if (!session.accountId || planBusy.value) return
+  planBusy.value = true
+  try {
+    const result = await lifestyle.feedback(session.accountId, recommendationId, action)
+    const payload = step.result as { recommendation?: { suppressed?: boolean } }
+    if (payload.recommendation) payload.recommendation.suppressed = result.active
+  } catch {
+    planError.value = '偏好目前無法儲存，請稍後再試。'
+  } finally {
+    planBusy.value = false
+  }
+}
+
+async function createRestockReminder() {
+  if (!session.accountId || planBusy.value) return
+  planBusy.value = true
+  try {
+    const result = await lifestyle.createReminder(session.accountId)
+    planNotice.value = `已建立補貨提醒，下次提醒日 ${result.nextDueOn}。`
+  } catch {
+    planError.value = '提醒目前無法建立，請稍後再試。'
+  } finally {
+    planBusy.value = false
+  }
+}
+
+async function joinWatch(productId: string, storeId: string) {
+  if (!session.accountId || planBusy.value) return
+  planBusy.value = true
+  try {
+    await lifestyle.joinStockWatch(session.accountId, productId, storeId)
+    planNotice.value = '已加入到貨候補；補貨後可由通知通路提醒你。'
+  } catch {
+    planError.value = '目前無法加入候補，請稍後再試。'
+  } finally {
+    planBusy.value = false
+  }
+}
+
 /** 有選項時直接給按鈕；只有真的需要自由文字才要求打字。 */
 const choices = computed(() => question.value?.options ?? [])
 const needsTyping = computed(() =>
@@ -163,7 +206,7 @@ function applyResponse(response: {
   awaitingConfirmation.value = Boolean(response.awaiting_confirmation)
   if (response.operation) {
     operation.value = response.operation
-    store.recordAiInquiry(response.operation.id)
+    if (response.operation.type === 'inquiry.created') store.recordAiInquiry(response.operation.id)
   }
   void scrollToEnd()
 }
@@ -309,6 +352,7 @@ watch(() => route.fullPath, enter)
       </div>
 
       <template v-else-if="plan">
+        <p v-if="planNotice" class="recommendation-feedback" role="status">{{ planNotice }}</p>
         <ol v-if="plan.steps.length" class="plan-steps" data-testid="plan-steps">
           <PlanStepCard
             v-for="(step, index) in plan.steps"
@@ -318,6 +362,9 @@ watch(() => route.fullPath, enter)
             @approve="approve(index)"
             @open-form="openForm"
             @choose="chooseVendor($event, stepArgumentsOf(step))"
+            @feedback="(id, action) => changeFeedback(step, id, action)"
+            @reminder="createRestockReminder"
+            @watch="(productId, storeId) => joinWatch(productId, storeId)"
           />
         </ol>
 
@@ -387,7 +434,7 @@ watch(() => route.fullPath, enter)
       <section v-if="operation" class="assistant-done" role="status">
         <p class="eyebrow">已送出</p>
         <strong>{{ operation.id }}</strong>
-        <p>合作夥伴收到後會回覆報價，進度可在訂單頁追蹤。</p>
+        <p>{{ operation.type === 'order.created' ? '訂單已建立，備貨進度可在訂單頁追蹤。' : '合作夥伴收到後會回覆報價，進度可在訂單頁追蹤。' }}</p>
         <div class="button-row">
           <RouterLink class="button primary inline" to="/user/orders">查看進度</RouterLink>
           <RouterLink class="button inline" to="/user">回首頁</RouterLink>

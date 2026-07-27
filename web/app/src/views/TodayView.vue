@@ -8,18 +8,21 @@ import {
   type BriefingItem,
   type Recommendation,
 } from '@/api/insightsClient'
+import { createLifestyleClient } from '@/api/lifestyleClient'
 import { useDemoStore } from '@/stores/demo'
 import { useSessionStore } from '@/stores/session'
 
 const store = useDemoStore()
 const session = useSessionStore()
 const router = useRouter()
+const lifestyle = createLifestyleClient()
 
 const summary = ref<BehaviorSummary | null>(null)
 const recommendations = ref<Recommendation[]>([])
 const briefing = ref<BriefingItem[]>([])
 const status = ref<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
 const need = ref('')
+const feedbackStatus = ref('')
 
 /** 起手式用真實說法，不是功能名稱——它同時負責教學（ADR-0016）。 */
 const starters = [
@@ -47,6 +50,26 @@ const visibleBriefing = computed(() =>
 const lastDismissedRecommendation = computed(() =>
   briefing.value.find((item) => item.id === store.lastDismissedRecommendationId) ?? null,
 )
+
+function dismissRecommendation(item: BriefingItem) {
+  store.dismissRecommendation(item.id)
+  feedbackStatus.value = ''
+  if (session.accountId) {
+    void lifestyle.feedback(session.accountId, item.source, 'dismiss').catch(() => {
+      feedbackStatus.value = '建議已在本次畫面收起，但偏好目前無法同步，請稍後再試。'
+    })
+  }
+}
+
+function undoRecommendation(item: BriefingItem) {
+  store.undoDismissRecommendation(item.id)
+  feedbackStatus.value = ''
+  if (session.accountId) {
+    void lifestyle.feedback(session.accountId, item.source, 'undo').catch(() => {
+      feedbackStatus.value = '畫面已復原，但偏好目前無法同步，請稍後再試。'
+    })
+  }
+}
 
 /**
  * 把證據講成人話。
@@ -214,15 +237,16 @@ async function submitNeed(text: string) {
             type="button"
             data-testid="briefing-dismiss"
             :aria-label="`不顯示「${item.title}」這則建議`"
-            @click="store.dismissRecommendation(item.id)"
+            @click="dismissRecommendation(item)"
           >不感興趣</button>
         </div>
       </li>
     </ul>
     <p v-if="lastDismissedRecommendation" class="recommendation-feedback" role="status" data-testid="briefing-dismissed">
       已收起「{{ lastDismissedRecommendation.title }}」，其他建議不受影響。
-      <button class="text-button" type="button" @click="store.undoDismissRecommendation(lastDismissedRecommendation.id)">復原</button>
+      <button class="text-button" type="button" @click="undoRecommendation(lastDismissedRecommendation)">復原</button>
     </p>
+    <p v-if="feedbackStatus" class="need-error" role="alert">{{ feedbackStatus }}</p>
     <p class="muted source-note">依你的委託、社區活動與使用紀錄以規則整理，非語言模型生成。</p>
   </section>
 

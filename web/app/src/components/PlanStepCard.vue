@@ -8,19 +8,27 @@
  * 寫入類步驟一定停在確認狀態（ADR-0008），確認鍵由這裡發出事件，
  * 實際執行仍由後端重新驗證。
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import { asMatchResult, type PlanStep } from '@/api/assistantClient'
 import VendorComparison from './VendorComparison.vue'
 
 const props = defineProps<{ step: PlanStep; busy?: boolean }>()
-const emit = defineEmits<{ approve: []; choose: [vendorId: string]; openForm: [serviceId: string] }>()
+const emit = defineEmits<{
+  approve: []
+  choose: [vendorId: string]
+  openForm: [serviceId: string]
+  feedback: [recommendationId: string, action: 'dismiss' | 'undo']
+  reminder: []
+  watch: [productId: string, storeId: string]
+}>()
 
 const matchResult = computed(() => (props.step.tool === 'match_vendors' ? asMatchResult(props.step.result) : null))
 
 /** 各能力的人話標題——不要把工具代號直接丟給使用者看。 */
 const TOOL_LABELS: Record<string, string> = {
   list_services: '查看服務目錄',
+  search_services: '找到相關服務',
   get_service_form: '準備諮詢單',
   estimate_price: '試算參考價格',
   match_vendors: '媒合合適廠商',
@@ -34,6 +42,13 @@ const TOOL_LABELS: Record<string, string> = {
   get_behavior_summary: '整理你的使用紀錄',
   get_activity_trail: '查詢使用軌跡',
   get_recommendations: '整理值得提醒你的事',
+  get_restock_plan: '試算補貨與優惠',
+  record_recommendation_feedback: '調整這則推薦',
+  create_restock_reminder: '建立補貨提醒',
+  list_reminders: '查看補貨提醒',
+  search_store_inventory: '查詢門市與庫存',
+  join_stock_waitlist: '加入到貨候補',
+  list_stock_watches: '查看到貨候補',
   list_vendor_workload: '查詢待處理案件',
   submit_quote: '送出報價',
   complete_inquiry: '回報完工',
@@ -45,6 +60,26 @@ const serviceId = computed(() => String(props.step.arguments.service_id ?? ''))
 const rows = computed<Array<Record<string, unknown>>>(() =>
   Array.isArray(props.step.result) ? (props.step.result as Array<Record<string, unknown>>) : [],
 )
+const objectResult = computed<Record<string, any>>(() =>
+  props.step.result && !Array.isArray(props.step.result)
+    ? (props.step.result as Record<string, any>)
+    : {},
+)
+const serviceRows = computed<Array<Record<string, unknown>>>(() => {
+  if (props.step.tool === 'search_services') return objectResult.value.matches ?? []
+  return rows.value
+})
+const restock = computed(() => props.step.tool === 'get_restock_plan' ? objectResult.value : null)
+const retail = computed(() => props.step.tool === 'search_store_inventory' ? objectResult.value : null)
+const pendingAction = ref<{ kind: 'reminder' | 'watch'; productId?: string; storeId?: string } | null>(null)
+
+function confirmPending() {
+  if (pendingAction.value?.kind === 'reminder') emit('reminder')
+  if (pendingAction.value?.kind === 'watch') {
+    emit('watch', pendingAction.value.productId ?? '', pendingAction.value.storeId ?? '')
+  }
+  pendingAction.value = null
+}
 const text = (value: unknown) => (value == null ? '' : String(value))
 const currency = (value: unknown) => `NT$ ${Number(value ?? 0).toLocaleString('zh-TW')}`
 </script>
@@ -120,8 +155,8 @@ const currency = (value: unknown) => `NT$ ${Number(value ?? 0).toLocaleString('z
     </ul>
 
     <!-- 服務目錄：AI 結果一定要有下一步，不能只丟一串不能按的文字 -->
-    <ul v-else-if="step.tool === 'list_services' && rows.length" class="service-result-grid">
-      <li v-for="row in rows" :key="text(row.id)">
+    <ul v-else-if="['list_services', 'search_services'].includes(step.tool) && serviceRows.length" class="service-result-grid">
+      <li v-for="row in serviceRows" :key="text(row.id)">
         <button
           class="service-result-action"
           type="button"
@@ -133,5 +168,55 @@ const currency = (value: unknown) => `NT$ ${Number(value ?? 0).toLocaleString('z
         </button>
       </li>
     </ul>
+
+    <!-- 個人化補貨：證據、確定性金額與下一步都在同一卡片，不是死建議。 -->
+    <section v-else-if="restock" class="result-stack" data-testid="restock-result">
+      <div class="result-highlight">
+        <div>
+          <strong>{{ text(restock.recommendation?.title) }}</strong>
+          <p>{{ text(restock.recommendation?.reasonText) }}</p>
+        </div>
+        <div class="saving"><span>最佳組合</span><strong>{{ currency(restock.bestOffer?.finalAmount) }}</strong><small>省下 {{ currency(restock.bestOffer?.savedAmount) }}</small></div>
+      </div>
+      <details v-if="restock.evidence?.length" class="reason-details">
+        <summary>查看推薦依據與計算方式</summary>
+        <p>依據 {{ restock.evidence.length }} 筆服務紀錄；金額由確定性規則計算。</p>
+        <ul><li v-for="rule in restock.bestOffer?.applied" :key="text(rule)">{{ text(rule) }}</li></ul>
+      </details>
+      <p class="source-note muted">行為來源：官方訂單；點數與優惠券為競賽建置帳本。</p>
+      <div class="button-row">
+        <button class="button primary" type="button" data-testid="restock-open-shopping" @click="emit('openForm', 'service-shopping')">前往補貨</button>
+        <button class="button" type="button" data-testid="restock-reminder" @click="pendingAction = { kind: 'reminder' }">建立 30 天提醒</button>
+        <button class="text-button" type="button" data-testid="restock-dismiss" @click="emit('feedback', text(restock.recommendation?.id), restock.recommendation?.suppressed ? 'undo' : 'dismiss')">
+          {{ restock.recommendation?.suppressed ? '復原推薦' : '不感興趣' }}
+        </button>
+      </div>
+      <div v-if="pendingAction?.kind === 'reminder'" class="inline-confirm" role="group" aria-label="確認補貨提醒">
+        <p>將建立「衛生紙」每 30 天提醒，下次為 2026-08-24。</p>
+        <div class="button-row"><button class="button primary" type="button" @click="confirmPending">確認建立</button><button class="button" type="button" @click="pendingAction = null">取消</button></div>
+      </div>
+    </section>
+
+    <!-- 門市查詢：缺貨不是終點，同卡提供替代門市與候補。 -->
+    <section v-else-if="retail" class="result-stack" data-testid="retail-result">
+      <p v-if="!retail.exactMatches?.length" class="result-notice">指定區域目前沒有符合條件且有庫存的門市。</p>
+      <div v-for="store in retail.exactMatches" :key="store.storeId" class="store-result">
+        <div><strong>{{ store.storeName }}</strong><p>{{ store.district }}・距離約 {{ store.distanceMeters }} 公尺</p></div>
+        <span class="stock-badge">庫存 {{ store.stock }}</span>
+      </div>
+      <div v-for="store in retail.alternatives" :key="store.storeId" class="store-result">
+        <div><strong>{{ store.storeName }}</strong><p>{{ store.district }}・距離約 {{ store.distanceMeters }} 公尺</p></div>
+        <span class="stock-badge">庫存 {{ store.stock }}</span>
+      </div>
+      <div v-for="store in retail.unavailableNearby" :key="store.storeId" class="store-result sold-out">
+        <div><strong>{{ store.storeName }}</strong><p>目前缺貨</p></div>
+        <button class="button" type="button" data-testid="stock-watch-action" @click="pendingAction = { kind: 'watch', productId: text(retail.product?.id), storeId: text(store.storeId) }">加入到貨候補</button>
+      </div>
+      <div v-if="pendingAction?.kind === 'watch'" class="inline-confirm" role="group" aria-label="確認到貨候補">
+        <p>確認追蹤「{{ text(retail.product?.name) }}」在這間缺貨門市的到貨狀態？</p>
+        <div class="button-row"><button class="button primary" type="button" @click="confirmPending">確認加入</button><button class="button" type="button" @click="pendingAction = null">取消</button></div>
+      </div>
+      <p class="source-note muted">庫存截至 {{ text(retail.asOf) }}，來源：競賽建置資料，非正式即時門市 API。</p>
+    </section>
   </li>
 </template>

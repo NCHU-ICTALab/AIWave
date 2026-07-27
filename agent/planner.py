@@ -27,6 +27,7 @@ from typing import Any
 
 from core.clients import LlmClient
 from core.forms.service_catalog import list_services
+from core.services.service_search import search as grounded_service_search
 from core.tools.registry import ToolContext, ToolError, ToolRegistry, validate_arguments
 
 #: 一句話最多拆成幾件事——超過通常是模型在發散，不是使用者真的要做八件事
@@ -121,15 +122,17 @@ class Planner:
                 {"role": "user", "content": self._prompt(text, context)},
             ])
         except Exception:  # noqa: BLE001 — 規劃失敗要退回既有流程，不能中斷對話
-            return Plan(rejected_reason="規劃暫時無法使用")
+            return self._fallback_plan(text, context, reason="語言模型暫時無法使用，改用可重算規則")
 
         if not isinstance(raw, dict):
-            return Plan(rejected_reason="規劃結果格式不正確")
+            return self._fallback_plan(text, context, reason="模型格式異常，改用可重算規則")
 
         understanding = str(raw.get("understanding") or "").strip()
         raw_steps = raw.get("steps")
         if not isinstance(raw_steps, list) or not raw_steps:
-            return Plan(understanding=understanding, rejected_reason="沒有可執行的步驟")
+            fallback = self._fallback_plan(text, context, reason="模型沒有提出步驟，改用可重算規則")
+            fallback.understanding = understanding or fallback.understanding
+            return fallback
 
         if len(raw_steps) > MAX_STEPS:
             return Plan(understanding=understanding, rejected_reason="計畫步驟過多，已作廢")
@@ -170,7 +173,84 @@ class Planner:
 
         if not steps:
             return Plan(understanding=understanding, rejected_reason="沒有可執行的步驟")
+        # 模型知道「要找服務」卻選了整份目錄時，以目錄規則收斂候選。
+        # 這是使用者說打掃卻看到寄件／外送的根因；高信心匹配存在時，整份目錄不是答案。
+        if len(steps) == 1 and steps[0].tool == "list_services":
+            grounded = grounded_service_search(text, limit=3)
+            if grounded["confidence"] == "high" and self.registry.get("search_services"):
+                return Plan(
+                    understanding=understanding,
+                    steps=[PlanStep(
+                        tool="search_services",
+                        arguments={"query": text, "limit": 3},
+                        why="只保留與需求相關的服務",
+                        writes=False,
+                    )],
+                )
         return Plan(understanding=understanding, steps=steps)
+
+    def _fallback_plan(self, text: str, context: ToolContext, *, reason: str) -> Plan:
+        """三條主舞台流程的離線保底。
+
+        這不是第二套商業規則：它只做高信心路由，真正的搜尋、金額、庫存與寫入仍由
+        registry tool 執行。無法高信心判斷時維持拒絕，不用猜測冒充理解。
+        """
+        steps: list[PlanStep] = []
+        lowered = text.lower()
+
+        retail_terms = ("庫存", "門市", "哪間", "有賣", "缺貨", "限定", "聯名")
+        if self.registry.get("search_store_inventory") and any(term in lowered for term in retail_terms):
+            arguments: dict[str, Any] = {"query": text}
+            for district in ("大同區", "中山區", "中正區", "信義區", "北屯區", "西屯區"):
+                if district in text:
+                    arguments["district"] = district
+                    break
+            for capability in ("列印", "寄件", "取貨", "ATM", "CITY CAFE"):
+                if capability.lower() in lowered:
+                    arguments["capability"] = capability
+                    break
+            steps.append(
+                PlanStep(
+                    tool="search_store_inventory",
+                    arguments=arguments,
+                    why="查庫存與替代門市",
+                    writes=False,
+                )
+            )
+
+        restock_terms = ("補貨", "衛生紙", "點數", "優惠券", "最划算", "折扣")
+        if self.registry.get("get_restock_plan") and any(term in lowered for term in restock_terms):
+            steps.append(
+                PlanStep(
+                    tool="get_restock_plan",
+                    arguments={},
+                    why="依紀錄試算補貨優惠",
+                    writes=False,
+                )
+            )
+
+        # 服務需求只在目錄規則已有明確命中時路由；零分時不列整份目錄。
+        service_result = grounded_service_search(text, limit=3)
+        if not steps and self.registry.get("search_services") and service_result["confidence"] == "high":
+            steps.append(
+                PlanStep(
+                    tool="search_services",
+                    arguments={"query": text, "limit": 3},
+                    why="找出最相關的服務",
+                    writes=False,
+                )
+            )
+
+        # 同一意圖只留一次，並維持既有四步上限。
+        unique: list[PlanStep] = []
+        seen: set[str] = set()
+        for step in steps:
+            if step.tool not in seen and step.tool in {tool.name for tool in self.registry.list(role=context.role)}:
+                seen.add(step.tool)
+                unique.append(step)
+        if not unique:
+            return Plan(rejected_reason=reason)
+        return Plan(understanding="我會用可驗證的資料幫你處理", steps=unique[:MAX_STEPS])
 
     # ---- 執行 ----------------------------------------------------------
 

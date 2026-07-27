@@ -72,6 +72,7 @@ class TestCatalogShape:
             "join_group_buy",
             "open_group_buy",
             "request_quote_revision",
+            "submit_inquiry",
             "submit_quote",
         }
 

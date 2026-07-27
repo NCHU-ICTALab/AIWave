@@ -7,9 +7,9 @@ export interface AiTraceStep {
 }
 
 export interface AiOperation {
-  type: 'inquiry.created'
+  type: 'inquiry.created' | 'order.created'
   id: string
-  status: 'pending_quote'
+  status: 'pending_quote' | 'created'
 }
 
 export interface AiQuestionOption {

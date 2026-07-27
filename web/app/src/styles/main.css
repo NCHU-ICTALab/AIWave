@@ -369,6 +369,18 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .service-result-action strong, .service-result-action small { display: block; }
 .service-result-action small { margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); line-height: 1.4; }
 .service-result-next { font-size: var(--text-sm); font-weight: 900; }
+.result-stack { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
+.result-highlight { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-4); align-items: center; padding: var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--mint); }
+.result-highlight p, .store-result p { margin: var(--space-1) 0 0; color: var(--muted); font-size: var(--text-sm); }
+.saving { display: grid; justify-items: end; }
+.saving span, .saving small { font-size: var(--text-xs); }
+.saving strong { font-family: var(--font-mono); font-size: var(--text-xl); }
+.result-notice { margin: 0; padding: var(--space-3); border-left: 4px solid var(--accent); background: var(--accent-soft); }
+.store-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.store-result.sold-out { background: var(--surface-2); }
+.stock-badge { padding: .35rem .65rem; border: 2px solid var(--ink); border-radius: 999px; background: var(--success-soft); font-size: var(--text-sm); font-weight: 900; }
+.inline-confirm { padding: var(--space-3); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--accent-soft); }
+.inline-confirm p { margin: 0 0 var(--space-3); }
 
 /* 廠商比較（FR-S-04）：不是一個結論，是一張可改選的比較表 */
 .vendor-compare { margin-top: var(--space-3); }
@@ -464,6 +476,8 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
   .assistant-composer { padding: .75rem; }
   .assistant-form { align-items: stretch; }
   .service-result-grid { grid-template-columns: 1fr; }
+  .result-highlight, .store-result { grid-template-columns: 1fr; }
+  .saving { justify-items: start; }
   .order-summary { align-items: flex-start; flex-wrap: wrap; padding-right: 3rem; }
 }
 @media (max-width: 1050px) {

@@ -17,7 +17,7 @@ from core.community.group_buy import SqliteGroupBuyRepository
 from core.inquiries import SqliteInquiryRepository
 from core.services import LifeServicesService
 from core.tools.catalog import build_registry
-from core.tools.registry import ToolContext
+from core.tools.registry import Tool, ToolContext, ToolRegistry
 from mcp_server.server import SERVER_NAME, SERVER_VERSION, create_server
 
 TODAY = date(2026, 7, 27)
@@ -146,3 +146,49 @@ def test_server_identifies_itself_as_this_product_not_the_sdk(registry):
     server = create_server(registry, ToolContext())
     assert server.name == SERVER_NAME
     assert server.version == SERVER_VERSION
+
+
+@pytest.mark.anyio
+async def test_mcp_write_requires_a_payload_bound_second_confirmation():
+    calls: list[dict] = []
+    registry = ToolRegistry()
+    registry.register(Tool(
+        name="dangerous_write",
+        description="測試寫入",
+        parameters={
+            "type": "object",
+            "properties": {"value": {"type": "string"}},
+            "required": ["value"],
+        },
+        handler=lambda context, value: calls.append({"account": context.account_id, "value": value}) or {"saved": value},
+        writes=True,
+        roles=frozenset({"user"}),
+    ))
+    server = create_server(registry, ToolContext(account_id="A001", role="user"))
+
+    preview = await _call_tool(server, "dangerous_write", {"value": "原始內容"})
+    assert preview["ok"] is True
+    assert preview["requiresConfirmation"] is True
+    assert preview["preview"]["arguments"] == {"value": "原始內容"}
+    assert calls == []
+
+    changed = await _call_tool(server, "dangerous_write", {
+        "value": "遭竄改內容",
+        "_confirmation_token": preview["confirmationToken"],
+    })
+    assert changed["ok"] is False
+    assert calls == []
+
+    preview = await _call_tool(server, "dangerous_write", {"value": "原始內容"})
+    confirmed = await _call_tool(server, "dangerous_write", {
+        "value": "原始內容",
+        "_confirmation_token": preview["confirmationToken"],
+    })
+    assert confirmed == {"ok": True, "result": {"saved": "原始內容"}}
+    assert calls == [{"account": "A001", "value": "原始內容"}]
+
+    replay = await _call_tool(server, "dangerous_write", {
+        "value": "原始內容",
+        "_confirmation_token": preview["confirmationToken"],
+    })
+    assert replay["ok"] is False

@@ -19,6 +19,8 @@ from core.forms.service_catalog import list_services as list_catalog_services
 from core.insights.behavior import build_trail, summarize
 from core.insights.recommendations import recommend
 from core.matching import match as match_vendors_by_rules
+from core.personalization import PersonalizationService
+from core.retail import RetailService
 from core.services.life_services import LifeServicesService
 from core.tools.registry import Tool, ToolContext, ToolError, ToolRegistry
 
@@ -55,6 +57,8 @@ def build_registry(
     *,
     services: LifeServicesService,
     group_buys: GroupBuyRepository,
+    personalization: PersonalizationService | None = None,
+    retail: RetailService | None = None,
     today: date,
 ) -> ToolRegistry:
     """組出這個部署可用的全部能力。"""
@@ -71,6 +75,9 @@ def build_registry(
             raise ToolError(f"沒有這項服務：{service_id}")
         return form
 
+    def search_services(context: ToolContext, *, query: str, limit: int | None = None) -> Any:
+        return services.search_services(query, limit=limit or 3)
+
     def estimate_price(context: ToolContext, *, service_id: str) -> Any:
         quote = services.quote(service_id, None)
         return quote.to_dict() if hasattr(quote, "to_dict") else quote
@@ -82,6 +89,22 @@ def build_registry(
             "當使用者問「你們有什麼服務」或需要確認某個需求對應到哪項服務時使用。",
             parameters=_empty_schema(),
             handler=list_services,
+        )
+    )
+    registry.register(
+        Tool(
+            name="search_services",
+            description="依使用者的自然語言需求搜尋最相關的生活服務，只回傳有匹配證據的前幾項。"
+            "例如『想找人打掃』應回清潔與計時家事，不應列出寄件或外送。",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "使用者原始需求"},
+                    "limit": {"type": "integer", "description": "候選數，預設 3、最多 5"},
+                },
+                "required": ["query"],
+            },
+            handler=search_services,
         )
     )
     registry.register(
@@ -171,8 +194,66 @@ def build_registry(
 
     # ---- 住戶自己的委託 ----------------------------------------------
 
+    def submit_inquiry(
+        context: ToolContext, *, service_id: str, answers: dict
+    ) -> Any:
+        return services.submit_structured_inquiry(
+            service_id=service_id,
+            answers=answers,
+            account_id=_require_account(context),
+        )
+
     def list_my_inquiries(context: ToolContext) -> Any:
         return services.list_inquiries_for(_require_account(context))
+
+    registry.register(
+        Tool(
+            name="submit_inquiry",
+            description="依 get_service_form 回傳的欄位代碼建立正式諮詢單。答案會再次通過題組引擎驗證，"
+            "建立後回傳可追蹤編號；這會寫入資料，必須先讓住戶預覽並確認。",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "service_id": _service_id_schema("服務代碼"),
+                    "answers": {"type": "object", "description": "以題組 field id 為 key 的答案"},
+                },
+                "required": ["service_id", "answers"],
+            },
+            handler=submit_inquiry,
+            writes=True,
+            roles=RESIDENT,
+        )
+    )
+    if services.orders is not None:
+        registry.register(
+            Tool(
+                name="create_order",
+                description="依服務題組答案建立可追蹤訂單，金額只採後端確定性規則計算。"
+                "這會真的建立訂單，執行前必須讓住戶預覽品項、折抵與應付金額。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "service_id": _service_id_schema("可直接下單的服務代碼"),
+                        "answers": {"type": "object", "description": "以題組 field id 為 key 的答案"},
+                    },
+                    "required": ["service_id", "answers"],
+                },
+                handler=lambda context, service_id, answers: services.create_order(
+                    service_id=service_id, answers=answers, account_id=_require_account(context)
+                ),
+                writes=True,
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="list_my_orders",
+                description="列出目前住戶透過平台建立的訂單、確定性計價明細與履約事件。",
+                parameters=_empty_schema(),
+                handler=lambda context: services.list_orders_for(_require_account(context)),
+                roles=RESIDENT,
+            )
+        )
 
     def get_inquiry(context: ToolContext, *, inquiry_id: str) -> Any:
         record = services.get_inquiry(inquiry_id)
@@ -205,6 +286,120 @@ def build_registry(
             roles=RESIDENT,
         )
     )
+
+    # ---- 個人化補貨、回饋與提醒 --------------------------------------
+
+    if personalization is not None:
+        registry.register(
+            Tool(
+                name="get_restock_plan",
+                description="依官方歷史訂單與競賽用點數優惠帳本，整理月初補貨建議、可驗證依據與最省付款組合。",
+                parameters=_empty_schema(),
+                handler=lambda context: personalization.restock_plan(_require_account(context)),
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="record_recommendation_feedback",
+                description="只調整指定推薦的軟性偏好，可選不感興趣或復原；不會關閉其他推薦。這會寫入偏好狀態。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "recommendation_id": {"type": "string"},
+                        "action": {"type": "string", "enum": ["dismiss", "undo"]},
+                    },
+                    "required": ["recommendation_id", "action"],
+                },
+                handler=lambda context, recommendation_id, action: personalization.feedback(
+                    _require_account(context), recommendation_id, action
+                ),
+                writes=True,
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="create_restock_reminder",
+                description="為單一補貨品項建立週期提醒，保存下次到期日；建立前須讓住戶確認品項與週期。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "item_name": {"type": "string"},
+                        "cadence_days": {"type": "integer"},
+                        "next_due_on": {"type": "string", "description": "YYYY-MM-DD"},
+                    },
+                    "required": ["item_name", "cadence_days", "next_due_on"],
+                },
+                handler=lambda context, item_name, cadence_days, next_due_on: personalization.create_reminder(
+                    _require_account(context),
+                    item_name=item_name,
+                    cadence_days=cadence_days,
+                    next_due_on=next_due_on,
+                ),
+                writes=True,
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="list_reminders",
+                description="列出目前住戶已設定的有效補貨提醒與下次到期日。",
+                parameters=_empty_schema(),
+                handler=lambda context: personalization.list_reminders(_require_account(context)),
+                roles=RESIDENT,
+            )
+        )
+
+    # ---- 超商能力、庫存、替代門市與候補 ------------------------------
+
+    if retail is not None:
+        registry.register(
+            Tool(
+                name="search_store_inventory",
+                description="依商品、行政區與門市能力查詢庫存；指定區域缺貨時同時排序附近可替代門市，並標示資料來源時間。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "商品名稱或聯名關鍵字"},
+                        "district": {"type": "string", "description": "行政區，例如大同區"},
+                        "capability": {"type": "string", "description": "需要的能力，例如列印、寄件、ATM"},
+                    },
+                    "required": ["query"],
+                },
+                handler=lambda context, query, district=None, capability=None: retail.search(
+                    query=query, district=district, capability=capability
+                ),
+            )
+        )
+        registry.register(
+            Tool(
+                name="join_stock_waitlist",
+                description="指定門市缺貨時加入到貨候補，後續可由通知通路主動告知。這會寫入資料，必須先確認。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "product_id": {"type": "string", "enum": ["limited-cup", "tissue-pack"]},
+                        "store_id": {"type": "string", "enum": ["qingchuan", "zhongxing", "minsheng"]},
+                    },
+                    "required": ["product_id", "store_id"],
+                },
+                handler=lambda context, product_id, store_id: retail.join_waitlist(
+                    _require_account(context), product_id=product_id, store_id=store_id
+                ),
+                writes=True,
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="list_stock_watches",
+                description="列出目前住戶追蹤中的缺貨商品、指定門市與候補狀態。",
+                parameters=_empty_schema(),
+                handler=lambda context: retail.list_watches(_require_account(context)),
+                roles=RESIDENT,
+            )
+        )
     registry.register(
         Tool(
             name="get_inquiry",

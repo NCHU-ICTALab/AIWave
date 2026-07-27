@@ -26,6 +26,9 @@ from core.forms.service_catalog import get_service_form as catalog_service_form
 from core.forms.service_catalog import list_services as list_catalog_services
 from core.community import GroupBuyError, GroupBuyRepository, SqliteGroupBuyRepository
 from core.inquiries import InquiryRepository, InquiryTransitionError, SqliteInquiryRepository
+from core.personalization import PersonalizationService, SqlitePersonalizationRepository
+from core.orders import SqliteOrderRepository
+from core.retail import RetailService, SqliteRetailRepository
 from core.insights.today import build_briefing
 from core.services import CommunityService, InsightsService, LifeServicesService
 from core.sessions import ConversationState, InMemorySessionStore, SessionStore
@@ -65,6 +68,10 @@ class MsgReq(BaseModel):
 
 class QuoteReq(BaseModel):
     answers: dict[str, Any] = {}
+
+
+class OrderReq(QuoteReq):
+    account_id: str
 
 
 class IntentReq(BaseModel):
@@ -127,6 +134,23 @@ class ExecutePlanReq(PlanReq):
     approved: list[int] = []
 
 
+class RecommendationFeedbackReq(BaseModel):
+    recommendation_id: str
+    action: str
+
+
+class ReminderReq(BaseModel):
+    item_name: str
+    cadence_days: int
+    next_due_on: str
+
+
+class StockWatchReq(BaseModel):
+    account_id: str
+    product_id: str
+    store_id: str
+
+
 def _progress(session: FormSession) -> dict[str, int]:
     return session.progress()
 
@@ -143,6 +167,9 @@ def create_app(
     repository: InquiryRepository | None = None,
     group_buys: GroupBuyRepository | None = None,
     sessions: SessionStore | None = None,
+    personalization_repository: SqlitePersonalizationRepository | None = None,
+    retail_repository: SqliteRetailRepository | None = None,
+    order_repository: SqliteOrderRepository | None = None,
     llm_factory: Callable[[], LlmClient] = get_llm,
 ) -> FastAPI:
     demo_db = Path(__file__).resolve().parents[1] / "tmp" / "life_ai_demo.sqlite3"
@@ -150,12 +177,27 @@ def create_app(
     inquiry_repository = repository or SqliteInquiryRepository(demo_db, now=demo_now)
     group_buy_repository = group_buys or SqliteGroupBuyRepository(demo_db, now=demo_now)
     session_store: SessionStore = sessions or InMemorySessionStore()
-    life_services = LifeServicesService(inquiry_repository, today=DEMO_TODAY)
+    life_services = LifeServicesService(
+        inquiry_repository,
+        orders=order_repository or SqliteOrderRepository(demo_db, now=demo_now),
+        today=DEMO_TODAY,
+    )
     insights = InsightsService(today=DEMO_TODAY)
     community = CommunityService(group_buy_repository)
+    personalization = PersonalizationService(
+        personalization_repository or SqlitePersonalizationRepository(demo_db, now=demo_now),
+        today=DEMO_TODAY,
+    )
+    retail = RetailService(retail_repository or SqliteRetailRepository(demo_db, now=demo_now))
     life_services_catalog = list_catalog_services
     # 能力層：規劃器與 MCP server 共用這一份（ADR-0017）
-    tool_registry = build_registry(services=life_services, group_buys=group_buy_repository, today=DEMO_TODAY)
+    tool_registry = build_registry(
+        services=life_services,
+        group_buys=group_buy_repository,
+        personalization=personalization,
+        retail=retail,
+        today=DEMO_TODAY,
+    )
     application = FastAPI(title="智慧生活管家 AI API")
 
     @application.get("/api/forms")
@@ -225,29 +267,48 @@ def create_app(
         text = req.message.strip()
 
         if state.submitted_id:
-            record = life_services.get_inquiry(state.submitted_id)
+            is_order = state.submitted_id.startswith("ORD-")
+            record = life_services.get_order(state.submitted_id) if is_order else life_services.get_inquiry(state.submitted_id)
             assert record is not None
-            operation = {"type": "inquiry.created", "id": record["id"], "status": record["status"]}
-            return {"reply": "諮詢單已建立。", "done": True, "operation": operation, "progress": _progress(live.session), "trace": []}
+            operation = {"type": "order.created" if is_order else "inquiry.created", "id": record["id"], "status": record["status"]}
+            return {"reply": "訂單已建立。" if is_order else "諮詢單已建立。", "done": True, "operation": operation, "progress": _progress(live.session), "trace": []}
 
         if state.awaiting_confirm:
             if _is_confirmation(text):
-                record = life_services.submit_inquiry(
-                    form_id=live.form.id,
-                    feedback_content=live.session.to_feedback_content(),
-                    service_id=live.form.service_id,
-                    account_id=req.account_id,
-                )
+                is_order = live.form.action.value == "order"
+                if is_order and not req.account_id:
+                    raise HTTPException(401, "建立訂單前請先登入")
+                if is_order:
+                    keyed_answers = {
+                        topic.key: state.answers[topic.id]
+                        for topic in live.form.ordered_topics()
+                        if topic.id in state.answers
+                    }
+                    record = life_services.create_order(
+                        service_id=live.form.service_id,
+                        answers=keyed_answers,
+                        account_id=req.account_id,
+                    )
+                else:
+                    record = life_services.submit_inquiry(
+                        form_id=live.form.id,
+                        feedback_content=live.session.to_feedback_content(),
+                        service_id=live.form.service_id,
+                        account_id=req.account_id,
+                    )
                 state.submitted_id = record["id"]
                 _persist(live)
-                operation = {"type": "inquiry.created", "id": record["id"], "status": record["status"]}
+                operation = {"type": "order.created" if is_order else "inquiry.created", "id": record["id"], "status": record["status"]}
                 return {
-                    "reply": f"已建立諮詢單 {record['id']}，合作夥伴稍後會回覆報價。",
+                    "reply": (
+                        f"已建立訂單 {record['id']}，應付 NT${record['amount']:,}，可到訂單頁追蹤。"
+                        if is_order else f"已建立諮詢單 {record['id']}，合作夥伴稍後會回覆報價。"
+                    ),
                     "done": True,
                     "awaiting_confirmation": False,
                     "operation": operation,
                     "progress": _progress(live.session),
-                    "trace": [{"stage": "write", "tool": "submit_inquiry", "status": "completed", "result_id": record["id"]}],
+                    "trace": [{"stage": "write", "tool": "create_order" if is_order else "submit_inquiry", "status": "completed", "result_id": record["id"]}],
                 }
             return {
                 "reply": "還沒送出。內容沒問題的話按「確認送出」，需要修改請告訴我要改哪一項。",
@@ -369,6 +430,11 @@ def create_app(
         """服務目錄——前端與 MCP 共用的單一來源。"""
         return {"data": life_services.list_services()}
 
+    @application.get("/api/v1/services/search")
+    def search_services(q: str, limit: int = 3) -> dict:
+        """以規則檢索相關服務；零分項目不進候選，避免整份目錄冒充意圖辨識。"""
+        return {"data": life_services.search_services(q, limit=limit)}
+
     @application.get("/api/v1/services/{service_id}/form")
     def get_service_form(service_id: str) -> dict:
         """該服務的題組定義（已把相對日期換算成絕對日期）。"""
@@ -383,6 +449,27 @@ def create_app(
         if life_services.get_service_form(service_id) is None:
             raise HTTPException(404, "查無服務")
         return {"data": life_services.quote(service_id, req.answers).to_dict()}
+
+    @application.post("/api/v1/services/{service_id}/orders")
+    def create_service_order(service_id: str, req: OrderReq) -> dict:
+        try:
+            return {"data": life_services.create_order(
+                service_id=service_id, answers=req.answers, account_id=req.account_id
+            )}
+        except (FormError, ValueError) as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+    @application.get("/api/v1/orders")
+    def list_platform_orders(account_id: str) -> dict:
+        return {"data": life_services.list_orders_for(account_id)}
+
+    @application.get("/api/v1/orders/{order_id}")
+    def get_platform_order(order_id: str, account_id: str) -> dict:
+        record = life_services.get_order(order_id)
+        # 競賽版仍是假登入；至少不允許只猜流水號就讀到不同帳號的訂單。
+        if record is None or record["accountId"] != account_id:
+            raise HTTPException(404, "查無訂單")
+        return {"data": record}
 
     @application.post("/api/v1/intent/match")
     def match_intent(req: IntentReq) -> dict:
@@ -492,7 +579,63 @@ def create_app(
             today=DEMO_TODAY,
             limit=limit,
         )
+        if resolved:
+            items = [
+                item for item in items
+                if item.kind != "suggestion" or not personalization.is_suppressed(resolved, item.source)
+            ]
         return {"data": [item.to_dict() for item in items]}
+
+    # --- 個人化補貨：官方行為證據＋競賽 seed 帳本＋可撤回偏好 ---
+
+    @application.get("/api/v1/personalization/{account_id}/restock-plan")
+    def restock_plan(account_id: str) -> dict:
+        return {"data": personalization.restock_plan(account_id)}
+
+    @application.post("/api/v1/personalization/{account_id}/feedback")
+    def recommendation_feedback(account_id: str, req: RecommendationFeedbackReq) -> dict:
+        try:
+            return {"data": personalization.feedback(account_id, req.recommendation_id, req.action)}
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+    @application.get("/api/v1/personalization/{account_id}/reminders")
+    def list_personal_reminders(account_id: str) -> dict:
+        return {"data": personalization.list_reminders(account_id)}
+
+    @application.post("/api/v1/personalization/{account_id}/reminders")
+    def create_personal_reminder(account_id: str, req: ReminderReq) -> dict:
+        try:
+            return {"data": personalization.create_reminder(
+                account_id,
+                item_name=req.item_name,
+                cadence_days=req.cadence_days,
+                next_due_on=req.next_due_on,
+            )}
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+    # --- 超商生態：能力／庫存、替代門市與候補 ---
+
+    @application.get("/api/v1/retail/stores/search")
+    def retail_search(q: str, district: str | None = None, capability: str | None = None) -> dict:
+        try:
+            return {"data": retail.search(query=q, district=district, capability=capability)}
+        except ValueError as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @application.get("/api/v1/retail/stock-watches")
+    def list_stock_watches(account_id: str) -> dict:
+        return {"data": retail.list_watches(account_id)}
+
+    @application.post("/api/v1/retail/stock-watches")
+    def join_stock_watch(req: StockWatchReq) -> dict:
+        try:
+            return {"data": retail.join_waitlist(
+                req.account_id, product_id=req.product_id, store_id=req.store_id
+            )}
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
 
     @application.get("/api/v1/inquiries")
     def list_inquiries() -> dict:

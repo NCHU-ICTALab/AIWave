@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from api.app import create_app
 from core.inquiries import SqliteInquiryRepository
+from core.orders import SqliteOrderRepository
 
 # core/forms/service_catalog.py 的水電修繕選項
 REPAIR_LIGHTING = 1071   # 燈具／開關
@@ -42,6 +43,16 @@ class ScriptedLlm:
             if f"題目：{title}" in prompt:
                 return answer
         return {"action": "unclear", "value": None, "note": f"沒有為這題準備答案：{prompt[:60]}"}
+
+
+class ShoppingLlm(ScriptedLlm):
+    ANSWERS = {
+        "補貨組合": {"action": "answer", "value": {"option_id": 1150, "quantity": None}, "note": "補貨組"},
+        "優惠券": {"action": "answer", "value": {"option_id": 1160, "quantity": None}, "note": "套用"},
+        "OPENPOINT 折抵": {"action": "answer", "value": {"option_id": 1170, "quantity": None}, "note": "折 50"},
+        "取貨方式": {"action": "answer", "value": {"option_id": 1180, "quantity": None}, "note": "門市"},
+        "支付方式": {"action": "answer", "value": {"option_id": 1190, "quantity": None}, "note": "icash Pay"},
+    }
 
 
 def test_real_ai_flow_requires_confirmation_then_persists_inquiry(tmp_path: Path) -> None:
@@ -87,6 +98,36 @@ def test_real_ai_flow_requires_confirmation_then_persists_inquiry(tmp_path: Path
     stored = client.get("/api/v1/inquiries/INQ-20260725-001").json()["data"]
     assert stored["status"] == "pending_quote"
     assert stored["events"][0]["type"] == "inquiry.created"
+
+
+def test_shopping_conversation_confirms_into_a_persistent_order(tmp_path: Path) -> None:
+    now = lambda: datetime(2026, 7, 25, tzinfo=timezone.utc)  # noqa: E731
+    db = tmp_path / "shopping.sqlite3"
+    orders = SqliteOrderRepository(db, now=now)
+    client = TestClient(create_app(
+        repository=SqliteInquiryRepository(db, now=now),
+        order_repository=orders,
+        llm_factory=ShoppingLlm,
+    ))
+    session_id = client.post("/api/chat/start", json={"service_id": "service-shopping"}).json()["session_id"]
+    payload = {}
+    for answer in ("補貨組", "套用", "50 點", "門市", "icash Pay"):
+        payload = client.post(
+            "/api/chat/message",
+            json={"session_id": session_id, "message": answer, "account_id": "A001"},
+        ).json()
+    assert payload["awaiting_confirmation"] is True
+
+    confirmed = client.post(
+        "/api/chat/message",
+        json={"session_id": session_id, "message": "確認送出", "account_id": "A001"},
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["operation"]["type"] == "order.created"
+    order = orders.list_for_account("A001")[0]
+    assert order["amount"] == 579
+    assert client.get(f"/api/v1/orders/{order['id']}", params={"account_id": "A001"}).status_code == 200
+    assert client.get(f"/api/v1/orders/{order['id']}", params={"account_id": "A002"}).status_code == 404
 
 
 def test_conversation_uses_the_same_catalog_as_the_web_form(tmp_path: Path) -> None:
