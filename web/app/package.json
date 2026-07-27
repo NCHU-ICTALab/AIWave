@@ -8,7 +8,8 @@
     "build": "vue-tsc -b && vite build",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "audit:ui": "node tools/audit-ui.mjs"
   },
   "dependencies": {
     "pinia": "4.0.2",
@@ -20,6 +21,7 @@
     "@vitejs/plugin-vue": "6.0.8",
     "@vue/test-utils": "2.4.11",
     "happy-dom": "20.11.1",
+    "playwright": "^1.62.0",
     "typescript": "5.9.3",
     "vite": "8.1.5",
     "vitest": "4.1.10",
