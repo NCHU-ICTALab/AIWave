@@ -28,6 +28,11 @@ function contrast(foreground: string, background: string) {
 }
 
 describe('design system tokens', () => {
+  it('separates the briefing source note and the following dashboard panel', () => {
+    expect(css).toMatch(/\.briefing\s*\{[^}]*margin-bottom:\s*var\(--space-[^)]+\)/)
+    expect(css).toMatch(/\.briefing\s*>\s*\.source-note\s*\{[^}]*margin-top:\s*var\(--space-[^)]+\)/)
+  })
+
   it('defines the spacing, type and motion scales components must use', () => {
     for (const name of ['space-1', 'space-4', 'space-7', 'text-sm', 'text-base', 'motion-base', 'tap']) {
       expect(() => token(name)).not.toThrow()

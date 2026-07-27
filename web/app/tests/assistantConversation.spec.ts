@@ -63,6 +63,21 @@ function stubConversation(replies: unknown[]) {
 describe('assistant conversation', () => {
   beforeEach(() => stubConversation([]))
 
+  it('opens as a general assistant instead of silently defaulting to plumbing repair', async () => {
+    const fetcher = vi.fn<typeof fetch>()
+    vi.stubGlobal('fetch', fetcher)
+    const { wrapper, router } = await mountApp('/user/assistant')
+
+    expect(wrapper.get('h1').text()).toBe('今天想處理什麼？')
+    expect(wrapper.text()).not.toContain('水電修繕')
+    expect(fetcher).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="assistant-need-input"]').setValue('想找人來打掃')
+    await wrapper.get('[data-testid="assistant-need-submit"]').trigger('submit')
+    await vi.waitFor(() => expect(router.currentRoute.value.query.need).toBe('想找人來打掃'))
+    expect(router.currentRoute.value.query.service).toBeUndefined()
+  })
+
   it('runs as a full page rather than a cramped drawer', async () => {
     const { wrapper } = await mountApp('/user/assistant?service=service-repair')
     const workspace = wrapper.get('[data-testid="assistant-workspace"]')

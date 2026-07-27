@@ -19,6 +19,10 @@ for (const viewport of viewports) {
     }))
   })
   const page = await context.newPage()
+  let chatStartRequests = 0
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/chat/start')) chatStartRequests += 1
+  })
   await page.route('**/api/chat/start', (route) => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({
@@ -30,6 +34,26 @@ for (const viewport of viewports) {
       progress: { answered: 0, total: 4 },
       trace: [],
     }),
+  }))
+  await page.route('**/api/v1/insights/*/summary', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ data: {
+      accountId: 'scroll-audit-user', totalOrders: 1, completedOrders: 1, openOrders: 0,
+      cancelledOrders: 0, distinctServices: 1, totalSpend: 1200, earnedPoints: 12,
+      firstActivity: '2026-07-01', lastActivity: '2026-07-20', source: 'audit',
+      services: [{ serviceId: 'service-cleaning', serviceName: '居家清潔', count: 1, lastUsedOn: '2026-07-20', daysSinceLast: 7, totalAmount: 1200 }],
+    } }),
+  }))
+  await page.route('**/api/v1/insights/*/recommendations?*', (route) => route.fulfill({
+    contentType: 'application/json', body: JSON.stringify({ data: [] }),
+  }))
+  await page.route('**/api/v1/today/*', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ data: [{
+      id: 'audit-suggestion', kind: 'suggestion', title: '安排居家清潔', detail: '距離上次清潔已有一週。',
+      actionLabel: '安排服務', actionRoute: '/user/services/cleaning', source: 'audit', score: 10,
+      evidence: [{ serviceName: '居家清潔', occurredOn: '2026-07-20' }], computedBy: 'rules',
+    }] }),
   }))
 
   await page.goto(`${baseUrl}/user/assistant?service=service-cleaning`, { waitUntil: 'networkidle' })
@@ -72,6 +96,30 @@ for (const viewport of viewports) {
   const afterWheel = await list.evaluate((element) => element.scrollTop)
   if (afterWheel <= 0) failures.push(`${viewport.name}: 滑鼠停在訊息區時 wheel 沒有捲動訊息列`)
 
+  const startCountBeforeLanding = chatStartRequests
+  await page.goto(`${baseUrl}/user/assistant`, { waitUntil: 'networkidle' })
+  const landingTitle = await page.locator('main h1').textContent()
+  if (landingTitle?.trim() !== '今天想處理什麼？') {
+    failures.push(`${viewport.name}: 通用生活管家標題錯誤（${landingTitle?.trim() || '空白'}）`)
+  }
+  if (chatStartRequests !== startCountBeforeLanding) {
+    failures.push(`${viewport.name}: 通用生活管家仍呼叫特定服務 chat/start`)
+  }
+
+  await page.goto(`${baseUrl}/user`, { waitUntil: 'networkidle' })
+  const homeSpacing = await page.evaluate(() => {
+    const briefing = document.querySelector('[data-testid="today-briefing"]')
+    const source = briefing.querySelector('.source-note')
+    const lastItem = briefing.querySelector('.briefing-item:last-child')
+    const nextPanel = briefing.nextElementSibling?.querySelector('.panel') ?? briefing.nextElementSibling
+    return {
+      sourceGap: source.getBoundingClientRect().top - lastItem.getBoundingClientRect().bottom,
+      panelGap: nextPanel.getBoundingClientRect().top - briefing.getBoundingClientRect().bottom,
+    }
+  })
+  if (homeSpacing.sourceGap < 12) failures.push(`${viewport.name}: 來源文字與建議卡間距過小（${Math.round(homeSpacing.sourceGap)}px）`)
+  if (homeSpacing.panelGap < 16) failures.push(`${viewport.name}: 首頁兩個大面板間距過小（${Math.round(homeSpacing.panelGap)}px）`)
+
   await context.close()
 }
 
@@ -81,5 +129,5 @@ if (failures.length) {
   console.error(failures.join('\n'))
   process.exitCode = 1
 } else {
-  console.log('聊天 composer 保持可見，訊息列可直接用滾輪內捲。')
+  console.log('聊天滾動、通用生活管家入口與首頁區塊間距皆通過。')
 }

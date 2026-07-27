@@ -321,6 +321,8 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
    中文長詞不會斷行，會把容器撐爆版面（先前 390px 斷點的實測災情）。 */
 /* 今日摘要：先回答「我現在該做什麼」 */
 .briefing-list { display: grid; gap: var(--space-3); margin: var(--space-3) 0 0; padding: 0; list-style: none; }
+.briefing { margin-bottom: var(--space-5); }
+.briefing > .source-note { margin-top: var(--space-4); margin-bottom: 0; }
 .briefing-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); min-width: 0; padding: var(--space-3) var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--surface-2); box-shadow: 3px 3px 0 var(--ink); }
 .briefing-item > * { min-width: 0; }
 .briefing-item.needs_your_decision { background: var(--accent-soft); }
@@ -454,7 +456,7 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
   .login-panels { grid-template-columns: 1fr; }
 }
 @media (max-width: 650px) {
-  /* 手機不做內捲區——巢狀捲動會跟主捲軸打架；由整頁自然捲動 */
+  /* 手機同樣保留訊息區內捲，讓 composer 不會被長對話推離 viewport。 */
   .assistant { height: calc(100dvh - 10rem); min-height: 30rem; }
   .assistant .message-list { max-height: none; padding: 1rem; }
   .assistant .message { max-width: 90%; }

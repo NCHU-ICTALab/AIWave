@@ -44,8 +44,9 @@ const input = ref<HTMLTextAreaElement | null>(null)
 
 const serviceId = computed(() => {
   const slug = route.query.service
-  return typeof slug === 'string' && slug ? slug : 'service-repair'
+  return typeof slug === 'string' ? slug.trim() : ''
 })
+const hasService = computed(() => Boolean(serviceId.value))
 
 /**
  * 兩種模式：
@@ -59,7 +60,14 @@ const need = computed(() => {
   const raw = route.query.need
   return typeof raw === 'string' ? raw.trim() : ''
 })
-const planning = computed(() => Boolean(need.value) && typeof route.query.service !== 'string')
+const planning = computed(() => Boolean(need.value) && !hasService.value)
+const landing = computed(() => !need.value && !hasService.value)
+
+const generalStarters = [
+  '想找人來打掃',
+  '家裡有東西壞了',
+  '想看看社區最近有什麼活動',
+]
 
 const plan = ref<Plan | null>(null)
 const planError = ref('')
@@ -239,8 +247,32 @@ function onKeydown(event: KeyboardEvent) {
   void send(prompt.value)
 }
 
+async function submitGeneralNeed(text: string) {
+  const description = text.trim()
+  if (!description) return
+  prompt.value = ''
+  await router.push({ name: 'assistant', query: { need: description } })
+}
+
+function onGeneralKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return
+  event.preventDefault()
+  void submitGeneralNeed(prompt.value)
+}
+
 /** 規劃模式不去開題組 session——那是使用者按下「開始填寫」之後的事。 */
 function enter() {
+  if (landing.value) {
+    serviceName.value = ''
+    sessionId.value = ''
+    messages.value = []
+    question.value = null
+    trace.value = []
+    progress.value = { answered: 0, total: 0 }
+    operation.value = null
+    awaitingConfirmation.value = false
+    return
+  }
   if (planning.value) return buildPlan()
   return begin()
 }
@@ -254,7 +286,7 @@ watch(() => route.fullPath, enter)
     <header class="assistant-head">
       <div>
         <p class="eyebrow">生活管家</p>
-        <h1>{{ planning ? (plan?.understanding || '正在理解你的需求…') : (serviceName || '正在準備…') }}</h1>
+        <h1>{{ landing ? '今天想處理什麼？' : planning ? (plan?.understanding || '正在理解你的需求…') : (serviceName || '正在準備…') }}</h1>
         <p v-if="planning && need" class="assistant-echo muted">你說：「{{ need }}」</p>
       </div>
       <div v-if="!planning && progress.total" class="assistant-progress" aria-live="polite">
@@ -299,6 +331,41 @@ watch(() => route.fullPath, enter)
           </div>
         </section>
       </template>
+    </div>
+
+    <div v-else-if="landing" class="assistant-body assistant-welcome" data-testid="assistant-welcome">
+      <section class="message-list" aria-live="polite" aria-label="對話內容">
+        <div class="message from-assistant">
+          <span>生活管家</span>
+          <p>嗨，我可以幫你找服務、整理需求、查看社區活動或處理生活中的大小事。直接告訴我你現在想做什麼就好。</p>
+        </div>
+      </section>
+
+      <section class="assistant-answer assistant-composer" data-testid="assistant-composer">
+        <div class="answer-choices" aria-label="常見需求">
+          <button
+            v-for="starter in generalStarters"
+            :key="starter"
+            class="choice-button"
+            type="button"
+            @click="submitGeneralNeed(starter)"
+          >{{ starter }}</button>
+        </div>
+        <form class="assistant-form" @submit.prevent="submitGeneralNeed(prompt)">
+          <label class="visually-hidden" for="assistant-need-input">告訴生活管家你的需求</label>
+          <textarea
+            id="assistant-need-input"
+            ref="input"
+            v-model="prompt"
+            rows="1"
+            data-testid="assistant-need-input"
+            placeholder="例如：想找人來打掃"
+            @input="resizeInput"
+            @keydown="onGeneralKeydown"
+          />
+          <button class="button primary" type="submit" data-testid="assistant-need-submit" :disabled="!prompt.trim()">送出</button>
+        </form>
+      </section>
     </div>
 
     <div v-else class="assistant-body">
