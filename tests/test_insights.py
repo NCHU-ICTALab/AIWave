@@ -127,6 +127,18 @@ def test_cross_sell_uses_official_vendor_relationship():
     assert cross[0].service_id not in used  # 只推沒用過的
 
 
+def test_cross_sell_mentions_each_vendor_relationship_once():
+    """同一個服務商關係只講一次。
+
+    實測：清潔商旗下三項未用過的服務各出一張「同一服務商也提供…」，
+    把今日摘要整個佔滿——那是排列組合，不是三個獨立的洞察。
+    """
+    recs = recommend(RICH_ACCOUNT, today=TODAY, limit=10)
+    cross = [rec for rec in recs if rec.kind == "vendor_cross_sell"]
+    vendors = [next(c for c in rec.reason_codes if c.startswith("vendor_")) for rec in cross]
+    assert len(vendors) == len(set(vendors)), "同一服務商出現多張交叉推薦"
+
+
 def test_recommendations_are_deduped_by_service_and_ranked():
     recs = recommend(RICH_ACCOUNT, today=TODAY, limit=5)
     service_ids = [rec.service_id for rec in recs]

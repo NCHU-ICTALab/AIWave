@@ -28,6 +28,10 @@ from .recommendations import recommend
 #: 團購剩幾天內算「快截止」
 CLOSING_SOON_DAYS = 3
 
+#: 摘要裡「建議」類最多幾則。摘要的主角是待辦（誰在等誰）；
+#: 建議沒有時限，佔滿版面時使用者反而找不到真正卡住的事。
+MAX_SUGGESTIONS = 2
+
 # 分數只用來排序，數值本身不對外顯示——避免看起來像某種精算出來的優先度
 _SCORE = {
     "needs_your_decision": 100,
@@ -201,7 +205,7 @@ def build_briefing(
     if account_id:
         items += _inquiry_items([r for r in inquiries if r.get("account_id") == account_id])
         items += _group_buy_items(campaigns, account_id, today)
-        items += _recommendation_items(account_id, today, limit)
+        items += _recommendation_items(account_id, today, limit)[:MAX_SUGGESTIONS]
 
     items.sort(key=lambda item: (-item.score, item.id))
     return items[:limit]

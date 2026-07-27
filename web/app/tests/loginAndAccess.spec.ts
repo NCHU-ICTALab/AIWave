@@ -39,12 +39,32 @@ describe('entry points and identity', () => {
     expect(wrapper.find('[data-testid="onboarding-steps"]').exists()).toBe(true)
   })
 
-  it('offers existing accounts described by their actual behaviour', async () => {
+  /**
+   * 登入清單是三位有名字的展示住戶，不是 10 個通路帳號。
+   *
+   * 官方樣本 7/10 帳號只用過單一服務——那是通路切分，不是 10 個真實的人。
+   * 後端先以官方雜湊做行為指紋解析，再組成完整生活樣貌的住戶。
+   */
+  it('offers a few named households rather than one entry per channel account', async () => {
     const { wrapper } = await mountApp('/login', { identity: null })
     const options = wrapper.findAll('[data-account-id]')
 
-    expect(options.length).toBeGreaterThan(0)
+    expect(options.length).toBeLessThanOrEqual(4)
     expect(options[0]!.text()).toMatch(/\d+ 筆紀錄/)
+    expect(options[0]!.text()).toMatch(/\d 種服務/)
+    for (const option of options) {
+      expect(option.text()).not.toMatch(/^使用者 \d/)   // 有名字，不是「使用者 1」
+    }
+  })
+
+  it('signs the resident in under the household name', async () => {
+    const { wrapper, session } = await mountApp('/login', { identity: null })
+    const first = wrapper.findAll('[data-account-id]')[0]!
+    const name = first.find('strong').text()
+
+    await first.trigger('click')
+
+    expect(session.identity?.displayName).toBe(name)
   })
 
   it('signs in as an existing account and shows that account’s data', async () => {

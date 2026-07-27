@@ -780,31 +780,47 @@ export const catalogForms: Record<string, ServiceFormDefinition> = {
 
 export const insightSummary: BehaviorSummary = {
   "accountId": "019a52d3-7f6b-7da3-b48d-9c9e2522d616",
-  "totalOrders": 10,
-  "completedOrders": 7,
+  "totalOrders": 27,
+  "completedOrders": 19,
   "openOrders": 2,
-  "cancelledOrders": 1,
-  "distinctServices": 3,
-  "totalSpend": 2218,
+  "cancelledOrders": 6,
+  "distinctServices": 5,
+  "totalSpend": 57125,
   "earnedPoints": 0,
   "firstActivity": "2026-06-02",
-  "lastActivity": "2026-06-16",
+  "lastActivity": "2026-06-23",
   "services": [
     {
       "serviceId": "service-shopping",
       "serviceName": "商城購物",
-      "count": 7,
-      "lastUsedOn": "2026-06-16",
-      "daysSinceLast": 39,
-      "totalAmount": 1970
+      "count": 10,
+      "lastUsedOn": "2026-06-23",
+      "daysSinceLast": 32,
+      "totalAmount": 2220
     },
     {
       "serviceId": "service-repair",
       "serviceName": "水電修繕",
-      "count": 2,
-      "lastUsedOn": "2026-06-05",
-      "daysSinceLast": 50,
-      "totalAmount": 0
+      "count": 6,
+      "lastUsedOn": "2026-06-23",
+      "daysSinceLast": 32,
+      "totalAmount": 1749
+    },
+    {
+      "serviceId": "service-washer",
+      "serviceName": "洗衣機清洗",
+      "count": 5,
+      "lastUsedOn": "2026-06-23",
+      "daysSinceLast": 32,
+      "totalAmount": 48610
+    },
+    {
+      "serviceId": "service-restaurant",
+      "serviceName": "餐廳訂位",
+      "count": 5,
+      "lastUsedOn": "2026-06-22",
+      "daysSinceLast": 33,
+      "totalAmount": 4298
     },
     {
       "serviceId": "service-delivery",
@@ -852,17 +868,41 @@ export const insightRecommendations: Recommendation[] = [
       "days_since_last",
       "threshold_30d"
     ],
-    "reasonText": "上次商城購物是 2026-06-16，距今 39 天。",
+    "reasonText": "上次商城購物是 2026-06-23，距今 32 天。",
     "evidence": [
       {
-        "recordId": 2003,
-        "orderNo": "PIC20260616000001",
+        "recordId": 2037,
+        "orderNo": "PIC20260623000004",
         "serviceName": "商城購物",
-        "occurredOn": "2026-06-16",
-        "detail": "共使用 7 次"
+        "occurredOn": "2026-06-23",
+        "detail": "共使用 10 次"
       }
     ],
     "score": 71,
+    "computedBy": "rules"
+  },
+  {
+    "id": "cross-service-aircon",
+    "kind": "vendor_cross_sell",
+    "title": "同一服務商也提供冷氣清洗",
+    "serviceId": "service-aircon",
+    "serviceName": "冷氣清洗",
+    "reasonCodes": [
+      "same_vendor",
+      "vendor_1",
+      "from_洗衣機清洗"
+    ],
+    "reasonText": "你用過洗衣機清洗，同一個服務商（清潔）也提供冷氣清洗。",
+    "evidence": [
+      {
+        "recordId": 2024,
+        "orderNo": "26062200000173",
+        "serviceName": "洗衣機清洗",
+        "occurredOn": "2026-06-22",
+        "detail": "官方主檔 service_vendor_id=1（清潔）"
+      }
+    ],
+    "score": 40,
     "computedBy": "rules"
   }
 ] as unknown as Recommendation[]
@@ -977,6 +1017,193 @@ export const insightTrail: TrailEvent[] = [
     "amount": 250,
     "itemName": "",
     "outcome": "cancelled"
+  },
+  {
+    "occurredOn": "2026-06-22",
+    "serviceName": "餐廳訂位",
+    "serviceId": "service-restaurant",
+    "orderNo": "12942068",
+    "recordId": 2018,
+    "status": "80",
+    "amount": 614,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-22",
+    "serviceName": "餐廳訂位",
+    "serviceId": "service-restaurant",
+    "orderNo": "12942069",
+    "recordId": 2019,
+    "status": "80",
+    "amount": 2456,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-22",
+    "serviceName": "餐廳訂位",
+    "serviceId": "service-restaurant",
+    "orderNo": "12942070",
+    "recordId": 2020,
+    "status": "90",
+    "amount": 538,
+    "itemName": "",
+    "outcome": "cancelled"
+  },
+  {
+    "occurredOn": "2026-06-22",
+    "serviceName": "餐廳訂位",
+    "serviceId": "service-restaurant",
+    "orderNo": "12942071",
+    "recordId": 2021,
+    "status": "80",
+    "amount": 0,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-22",
+    "serviceName": "餐廳訂位",
+    "serviceId": "service-restaurant",
+    "orderNo": "12942072",
+    "recordId": 2022,
+    "status": "80",
+    "amount": 1228,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-22",
+    "serviceName": "洗衣機清洗",
+    "serviceId": "service-washer",
+    "orderNo": "26062200000173",
+    "recordId": 2024,
+    "status": "80",
+    "amount": 1800,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-22",
+    "serviceName": "洗衣機清洗",
+    "serviceId": "service-washer",
+    "orderNo": "26062200000247",
+    "recordId": 2025,
+    "status": "80",
+    "amount": 1110,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-22",
+    "serviceName": "洗衣機清洗",
+    "serviceId": "service-washer",
+    "orderNo": "26062200000301",
+    "recordId": 2026,
+    "status": "80",
+    "amount": 41500,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-22",
+    "serviceName": "洗衣機清洗",
+    "serviceId": "service-washer",
+    "orderNo": "26062200000439",
+    "recordId": 2027,
+    "status": "80",
+    "amount": 3200,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-22",
+    "serviceName": "水電修繕",
+    "serviceId": "service-repair",
+    "orderNo": "26062200000518",
+    "recordId": 2023,
+    "status": "80",
+    "amount": 1449,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-23",
+    "serviceName": "洗衣機清洗",
+    "serviceId": "service-washer",
+    "orderNo": "26062300000168",
+    "recordId": 2033,
+    "status": "80",
+    "amount": 1000,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-23",
+    "serviceName": "水電修繕",
+    "serviceId": "service-repair",
+    "orderNo": "26062300000282",
+    "recordId": 2029,
+    "status": "80",
+    "amount": 300,
+    "itemName": "",
+    "outcome": "completed"
+  },
+  {
+    "occurredOn": "2026-06-23",
+    "serviceName": "水電修繕",
+    "serviceId": "service-repair",
+    "orderNo": "26062300000332",
+    "recordId": 2030,
+    "status": "98",
+    "amount": 2415,
+    "itemName": "",
+    "outcome": "cancelled"
+  },
+  {
+    "occurredOn": "2026-06-23",
+    "serviceName": "水電修繕",
+    "serviceId": "service-repair",
+    "orderNo": "26062300000426",
+    "recordId": 2031,
+    "status": "98",
+    "amount": 1688,
+    "itemName": "",
+    "outcome": "cancelled"
+  },
+  {
+    "occurredOn": "2026-06-23",
+    "serviceName": "商城購物",
+    "serviceId": "service-shopping",
+    "orderNo": "PIC20260623000001",
+    "recordId": 2032,
+    "status": "99",
+    "amount": 200,
+    "itemName": "",
+    "outcome": "cancelled"
+  },
+  {
+    "occurredOn": "2026-06-23",
+    "serviceName": "商城購物",
+    "serviceId": "service-shopping",
+    "orderNo": "PIC20260623000003",
+    "recordId": 2036,
+    "status": "98",
+    "amount": 1470,
+    "itemName": "",
+    "outcome": "cancelled"
+  },
+  {
+    "occurredOn": "2026-06-23",
+    "serviceName": "商城購物",
+    "serviceId": "service-shopping",
+    "orderNo": "PIC20260623000004",
+    "recordId": 2037,
+    "status": "80",
+    "amount": 250,
+    "itemName": "",
+    "outcome": "completed"
   }
 ] as unknown as TrailEvent[]
 
@@ -1005,18 +1232,18 @@ export const todayBriefing: BriefingItem[] = [
     "id": "rec-revisit-service-shopping",
     "kind": "suggestion",
     "title": "該安排商城購物了",
-    "detail": "上次商城購物是 2026-06-16，距今 39 天。",
+    "detail": "上次商城購物是 2026-06-23，距今 32 天。",
     "actionLabel": "安排服務",
     "actionRoute": "/user/services/shopping",
     "source": "revisit-service-shopping",
     "score": 20,
     "evidence": [
       {
-        "recordId": 2003,
-        "orderNo": "PIC20260616000001",
+        "recordId": 2037,
+        "orderNo": "PIC20260623000004",
         "serviceName": "商城購物",
-        "occurredOn": "2026-06-16",
-        "detail": "共使用 7 次"
+        "occurredOn": "2026-06-23",
+        "detail": "共使用 10 次"
       }
     ],
     "computedBy": "rules"
@@ -1025,93 +1252,45 @@ export const todayBriefing: BriefingItem[] = [
 
 export const insightAccounts = [
   {
-    "accountId": "019eee3f-841e-7048-ae67-0955b144f4f8",
-    "orderCount": 16,
-    "serviceCount": 4,
-    "openCount": 0,
-    "topService": "餐廳訂位",
-    "topServiceCount": 5,
-    "isDefault": false
-  },
-  {
     "accountId": "019a52d3-7f6b-7da3-b48d-9c9e2522d616",
-    "orderCount": 10,
-    "serviceCount": 3,
+    "name": "小圓",
+    "roleSummary": "雙薪家庭，家電清洗、水電修繕與外食都會用",
+    "orderCount": 27,
+    "serviceCount": 5,
     "openCount": 2,
     "topService": "商城購物",
-    "topServiceCount": 7,
-    "isDefault": true
-  },
-  {
-    "accountId": "019db86c-201d-700a-ba04-525d90da4b0b",
-    "orderCount": 3,
-    "serviceCount": 2,
-    "openCount": 2,
-    "topService": "餐廳訂位",
-    "topServiceCount": 2,
-    "isDefault": false
-  },
-  {
-    "accountId": "019e6c8c-a061-7197-be0f-b7d341dbafdd",
-    "orderCount": 31,
-    "serviceCount": 1,
-    "openCount": 0,
-    "topService": "商城購物",
-    "topServiceCount": 31,
-    "isDefault": false
-  },
-  {
-    "accountId": "019d7569-19cc-7727-aa60-82644ce67ad7",
-    "orderCount": 23,
-    "serviceCount": 1,
-    "openCount": 0,
-    "topService": "商城購物",
-    "topServiceCount": 23,
-    "isDefault": false
+    "topServiceCount": 10,
+    "isDefault": true,
+    "composedFrom": 1,
+    "resolvedByHash": 3,
+    "source": "demo_composition"
   },
   {
     "accountId": "019c0464-2d01-73f0-9f9b-d1392fdb941a",
-    "orderCount": 8,
-    "serviceCount": 1,
-    "openCount": 8,
-    "topService": "水電修繕",
-    "topServiceCount": 8,
-    "isDefault": false
+    "name": "陳伯伯",
+    "roleSummary": "樂齡住戶，固定叫修與日用品補貨",
+    "orderCount": 35,
+    "serviceCount": 4,
+    "openCount": 10,
+    "topService": "商城購物",
+    "topServiceCount": 23,
+    "isDefault": false,
+    "composedFrom": 4,
+    "resolvedByHash": 0,
+    "source": "demo_composition"
   },
   {
-    "accountId": "019a52d3-7f6b-7f5f-8201-98588d5a5b84",
-    "orderCount": 5,
-    "serviceCount": 1,
+    "accountId": "019e6c8c-a061-7197-be0f-b7d341dbafdd",
+    "name": "Vivian",
+    "roleSummary": "上班族，以線上購物與外食為主",
+    "orderCount": 37,
+    "serviceCount": 3,
     "openCount": 0,
-    "topService": "餐廳訂位",
-    "topServiceCount": 5,
-    "isDefault": false
-  },
-  {
-    "accountId": "019c08f2-62e1-76be-a7ac-44b8a2d1d290",
-    "orderCount": 1,
-    "serviceCount": 1,
-    "openCount": 0,
-    "topService": "美食外送",
-    "topServiceCount": 1,
-    "isDefault": false
-  },
-  {
-    "accountId": "019cb30b-6a86-739a-832b-38225a2b2fdf",
-    "orderCount": 1,
-    "serviceCount": 1,
-    "openCount": 0,
-    "topService": "水電修繕",
-    "topServiceCount": 1,
-    "isDefault": false
-  },
-  {
-    "accountId": "019ef24a-424e-776e-854c-a1cf7b2b3ed9",
-    "orderCount": 1,
-    "serviceCount": 1,
-    "openCount": 0,
-    "topService": "洗衣機清洗",
-    "topServiceCount": 1,
-    "isDefault": false
+    "topService": "商城購物",
+    "topServiceCount": 31,
+    "isDefault": false,
+    "composedFrom": 3,
+    "resolvedByHash": 0,
+    "source": "demo_composition"
   }
 ]

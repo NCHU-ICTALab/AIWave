@@ -27,10 +27,18 @@ def client(tmp_path: Path) -> TestClient:
     return TestClient(create_app(repository=repository, llm_factory=UnusedLlm))
 
 
-def test_accounts_endpoint_marks_the_demo_persona(client: TestClient) -> None:
+def test_accounts_endpoint_lists_the_three_demo_households(client: TestClient) -> None:
+    """登入清單是三位展示住戶，不是 10 個通路帳號。
+
+    原本每個官方帳號各成一個「使用者」，7/10 只用過單一服務——那是通路切分的
+    結果，不是 10 個真實的人。整併見 core/data/identity.py 與 personas.py。
+    """
     accounts = client.get("/api/v1/insights/accounts").json()["data"]
-    assert len(accounts) == 10
+    assert len(accounts) == 3
     assert sum(1 for account in accounts if account["isDefault"]) == 1
+    for account in accounts:
+        assert account["serviceCount"] >= 3, f"{account['name']} 只有 {account['serviceCount']} 種服務"
+        assert account["source"] == "demo_composition"   # 介面要能標示這是展示組合
 
 
 def test_me_resolves_to_the_demo_persona(client: TestClient) -> None:

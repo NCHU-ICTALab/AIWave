@@ -128,6 +128,22 @@ class TestOnlyRealThings:
         assert not [item for item in items if item.kind == "closing_soon"]
 
 
+class TestSuggestionCap:
+    def test_suggestions_never_crowd_out_the_briefing(self):
+        """建議沒有時限，不能佔滿版面——實測小圓的推薦一度塞滿全部五格。"""
+        from core.insights.today import MAX_SUGGESTIONS
+
+        # 小圓（27 筆、5 種服務）推薦最多；摘要裡建議仍不得超過上限
+        items = build_briefing(
+            account_id="019a52d3-7f6b-7da3-b48d-9c9e2522d616",
+            inquiries=[],
+            campaigns=[],
+            today=TODAY,
+        )
+        suggestions = [item for item in items if item.kind == "suggestion"]
+        assert len(suggestions) <= MAX_SUGGESTIONS
+
+
 class TestNewUser:
     def test_a_brand_new_user_gets_nothing_rather_than_filler(self):
         """新帳號真的沒有待辦；這時該由零狀態教學，不是塞假資料（spec 08）。"""

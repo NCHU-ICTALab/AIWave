@@ -4,8 +4,17 @@ import { useRouter } from 'vue-router'
 
 import { ROLE_HOME, ROLE_LABEL, useSessionStore, type Role } from '@/stores/session'
 
+/**
+ * 展示住戶（不是原始通路帳號）。
+ *
+ * 官方樣本的 10 個帳號有 7 個只用過單一服務——那是通路切分的結果，不是
+ * 10 個真實的人。後端先以官方 member_*_hash 做行為指紋解析，再組成三位
+ * 有完整生活樣貌的住戶；`name`／`roleSummary` 由此而來。
+ */
 interface AccountOption {
   accountId: string
+  name: string
+  roleSummary: string
   orderCount: number
   serviceCount: number
   openCount: number
@@ -69,18 +78,20 @@ async function enter(role: Role, accountId: string | null, displayName: string) 
           目前無法取得帳號清單，請確認後端服務已啟動。
         </p>
         <ul v-else class="account-list" data-testid="account-list">
-          <li v-for="(account, index) in accounts" :key="account.accountId">
+          <li v-for="account in accounts" :key="account.accountId">
             <button
               class="account-option"
               type="button"
               :data-account-id="account.accountId"
-              @click="enter('user', account.accountId, `使用者 ${index + 1}`)"
+              @click="enter('user', account.accountId, account.name)"
             >
-              <strong>{{ account.topService || '一般' }}使用者</strong>
+              <strong>{{ account.name }}</strong>
+              <span class="muted">{{ account.roleSummary }}</span>
               <span class="muted">{{ describe(account) }}</span>
             </button>
           </li>
         </ul>
+        <p class="muted login-hint">展示住戶由官方樣本訂單組成（行為指紋見個人頁說明）。</p>
       </section>
 
       <section class="panel login-card" aria-labelledby="staff-entry">

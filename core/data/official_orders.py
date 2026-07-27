@@ -147,5 +147,13 @@ def list_accounts() -> list[str]:
 
 
 def orders_for(account_id: str) -> list[OfficialOrder]:
-    """某帳號的訂單，時間由舊到新（＝行為軌跡的原始序列）。"""
-    return [order for order in load_orders() if order.account_id == account_id]
+    """某人的訂單，時間由舊到新（＝行為軌跡的原始序列）。
+
+    「某人」而不是「某帳號」：傳入展示住戶或已解析身分時，會展開其底下的
+    所有官方帳號（行為指紋見 `identity.py`，展示組合見 `personas.py`）。
+    行為軌跡、消費摘要、推薦、今日摘要都經過這裡，所以聚合只需做這一處。
+    """
+    from .personas import accounts_for_persona   # 延遲匯入避免循環相依
+
+    accounts = set(accounts_for_persona(account_id))
+    return [order for order in load_orders() if order.account_id in accounts]

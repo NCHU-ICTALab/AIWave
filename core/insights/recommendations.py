@@ -190,15 +190,24 @@ def _vendor_cross_sell_recs(account_id: str) -> list[Recommendation]:
         return []
 
     recs: list[Recommendation] = []
+    #: 同一個服務商關係只講一次。實測：清潔商旗下有三項未用過的服務，
+    #: 逐項各出一張「同一服務商也提供…」會把今日摘要整個佔滿——
+    #: 使用者需要知道的是「這家你信任的服務商還能幫你做別的」，不是三張排列組合。
+    seen_vendors: set[object] = set()
     for used_id in sorted(used_service_ids):
         used = master.get(used_id)
         if used is None:
             continue
         vendor_id = used.get("service_vendor_id")
+        if vendor_id in seen_vendors:
+            continue
         siblings = [
             (sid, row) for sid, row in master.items()
             if row.get("service_vendor_id") == vendor_id and sid not in used_service_ids
         ]
+        if siblings:
+            seen_vendors.add(vendor_id)
+            siblings = siblings[:1]
         for sibling_id, sibling in siblings:
             catalog_id = OFFICIAL_SERVICE_TO_CATALOG.get(sibling_id)
             if catalog_id is None:

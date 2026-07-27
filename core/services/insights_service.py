@@ -9,10 +9,11 @@ from __future__ import annotations
 from collections import Counter
 from datetime import date
 
-from core.data.official_orders import list_accounts, orders_for
+from core.data.official_orders import orders_for
+from core.data.personas import list_personas, real_resolution_count
 from core.insights import build_trail, recommend, summarize
 
-# 展示用主 persona：官方資料中同時具備「跨服務歷史」與「未完成訂單」的帳號，
+# 展示用主 persona：官方資料中同時具備「跨服務歷史」與「未完成訂單」的住戶（小圓），
 # 未完成的水電修繕正好接上諮詢單→報價流程。
 DEMO_ACCOUNT_ID = "019a52d3-7f6b-7da3-b48d-9c9e2522d616"
 
@@ -29,20 +30,32 @@ class InsightsService:
         return account_id  # type: ignore[return-value]
 
     def accounts(self) -> list[dict]:
-        """官方資料中可登入的既有使用者，附行為描述供登入頁辨識。"""
+        """可登入的展示住戶，附行為描述供登入頁辨識。
+
+        原本列出全部 10 個官方帳號，但其中 7 個只用過單一服務、6 個訂單數 ≤3——
+        那是通路切分的結果，不是 10 個真實的人。現在回傳的是三位**展示住戶**：
+        先由官方 `member_*_hash` 做真的行為指紋解析（`identity.py`），
+        再組成有完整生活樣貌的住戶（`personas.py`，標示為展示組合）。
+        """
         result = []
-        for account_id in list_accounts():
-            orders = orders_for(account_id)
+        for persona in list_personas():
+            orders = orders_for(persona.id)
             usage = Counter(order.service_name for order in orders)
             top_service, top_count = usage.most_common(1)[0] if usage else ("", 0)
             result.append({
-                "accountId": account_id,
+                "accountId": persona.id,
+                "name": persona.name,
+                "roleSummary": persona.role_summary,
                 "orderCount": len(orders),
                 "serviceCount": len(usage),
                 "openCount": sum(1 for o in orders if o.is_open),
                 "topService": top_service,
                 "topServiceCount": top_count,
-                "isDefault": account_id == self.default_account_id,
+                "isDefault": persona.id == self.default_account_id,
+                # 誠實標示：組合了幾個帳號、其中幾個是官方雜湊真的認回來的
+                "composedFrom": len(persona.identity_ids),
+                "resolvedByHash": real_resolution_count(persona.id),
+                "source": "demo_composition",
             })
         result.sort(key=lambda row: (-row["serviceCount"], -row["orderCount"]))
         return result
