@@ -105,8 +105,8 @@ async function confirmOrder() {
       <section v-if="store.services.length" class="panel" aria-labelledby="common-services">
         <div class="section-title-row"><h2 id="common-services">我的常用服務</h2><button class="text-button" type="button">編輯</button></div>
         <div class="quick-grid">
-          <button v-for="service in store.services.slice(0, 5)" :key="service.id" class="quick-service" type="button" @click="chooseService(service.id)">
-            <span class="service-glyph" aria-hidden="true">{{ service.glyph }}</span><strong>{{ service.name }}</strong>
+          <button v-for="(service, index) in store.services.slice(0, 5)" :key="service.id" class="quick-service" type="button" @click="chooseService(service.id)">
+            <span class="service-glyph" :data-hue="index % 4" aria-hidden="true">{{ service.glyph }}</span><strong>{{ service.name }}</strong>
           </button>
         </div>
       </section>
@@ -125,7 +125,7 @@ async function confirmOrder() {
             <h3>{{ category }}</h3>
             <div class="catalog-grid">
               <button
-                v-for="service in visibleServices.filter((item) => item.category === category)"
+                v-for="(service, index) in visibleServices.filter((item) => item.category === category)"
                 :key="service.id"
                 class="catalog-service"
                 :class="{ 'is-selected': store.selectedServiceId === service.id }"
@@ -135,7 +135,7 @@ async function confirmOrder() {
                 :aria-pressed="store.selectedServiceId === service.id"
                 @click="chooseService(service.id)"
               >
-                <span class="service-glyph" aria-hidden="true">{{ service.glyph }}</span><strong>{{ service.name }}</strong>
+                <span class="service-glyph" :data-hue="index % 4" aria-hidden="true">{{ service.glyph }}</span><strong>{{ service.name }}</strong>
               </button>
             </div>
           </div>

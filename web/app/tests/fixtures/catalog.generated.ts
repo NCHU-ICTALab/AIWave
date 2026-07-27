@@ -15,7 +15,7 @@ export const catalogServices: CatalogService[] = [
     "category": "居家維護",
     "summary": "到府拆洗與基礎檢測",
     "partner": "專業清潔夥伴",
-    "glyph": "洗"
+    "glyph": "🧺"
   },
   {
     "id": "service-aircon",
@@ -23,7 +23,7 @@ export const catalogServices: CatalogService[] = [
     "category": "居家維護",
     "summary": "壁掛式冷氣深層清潔",
     "partner": "專業清潔夥伴",
-    "glyph": "冷"
+    "glyph": "❄️"
   },
   {
     "id": "service-cleaning",
@@ -31,7 +31,7 @@ export const catalogServices: CatalogService[] = [
     "category": "居家維護",
     "summary": "居家空間重點清潔",
     "partner": "社區合作夥伴",
-    "glyph": "潔"
+    "glyph": "🧹"
   },
   {
     "id": "service-housework",
@@ -39,7 +39,7 @@ export const catalogServices: CatalogService[] = [
     "category": "生活支援",
     "summary": "兩小時計時家事協助",
     "partner": "生活服務夥伴",
-    "glyph": "家"
+    "glyph": "🧽"
   },
   {
     "id": "service-repair",
@@ -47,7 +47,7 @@ export const catalogServices: CatalogService[] = [
     "category": "生活支援",
     "summary": "初步判斷並安排到府",
     "partner": "安心修繕",
-    "glyph": "修"
+    "glyph": "🔧"
   },
   {
     "id": "service-shipping",
@@ -55,7 +55,7 @@ export const catalogServices: CatalogService[] = [
     "category": "生活支援",
     "summary": "黑貓宅急便到店寄件",
     "partner": "黑貓宅急便",
-    "glyph": "寄"
+    "glyph": "📦"
   },
   {
     "id": "service-restaurant",
@@ -63,7 +63,7 @@ export const catalogServices: CatalogService[] = [
     "category": "餐飲購物",
     "summary": "依人數與時段媒合餐廳",
     "partner": "統一集團餐飲",
-    "glyph": "訂"
+    "glyph": "🍽️"
   },
   {
     "id": "service-delivery",
@@ -71,7 +71,7 @@ export const catalogServices: CatalogService[] = [
     "category": "餐飲購物",
     "summary": "附近餐點與情境推薦",
     "partner": "外送合作夥伴",
-    "glyph": "送"
+    "glyph": "🛵"
   },
   {
     "id": "service-shopping",
@@ -79,7 +79,7 @@ export const catalogServices: CatalogService[] = [
     "category": "餐飲購物",
     "summary": "日用品補貨並套用優惠",
     "partner": "iOPEN Mall",
-    "glyph": "購"
+    "glyph": "🛒"
   }
 ]
 

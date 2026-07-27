@@ -17,31 +17,33 @@
 
 ## 輔助視覺系統
 
-2026-07-27 改版：採 ui-ux-pro-max 的 **Claymorphism 教育平台**方向
-（styles.csv「Claymorphism」＋ colors.csv「Educational App」），取代先前的青綠琥珀。
-質感要點：靛白背景（不用純白）、粗邊框 3px、圓角 16–28px、雙層陰影
-（外柔靛色調＋內上高光）、按鈕底座陰影與按壓回彈。
+2026-07-27 改版（二）：**完全對齊 uupm.cc/demo/educational-platform（LearnHub）**，
+色票與元件公式直接取自該站 CSS（chunk `059f045659212c06`）。
+質感要點：奶油底（不用純白）、白卡＋**3px 深墨邊框**＋**硬偏移陰影**
+（卡片 `6px 6px 0 ink, inset 0 -4px 0 10%黑`、按鈕 `4px 4px 0`，hover 位移吃掉陰影）、
+粉彩磚＋emoji icon、圓角 24／16。
 
-- Primary：`#4F46E5`（deep `#3730A3` 作按鈕底座）
-- Primary soft：`#E0E7FF`
-- Accent：`#C2410C`（skill 原表 `#EA580C` 當白字底色僅 3.6:1，降為 orange-700 過 4.5:1；
-  更亮的 `#F97316` 只做漸層等裝飾，不承載文字）
-- Accent soft：`#FFEDD5`／Accent ink：`#9A3412`
-- Background：`#EEF2FF`
-- Surface：`#FFFFFF`／Surface 2：`#E4E9FC`
-- Ink：`#1E1B4B`
-- Muted：`#475569`
-- Border：`#C7D2FE`
-- Danger：`#B91C1C`／Success：`#15803D`
-- Shadow：靛色調柔陰影（`rgb(79 70 229 / …)`）＋內上白高光，構成黏土的 double shadow。
+- Ink `#2D3748`（demo `--text`：文字＝邊框＝陰影，三位一體）
+- Background `#FFF9F5`（demo `--bg-cream`）／Surface `#FFFFFF`／Surface 2 `#FDF1EC`
+- CTA 綠 `#22C55E`（hover `#16A34A`）——**只做填色**；承載文字的綠用 `#15803D`（AA）
+- 粉彩磚：蜜桃 `#FDBCB4`（dark `#F5A69D`）、嬰兒藍 `#ADD8E6`、薄荷 `#98FF98`、薰衣草 `#E6E6FA`
+- Muted `#5A6478`（demo `#64748B` 微降過 AA）／Line `#E2E8F0`
+- Danger `#B91C1C`／Success `#15803D`
+
+與 demo 的兩處刻意偏離（demo 本身非 AA）：綠底按鈕文字用深墨不用白
+（白字 2.28:1 vs 深墨 5.26:1，且與 demo 藍底次要按鈕的深字語彙一致）；muted 微降。
 
 ## 字型
 
-- Display：`Nunito`（800/900，圓端點）→ 中文回落 `Noto Sans TC`。
-- Body：`DM Sans` → `Noto Sans TC`；無網路時回退至 `Microsoft JhengHei`。
+- 全站：`Nunito`（demo 的 `:root` 就只有它）→ 中文回落 `Noto Sans TC` → `Microsoft JhengHei`。
 - Data／Code：`IBM Plex Mono`；無網路時回退至 `Consolas`。
 - 掛載方式：`@fontsource` 自帶打包，不走 Google Fonts CDN（部署後不多外部往返，
   LINE WebView 離線也不缺字）。
+
+## Icon
+
+服務磚用 emoji（demo 本身就在粉彩磚裡放 emoji），glyph 定義在後端服務目錄
+（`core/forms/service_catalog.py`，單一事實來源），旁邊必有文字名稱，不構成 icon-only。
 
 ## 氣質關鍵詞
 

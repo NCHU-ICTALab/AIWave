@@ -33,16 +33,18 @@ class ServiceInfo:
     glyph: str
 
 
+# glyph 用 emoji：前端的服務磚對齊 uupm 教育平台 demo 的 icon tile 語彙
+# （demo 本身就在粉彩磚裡放 emoji：🎯📚⭐）。名稱旁另有文字，不構成 icon-only。
 SERVICES: tuple[ServiceInfo, ...] = (
-    ServiceInfo("service-washer", "洗衣機清洗", "居家維護", "到府拆洗與基礎檢測", "專業清潔夥伴", "洗"),
-    ServiceInfo("service-aircon", "冷氣清洗", "居家維護", "壁掛式冷氣深層清潔", "專業清潔夥伴", "冷"),
-    ServiceInfo("service-cleaning", "專業清潔", "居家維護", "居家空間重點清潔", "社區合作夥伴", "潔"),
-    ServiceInfo("service-housework", "計時家事", "生活支援", "兩小時計時家事協助", "生活服務夥伴", "家"),
-    ServiceInfo("service-repair", "水電修繕", "生活支援", "初步判斷並安排到府", "安心修繕", "修"),
-    ServiceInfo("service-shipping", "寄件服務", "生活支援", "黑貓宅急便到店寄件", "黑貓宅急便", "寄"),
-    ServiceInfo("service-restaurant", "餐廳訂位", "餐飲購物", "依人數與時段媒合餐廳", "統一集團餐飲", "訂"),
-    ServiceInfo("service-delivery", "美食外送", "餐飲購物", "附近餐點與情境推薦", "外送合作夥伴", "送"),
-    ServiceInfo("service-shopping", "商城購物", "餐飲購物", "日用品補貨並套用優惠", "iOPEN Mall", "購"),
+    ServiceInfo("service-washer", "洗衣機清洗", "居家維護", "到府拆洗與基礎檢測", "專業清潔夥伴", "🧺"),
+    ServiceInfo("service-aircon", "冷氣清洗", "居家維護", "壁掛式冷氣深層清潔", "專業清潔夥伴", "❄️"),
+    ServiceInfo("service-cleaning", "專業清潔", "居家維護", "居家空間重點清潔", "社區合作夥伴", "🧹"),
+    ServiceInfo("service-housework", "計時家事", "生活支援", "兩小時計時家事協助", "生活服務夥伴", "🧽"),
+    ServiceInfo("service-repair", "水電修繕", "生活支援", "初步判斷並安排到府", "安心修繕", "🔧"),
+    ServiceInfo("service-shipping", "寄件服務", "生活支援", "黑貓宅急便到店寄件", "黑貓宅急便", "📦"),
+    ServiceInfo("service-restaurant", "餐廳訂位", "餐飲購物", "依人數與時段媒合餐廳", "統一集團餐飲", "🍽️"),
+    ServiceInfo("service-delivery", "美食外送", "餐飲購物", "附近餐點與情境推薦", "外送合作夥伴", "🛵"),
+    ServiceInfo("service-shopping", "商城購物", "餐飲購物", "日用品補貨並套用優惠", "iOPEN Mall", "🛒"),
 )
 
 # 到府服務共用的日期／時段題（可預約範圍：明日起 14 天內）
