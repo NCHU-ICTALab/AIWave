@@ -67,6 +67,83 @@ describe('inquiry lifecycle across roles', () => {
     expect(wrapper.text()).toContain('已確認，等待服務')
   })
 
+  /**
+   * 收到報價後不是只有「同意」一條路。
+   *
+   * 先前住戶唯一能做的事就是接受報價——那不是流程設計，是缺漏：
+   * 真實情況下住戶會嫌貴、會想換一家、會乾脆不修了。
+   */
+  it('offers more than agreeing when a quote arrives', async () => {
+    stubCatalogFetch((url) => (url.endsWith('/api/v1/inquiries') ? json({ data: [QUOTED] }) : undefined))
+    const { wrapper } = await mountApp('/user/orders')
+
+    expect(wrapper.find('[data-testid="confirm-quote-INQ-20260725-001"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="revise-quote-INQ-20260725-001"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cancel-inquiry-INQ-20260725-001"]').exists()).toBe(true)
+  })
+
+  it('sends the case back for a new quote with the resident’s note', async () => {
+    const posted: Array<Record<string, unknown>> = []
+    stubCatalogFetch((url, init) => {
+      if (url.endsWith('/api/v1/inquiries')) return json({ data: [QUOTED] })
+      if (url.includes('/revise') && init?.method === 'POST') {
+        posted.push(JSON.parse(String(init.body)))
+        return json({ data: { ...SUBMITTED, status_label: '待廠商報價' } })
+      }
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/orders')
+
+    await wrapper.get('[data-testid="revise-quote-INQ-20260725-001"]').trigger('click')
+    await wrapper.get('[data-testid="revision-note-INQ-20260725-001"]').setValue('預算希望壓在 1000 以內')
+    // happy-dom 不會因為點了 type="submit" 就送出表單，直接觸發 submit
+    await wrapper.get('form.quote-revision').trigger('submit')
+    await flushPromises()
+
+    expect(posted[0]).toEqual({ note: '預算希望壓在 1000 以內' })
+    expect(wrapper.text()).toContain('待廠商報價')
+  })
+
+  it('will not send a revision without saying what to change', async () => {
+    stubCatalogFetch((url) => (url.endsWith('/api/v1/inquiries') ? json({ data: [QUOTED] }) : undefined))
+    const { wrapper } = await mountApp('/user/orders')
+
+    await wrapper.get('[data-testid="revise-quote-INQ-20260725-001"]').trigger('click')
+    const submit = wrapper.get('[data-testid="revision-submit-INQ-20260725-001"]')
+
+    // 沒說要改什麼，廠商只能重猜一次
+    expect(submit.attributes('disabled')).toBeDefined()
+  })
+
+  it('asks before cancelling, because cancelling cannot be undone', async () => {
+    const posted: string[] = []
+    stubCatalogFetch((url, init) => {
+      if (url.endsWith('/api/v1/inquiries')) return json({ data: [QUOTED] })
+      if (url.includes('/cancel') && init?.method === 'POST') {
+        posted.push(url)
+        return json({ data: { ...QUOTED, status: 'cancelled', status_label: '已取消', quote: null } })
+      }
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/orders')
+
+    await wrapper.get('[data-testid="cancel-inquiry-INQ-20260725-001"]').trigger('click')
+    expect(posted).toEqual([])   // 只是打開確認，還沒送出
+
+    await wrapper.get('[data-testid="cancel-confirm-INQ-20260725-001"]').trigger('click')
+    await flushPromises()
+
+    expect(posted).toHaveLength(1)
+    expect(wrapper.text()).toContain('已取消')
+  })
+
+  it('lets a resident cancel while still waiting for a quote', async () => {
+    stubCatalogFetch((url) => (url.endsWith('/api/v1/inquiries') ? json({ data: [SUBMITTED] }) : undefined))
+    const { wrapper } = await mountApp('/user/orders')
+
+    expect(wrapper.find('[data-testid="cancel-inquiry-INQ-20260725-001"]').exists()).toBe(true)
+  })
+
   it('shows the resident’s actual request in the vendor workspace', async () => {
     stubCatalogFetch((url) => (url.endsWith('/api/v1/vendor/workload')
       ? json({ data: { pendingQuote: [SUBMITTED], awaitingResident: [], scheduled: [] } })

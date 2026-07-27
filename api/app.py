@@ -84,6 +84,16 @@ class CompleteReq(BaseModel):
     note: str | None = None
 
 
+class ReviseReq(BaseModel):
+    """住戶請廠商重新報價；`note` 必填——沒說要改什麼，廠商只能重猜一次。"""
+
+    note: str
+
+
+class CancelReq(BaseModel):
+    reason: str | None = None
+
+
 class CreateCampaignReq(BaseModel):
     title: str
     item_name: str
@@ -524,6 +534,22 @@ def create_app(
         """【住戶】同意報價。"""
         try:
             return {"data": life_services.confirm_inquiry_quote(inquiry_id)}
+        except InquiryTransitionError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/inquiries/{inquiry_id}/revise")
+    def request_revision(inquiry_id: str, req: ReviseReq) -> dict:
+        """【住戶】請廠商重新報價（議價，或想換一家出價）。"""
+        try:
+            return {"data": life_services.request_quote_revision(inquiry_id, note=req.note)}
+        except InquiryTransitionError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/inquiries/{inquiry_id}/cancel")
+    def cancel_inquiry(inquiry_id: str, req: CancelReq) -> dict:
+        """【住戶】取消委託。已確認之後不開放——廠商已排程，那需要協調。"""
+        try:
+            return {"data": life_services.cancel_inquiry(inquiry_id, reason=req.reason)}
         except InquiryTransitionError as exc:
             raise HTTPException(409, str(exc)) from exc
 

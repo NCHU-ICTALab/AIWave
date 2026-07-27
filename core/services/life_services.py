@@ -84,5 +84,13 @@ class LifeServicesService:
     def confirm_inquiry_quote(self, inquiry_id: str) -> dict:
         return self.inquiries.confirm_quote(inquiry_id)
 
+    def request_quote_revision(self, inquiry_id: str, *, note: str) -> dict:
+        """住戶請廠商重新報價（議價，或想換一家出價）。"""
+        return self.inquiries.request_revision(inquiry_id, note=note)
+
+    def cancel_inquiry(self, inquiry_id: str, *, reason: str | None = None) -> dict:
+        """住戶取消委託；已確認之後不開放（廠商已排程）。"""
+        return self.inquiries.cancel(inquiry_id, reason=reason)
+
     def complete_inquiry(self, inquiry_id: str, *, note: str | None = None) -> dict:
         return self.inquiries.complete(inquiry_id, note=note)

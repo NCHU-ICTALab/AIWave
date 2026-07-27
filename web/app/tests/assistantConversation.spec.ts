@@ -59,6 +59,21 @@ describe('assistant conversation', () => {
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
   })
 
+  /**
+   * 泡泡的角色 class 不可與版面容器撞名。
+   *
+   * 先前直接用 role 當 class，「assistant」正好命中頁面容器的 `.assistant`
+   * （`min-height: calc(100vh - 9rem)`），每顆管家泡泡下方因此空出一整個視窗高，
+   * 內容被擠到要往上滑才看得到。單元測試看不出來，但使用者一眼就看到。
+   */
+  it('namespaces message role classes so they cannot collide with layout classes', async () => {
+    const { wrapper } = await mountApp('/user/assistant?service=service-repair')
+    const bubble = wrapper.get('.message')
+
+    expect(bubble.classes()).toContain('from-assistant')
+    expect(bubble.classes()).not.toContain('assistant')
+  })
+
   it('offers the question’s options as buttons so nothing has to be typed', async () => {
     const { wrapper } = await mountApp('/user/assistant?service=service-repair')
     const choices = wrapper.findAll('[data-choice]')

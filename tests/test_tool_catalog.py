@@ -65,11 +65,13 @@ class TestCatalogShape:
     def test_write_tools_are_marked_so_the_planner_can_ask_first(self, registry):
         writers = {tool.name for tool in registry.list() if tool.writes}
         assert writers == {
+            "cancel_inquiry",
             "close_group_buy",
             "complete_inquiry",
             "confirm_quote",
             "join_group_buy",
             "open_group_buy",
+            "request_quote_revision",
             "submit_quote",
         }
 

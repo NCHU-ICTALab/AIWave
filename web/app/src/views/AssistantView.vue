@@ -258,11 +258,12 @@ watch(() => route.fullPath, enter)
 
     <div v-else class="assistant-body">
       <section ref="messageList" class="message-list" aria-live="polite" aria-label="對話內容">
-        <div v-for="(message, index) in messages" :key="index" class="message" :class="message.role">
+        <!-- 角色 class 一律加 from- 前綴，避免與頁面容器的 .assistant 撞名 -->
+        <div v-for="(message, index) in messages" :key="index" class="message" :class="`from-${message.role}`">
           <span>{{ message.role === 'assistant' ? '生活管家' : '你' }}</span>
           <p>{{ message.text }}</p>
         </div>
-        <p v-if="loading" class="message assistant thinking" role="status">
+        <p v-if="loading" class="message from-assistant thinking" role="status">
           <span>生活管家</span><em>思考中…</em>
         </p>
       </section>

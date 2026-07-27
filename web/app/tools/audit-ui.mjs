@@ -73,6 +73,27 @@ for (const vp of VIEWPORTS) {
       .map((el) => { const r = el.getBoundingClientRect(); return `${el.tagName.toLowerCase()}"${(el.textContent || '').trim().slice(0, 12)}" ${Math.round(r.width)}x${Math.round(r.height)}` }))
     if (smallTargets.length) problems.push(`[${vp.name}] ${target.name} 觸控過小：${smallTargets.join(' / ')}`)
 
+    // 文字被擠成窄柱（中文一字一行）。
+    // 這類版面錯誤不會造成任何溢出——文字是「擠進去」而不是「撐出去」，
+    // 所以溢出檢查一路綠燈，畫面卻幾乎讀不了。實測在 .timeline 上發生過。
+    const squeezed = await page.evaluate(() => {
+      const results = []
+      for (const el of document.querySelectorAll('p, span, strong, li, dd, dt')) {
+        const text = (el.textContent || '').trim()
+        if (text.length < 6 || el.children.length) continue
+        const r = el.getBoundingClientRect()
+        if (r.width === 0 || r.height === 0) continue
+        const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight) || 20
+        const lines = Math.round(r.height / lineHeight)
+        // 行數逼近字元數 ⇒ 每行只放得下一兩個字
+        if (lines >= 4 && lines >= text.length * 0.6) {
+          results.push(`${el.tagName.toLowerCase()}"${text.slice(0, 10)}" ${Math.round(r.width)}px/${lines}行`)
+        }
+      }
+      return results.slice(0, 5)
+    })
+    if (squeezed.length) problems.push(`[${vp.name}] ${target.name} 文字被擠成窄柱：${squeezed.join(' / ')}`)
+
     // 吸頂導覽壓住標題——橫向溢出檢查抓不到這個，但使用者第一眼就會看到被切掉的標題
     const covered = await page.evaluate(() => {
       const bar = [...document.querySelectorAll('body *')]

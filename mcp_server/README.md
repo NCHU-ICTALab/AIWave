@@ -59,7 +59,7 @@ uv run python -m mcp_server.server
 
 上 AWS 後這裡要換成由 OIDC token 解出身分，`ToolContext` 的建構是唯一需要改的地方。
 
-## 能力一覽（`MCP_ROLE=user` 時 12 項）
+## 能力一覽（`MCP_ROLE=user` 時 14 項）
 
 | 工具 | 寫入 | 說明 |
 | --- | --- | --- |
@@ -70,6 +70,8 @@ uv run python -m mcp_server.server
 | `list_my_inquiries` | | 我的委託與進度 |
 | `get_inquiry` | | 單一委託詳情 |
 | `confirm_quote` | ✎ | 同意廠商報價 |
+| `request_quote_revision` | ✎ | 議價或想換一家：案件退回待報價，附住戶說明 |
+| `cancel_inquiry` | ✎ | 取消委託（限施工開始前） |
 | `list_group_buys` | | 社區團購活動 |
 | `join_group_buy` | ✎ | 跟團 |
 | `get_behavior_summary` | | 跨服務使用摘要 |

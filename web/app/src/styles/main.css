@@ -144,7 +144,13 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .order-row:first-of-type, .connector-row:first-of-type, .queue-row:first-of-type { border-top: 0; }
 .row-index { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 auto; border-radius: 10px; background: var(--surface-2); font: 700 var(--text-xs)/1 var(--font-mono); }
 .row-meta { color: var(--muted); font-size: var(--text-xs); }
-.timeline, .plain-list { margin: 0; padding: 0; list-style: none; }.timeline li, .plain-list li { padding: .75rem 0; border-top: 1px solid var(--line); }.timeline li:first-child, .plain-list li:first-child { border-top: 0; }.timeline li { display: grid; grid-template-columns: 20px 1fr; gap: .6rem; }.timeline li::before { content: ""; width: 12px; height: 12px; margin-top: .4rem; border: 3px solid var(--surface); border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 1px var(--primary); }.timeline p { margin: .15rem 0 0; color: var(--muted); font-size: .8rem; }
+.timeline, .plain-list { margin: 0; padding: 0; list-style: none; }.timeline li, .plain-list li { padding: .75rem 0; border-top: 1px solid var(--line); }.timeline li:first-child, .plain-list li:first-child { border-top: 0; }.timeline li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 0 .6rem; }
+/* 圓點固定在第一欄，**所有真實子元素一律排進第二欄**。
+   少了這條，第三個以後的子元素（說明文字）會被自動排到第二列第一欄——
+   那欄只有 20px 寬，中文就變成一字一行，整段文字直排下來幾乎讀不了。 */
+.timeline li::before { content: ""; grid-column: 1; grid-row: 1; width: 12px; height: 12px; margin-top: .4rem; border: 3px solid var(--surface); border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.timeline li > * { grid-column: 2; min-width: 0; }
+.timeline p { margin: .15rem 0 0; color: var(--muted); font-size: .8rem; }
 .field { display: grid; gap: .35rem; margin: 1rem 0; font-weight: 800; }.field textarea, .copilot-form textarea { resize: vertical; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: .7rem; }.api-strip { display: flex; align-items: center; gap: .75rem; overflow-x: auto; margin-top: 1rem; padding: 1rem; border-radius: 16px; background: var(--surface-2); }.api-strip code { white-space: nowrap; color: var(--primary); font-weight: 800; }
 .value-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }.value-grid article { padding: 1rem; border-radius: 16px; background: var(--surface-2); }.value-grid strong { font-size: 1.05rem; }.value-grid p { margin: .3rem 0 0; color: var(--muted); }
 .feedback-state { min-height: 130px; }.feedback-state p { margin-bottom: .25rem; color: var(--muted); }
@@ -198,7 +204,9 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .need-error { margin: 0 0 .9rem; padding: .75rem 1rem; border: 1px solid var(--danger); border-radius: 14px; background: #fff1ef; color: var(--danger); }
 
 /* 生活管家：獨立頁面，不再是塞不下的小抽屜 */
-.assistant { display: flex; flex-direction: column; gap: 1rem; width: min(100%, 780px); margin: auto; min-height: calc(100vh - 9rem); }
+/* 不強制撐滿視窗高：對話只有一兩則時，撐滿會在內容下方留一大片空白，
+   看起來像壞掉。長對話由 .message-list 的 max-height 負責內捲。 */
+.assistant { display: flex; flex-direction: column; gap: 1rem; width: min(100%, 780px); margin: auto; }
 .assistant-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; }
 /* flex 子元素的 min-width 預設是 auto，中文長句不會斷行就會被裁掉左半——
    規劃模式的標題是 LLM 產生的整句話，長度不可控，一定要允許縮到 0 再換行。 */
@@ -208,10 +216,13 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .assistant-progress strong { font-family: var(--font-mono); }
 .progress-bar { width: 120px; height: 6px; margin-top: .35rem; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .progress-bar span { display: block; height: 100%; background: var(--primary); transition: width .25s ease; }
-.assistant-body { display: flex; flex-direction: column; flex: 1; gap: 1rem; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); padding: 1.15rem; box-shadow: var(--shadow-soft); }
-.assistant .message-list { flex: 1; display: grid; align-content: start; gap: .65rem; max-height: 46vh; overflow-y: auto; }
+.assistant-body { display: flex; flex-direction: column; gap: 1rem; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); padding: 1.15rem; box-shadow: var(--shadow-soft); }
+.assistant .message-list { display: grid; align-content: start; gap: .65rem; max-height: 46vh; overflow-y: auto; }
+/* 訊息的角色 class 前綴 from-：早先直接用 role 當 class，「assistant」正好撞到
+   上方的頁面容器 .assistant，讓每顆管家泡泡都繼承了 min-height: calc(100vh - 9rem)，
+   泡泡下方因此空出一大片，內容被擠到看不見的地方。 */
 .assistant .message { max-width: 88%; padding: .7rem .9rem; border-radius: 16px; background: var(--surface-2); }
-.assistant .message.user { justify-self: end; background: var(--primary); color: #fff; }
+.assistant .message.from-user { justify-self: end; background: var(--primary); color: #fff; }
 .assistant .message span { display: block; font-size: .68rem; font-weight: 800; opacity: .75; }
 .assistant .message p { margin: .25rem 0 0; white-space: pre-wrap; line-height: 1.55; }
 .assistant .message.thinking em { font-style: normal; color: var(--muted); }
@@ -310,7 +321,17 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .summary-list.compact dt { color: var(--muted); margin: 0; }
 .summary-list.compact dd { margin: 0; text-align: right; }
 .quote-box { margin: .7rem 0; padding: .8rem; border: 1px solid var(--primary); border-radius: 14px; background: var(--primary-soft); }
-.quote-box .button { margin-top: .6rem; }
+/* 報價的三條路：同意、請對方調整、不需要了 */
+.quote-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.quote-actions > * { min-width: 0; }
+.button.danger { border-color: var(--danger); color: var(--danger); background: var(--surface); }
+.button.danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
+.quote-revision { display: grid; gap: var(--space-2); margin-top: var(--space-3); }
+.quote-revision label { font-size: var(--text-sm); font-weight: 800; }
+.quote-revision textarea { width: 100%; min-width: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); font: inherit; resize: vertical; }
+.quote-revision p { margin: 0; font-size: var(--text-sm); }
+.quote-cancel { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--danger); border-radius: var(--radius-md); background: var(--danger-soft); }
+.quote-cancel p { margin: 0 0 var(--space-3); font-size: var(--text-sm); }
 /* 報價／數量表單：mobile-first 單欄，寬度夠了才並排。
    grid 子元素必須 min-width:0，否則 input 的預設寬度會把版面撐爆（實測 390px 溢出到 508px）。 */
 .quote-form { display: grid; grid-template-columns: 1fr; align-items: end; gap: var(--space-3); margin-top: var(--space-3); }
@@ -327,6 +348,7 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .subhead { margin: 1rem 0 .4rem; font-size: .85rem; color: var(--muted); }
 .status[data-status="completed"] { background: #edf6f3; color: #2f6b58; }
 .status[data-status="quoted"] { background: var(--accent-soft); color: var(--accent); }
+.status[data-status="cancelled"] { background: var(--surface-2); color: var(--muted); }
 
 @media (max-width: 1050px) {
   .login-panels { grid-template-columns: 1fr; }
@@ -336,7 +358,7 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
   .quote-form .button { grid-column: 1 / -1; }
 }
 @media (max-width: 650px) {
-  .assistant { min-height: calc(100vh - 7rem); }
+  /* 手機不做內捲區——巢狀捲動會跟主捲軸打架；由整頁自然捲動 */
   .assistant .message-list { max-height: none; }
   .choice-button { width: 100%; }
 }

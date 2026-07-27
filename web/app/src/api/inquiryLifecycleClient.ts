@@ -21,7 +21,7 @@ export interface InquiryQuote {
   quotedAt: string | null
 }
 
-export type InquiryStatus = 'pending_quote' | 'quoted' | 'confirmed' | 'completed'
+export type InquiryStatus = 'pending_quote' | 'quoted' | 'confirmed' | 'completed' | 'cancelled'
 
 export interface Inquiry {
   id: string
@@ -81,6 +81,14 @@ export function createInquiryLifecycleClient(options: ClientOptions = {}) {
       }),
     confirm: (inquiryId: string) =>
       request<Inquiry>(`/inquiries/${inquiryId}/confirm`, { method: 'POST' }),
+    /** 議價或想換一家出價——案件退回待報價，附上住戶的說明。 */
+    requestRevision: (inquiryId: string, note: string) =>
+      request<Inquiry>(`/inquiries/${inquiryId}/revise`, { method: 'POST', body: JSON.stringify({ note }) }),
+    cancel: (inquiryId: string, reason?: string) =>
+      request<Inquiry>(`/inquiries/${inquiryId}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason ?? null }),
+      }),
     complete: (inquiryId: string, note?: string) =>
       request<Inquiry>(`/inquiries/${inquiryId}/complete`, {
         method: 'POST',

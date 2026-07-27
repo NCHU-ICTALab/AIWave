@@ -27,17 +27,51 @@ async function load() {
   }
 }
 
-async function confirmQuote(inquiry: Inquiry) {
+function replace(updated: Inquiry) {
+  inquiries.value = inquiries.value.map((item) => (item.id === updated.id ? updated : item))
+}
+
+async function act(inquiry: Inquiry, run: () => Promise<Inquiry>, fallback: string) {
   acting.value = inquiry.id
   error.value = ''
   try {
-    const updated = await client.confirm(inquiry.id)
-    inquiries.value = inquiries.value.map((item) => (item.id === updated.id ? updated : item))
+    replace(await run())
   } catch (reason) {
-    error.value = reason instanceof Error ? reason.message : '確認未完成，請稍後再試。'
+    error.value = reason instanceof Error ? reason.message : fallback
   } finally {
     acting.value = null
   }
+}
+
+const confirmQuote = (inquiry: Inquiry) =>
+  act(inquiry, () => client.confirm(inquiry.id), '確認未完成，請稍後再試。')
+
+/**
+ * 收到報價後住戶有三條路，不是只有同意。
+ *
+ * 議價與「想換一家」在系統裡是同一個動作：案件退回待報價，附上住戶的說明，
+ * 原廠商或別家都能重新出價。分成兩個按鈕只會讓使用者猶豫該按哪個。
+ */
+const revising = ref<string | null>(null)
+const revisionNote = ref('')
+
+function startRevision(inquiry: Inquiry) {
+  revising.value = inquiry.id
+  revisionNote.value = ''
+}
+
+async function submitRevision(inquiry: Inquiry) {
+  const note = revisionNote.value.trim()
+  if (!note) return
+  await act(inquiry, () => client.requestRevision(inquiry.id, note), '退回未完成，請稍後再試。')
+  revising.value = null
+}
+
+const cancelling = ref<string | null>(null)
+
+async function confirmCancel(inquiry: Inquiry) {
+  await act(inquiry, () => client.cancel(inquiry.id), '取消未完成，請稍後再試。')
+  cancelling.value = null
 }
 
 onMounted(load)
@@ -81,19 +115,85 @@ onMounted(load)
             </div>
             <div><dt>合計</dt><dd><strong>{{ currency(inquiry.quote.amount) }}</strong></dd></div>
           </dl>
-          <button
-            v-if="inquiry.status === 'quoted'"
-            class="button primary"
-            type="button"
-            :data-testid="`confirm-quote-${inquiry.id}`"
-            :disabled="acting === inquiry.id"
-            @click="confirmQuote(inquiry)"
-          >{{ acting === inquiry.id ? '處理中…' : '同意這個報價' }}</button>
+          <!-- 三條路：同意、請對方調整（含換一家）、不做了 -->
+          <div v-if="inquiry.status === 'quoted' && revising !== inquiry.id" class="quote-actions">
+            <button
+              class="button primary"
+              type="button"
+              :data-testid="`confirm-quote-${inquiry.id}`"
+              :disabled="acting === inquiry.id"
+              @click="confirmQuote(inquiry)"
+            >{{ acting === inquiry.id ? '處理中…' : '同意這個報價' }}</button>
+            <button
+              class="button"
+              type="button"
+              :data-testid="`revise-quote-${inquiry.id}`"
+              :disabled="acting === inquiry.id"
+              @click="startRevision(inquiry)"
+            >想調整或換一家</button>
+            <button
+              class="button danger"
+              type="button"
+              :data-testid="`cancel-inquiry-${inquiry.id}`"
+              :disabled="acting === inquiry.id"
+              @click="cancelling = inquiry.id"
+            >不需要了</button>
+          </div>
+
+          <!-- 退回時一定要說明希望怎麼改，否則廠商只能重猜一次 -->
+          <form
+            v-else-if="revising === inquiry.id"
+            class="quote-revision"
+            @submit.prevent="submitRevision(inquiry)"
+          >
+            <label :for="`revision-${inquiry.id}`">希望怎麼調整？</label>
+            <textarea
+              :id="`revision-${inquiry.id}`"
+              v-model="revisionNote"
+              rows="2"
+              :data-testid="`revision-note-${inquiry.id}`"
+              placeholder="例如：預算希望壓在 1000 以內，或想多比較一家"
+            />
+            <p class="muted">送出後案件會退回待報價，原廠商或其他廠商都能重新出價。</p>
+            <div class="button-row">
+              <button
+                class="button primary"
+                type="submit"
+                :data-testid="`revision-submit-${inquiry.id}`"
+                :disabled="acting === inquiry.id || !revisionNote.trim()"
+              >送出並請對方重新報價</button>
+              <button class="button" type="button" @click="revising = null">取消</button>
+            </div>
+          </form>
         </div>
 
         <p v-else-if="inquiry.status === 'pending_quote'" class="muted">
           已送達合作夥伴，報價回覆後會顯示在這裡。
         </p>
+
+        <!-- 取消是不可逆的，先問過再做（ADR-0008） -->
+        <div v-if="cancelling === inquiry.id" class="quote-cancel" role="alertdialog" :aria-label="`確認取消 ${inquiry.id}`">
+          <p><strong>要取消這件委託嗎？</strong>取消後無法復原，需要時得重新提出需求。</p>
+          <div class="button-row">
+            <button
+              class="button danger"
+              type="button"
+              :data-testid="`cancel-confirm-${inquiry.id}`"
+              :disabled="acting === inquiry.id"
+              @click="confirmCancel(inquiry)"
+            >確定取消委託</button>
+            <button class="button" type="button" @click="cancelling = null">先不要</button>
+          </div>
+        </div>
+
+        <!-- 待報價時也能取消（還沒有人開始做事） -->
+        <button
+          v-else-if="inquiry.status === 'pending_quote'"
+          class="text-button"
+          type="button"
+          :data-testid="`cancel-inquiry-${inquiry.id}`"
+          @click="cancelling = inquiry.id"
+        >取消這件委託</button>
 
         <ol class="timeline compact">
           <li v-for="event in events(inquiry)" :key="`${event.type}-${event.occurred_at}`">
@@ -101,6 +201,8 @@ onMounted(load)
               'inquiry.created': '需求已送出',
               'quote.created': '收到報價',
               'quote.confirmed': '你已同意報價',
+              'quote.revision_requested': '你請對方重新報價',
+              'inquiry.cancelled': '你已取消委託',
               'service.completed': '服務完成',
             } as Record<string, string>)[event.type] || event.type }}</strong>
             <span v-if="event.detail" class="muted">・{{ event.detail }}</span>
@@ -119,7 +221,7 @@ onMounted(load)
       <ol class="timeline">
         <li><strong>需求送出</strong><p>合作夥伴會收到你填的內容</p></li>
         <li><strong>對方回覆報價</strong><p>金額與項目都會列出來</p></li>
-        <li><strong>你同意後才進行</strong><p>不同意就不會有任何費用</p></li>
+        <li><strong>你可以同意、請對方調整，或不做了</strong><p>同意前不會有任何費用</p></li>
         <li><strong>完工回報</strong><p>完成後這裡會更新</p></li>
       </ol>
     </aside>

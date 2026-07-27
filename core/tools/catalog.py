@@ -187,6 +187,14 @@ def build_registry(
         get_inquiry(context, inquiry_id=inquiry_id)   # 先確認是自己的單
         return services.confirm_inquiry_quote(inquiry_id)
 
+    def request_quote_revision(context: ToolContext, *, inquiry_id: str, note: str) -> Any:
+        get_inquiry(context, inquiry_id=inquiry_id)
+        return services.request_quote_revision(inquiry_id, note=note)
+
+    def cancel_inquiry(context: ToolContext, *, inquiry_id: str, reason: str | None = None) -> Any:
+        get_inquiry(context, inquiry_id=inquiry_id)
+        return services.cancel_inquiry(inquiry_id, reason=reason)
+
     registry.register(
         Tool(
             name="list_my_inquiries",
@@ -220,6 +228,42 @@ def build_registry(
                 "required": ["inquiry_id"],
             },
             handler=confirm_quote,
+            writes=True,
+            roles=RESIDENT,
+        )
+    )
+    registry.register(
+        Tool(
+            name="request_quote_revision",
+            description="住戶覺得報價太貴、想議價，或想換別家廠商出價時使用。"
+            "案件會退回待報價並附上住戶的說明，廠商可以重新出價。這會改變案件狀態，執行前必須確認。",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "inquiry_id": {"type": "string"},
+                    "note": {"type": "string", "description": "希望調整什麼，例如「預算希望壓在 1000 以內」"},
+                },
+                "required": ["inquiry_id", "note"],
+            },
+            handler=request_quote_revision,
+            writes=True,
+            roles=RESIDENT,
+        )
+    )
+    registry.register(
+        Tool(
+            name="cancel_inquiry",
+            description="住戶不需要這項服務了，取消整張委託。只有在施工開始前可以取消。"
+            "這是不可逆的動作，執行前必須明確確認。",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "inquiry_id": {"type": "string"},
+                    "reason": {"type": "string", "description": "取消原因（選填）"},
+                },
+                "required": ["inquiry_id"],
+            },
+            handler=cancel_inquiry,
             writes=True,
             roles=RESIDENT,
         )
