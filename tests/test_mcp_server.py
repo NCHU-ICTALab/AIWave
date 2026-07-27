@@ -44,14 +44,18 @@ async def _list_tools(server):
     return result.root.tools
 
 
-async def _call_tool(server, name: str, arguments: dict):
+async def _call_raw(server, name: str, arguments: dict) -> str:
     from mcp.types import CallToolRequest, CallToolRequestParams
 
     handler = server.request_handlers[CallToolRequest]
     result = await handler(
         CallToolRequest(method="tools/call", params=CallToolRequestParams(name=name, arguments=arguments))
     )
-    return json.loads(result.root.content[0].text)
+    return result.root.content[0].text
+
+
+async def _call_tool(server, name: str, arguments: dict):
+    return json.loads(await _call_raw(server, name, arguments))
 
 
 @pytest.mark.anyio
@@ -95,12 +99,22 @@ async def test_matching_is_callable_over_mcp(registry):
 
 
 @pytest.mark.anyio
-async def test_errors_come_back_as_readable_results_not_dropped_connections(registry):
+async def test_business_errors_come_back_as_readable_results_not_dropped_connections(registry):
     server = create_server(registry, ToolContext(account_id="A001", role="user"))
-    payload = await _call_tool(server, "get_service_form", {"service_id": "service-teleport"})
+    payload = await _call_tool(server, "get_inquiry", {"inquiry_id": "INQ-不存在"})
 
     assert payload["ok"] is False
-    assert "沒有這項服務" in payload["error"]
+    assert "查無諮詢單" in payload["error"]
+
+
+@pytest.mark.anyio
+async def test_schema_violations_are_caught_before_the_handler_runs(registry):
+    """service_id 的 enum 讓 MCP 協定層自己就擋掉幻覺代碼，外部 Agent 立刻收到明確錯誤。"""
+    server = create_server(registry, ToolContext(account_id="A001", role="user"))
+    message = await _call_raw(server, "get_service_form", {"service_id": "service-teleport"})
+
+    assert "service-teleport" in message
+    assert "not one of" in message or "沒有這項服務" in message
 
 
 @pytest.mark.anyio

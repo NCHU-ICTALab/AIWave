@@ -169,6 +169,60 @@ def test_rejects_a_plan_that_tries_to_read_someone_elses_data(registry, resident
     assert "參數不正確" in (plan.rejected_reason or "")
 
 
+def test_rejects_a_guessed_service_id(registry, resident):
+    """實測 Gemma 會把 service-cleaning 簡寫成 cleaning。
+
+    這種值型別合法、只是不存在，若不在規劃階段擋下，就會變成
+    「第一步做完了、第二步才發現服務不存在」的半套狀態。
+    """
+    planner, _ = _planner(
+        registry,
+        {
+            "understanding": "找清潔",
+            "steps": [{"tool": "match_vendors", "arguments": {"service_id": "cleaning"}, "why": "媒合"}],
+        },
+    )
+    plan = planner.plan("幫我找清潔阿姨", resident)
+
+    assert plan.is_empty
+    assert "參數不正確" in (plan.rejected_reason or "")
+
+
+def test_rejects_an_empty_string_where_a_value_is_required(registry, resident):
+    """實測 Gemma 會在「知道要填但不知道填什麼」時給空字串。"""
+    planner, _ = _planner(
+        registry,
+        {
+            "understanding": "媒合",
+            "steps": [{"tool": "match_vendors", "arguments": {"service_id": "", "district": "大同區"}, "why": "媒合"}],
+        },
+    )
+    plan = planner.plan("水管漏水找人修", resident)
+
+    assert plan.is_empty
+    assert "參數不正確" in (plan.rejected_reason or "")
+
+
+def test_the_prompt_gives_the_model_the_service_codes_so_it_need_not_guess(registry, resident):
+    """計畫一次產生，第二步看不到第一步的結果——代碼必須事先給。"""
+    planner, llm = _planner(registry, {"understanding": "", "steps": []})
+    planner.plan("冷氣壞了", resident)
+
+    prompt = llm.prompts[0][1]["content"]
+    assert "service-aircon" in prompt
+    assert "service-cleaning" in prompt
+
+
+def test_the_prompt_lists_allowed_values_for_enum_parameters(registry, resident):
+    """否則模型會寫 slot="週末"，讓一個合理需求因為列舉值而整份作廢。"""
+    planner, llm = _planner(registry, {"understanding": "", "steps": []})
+    planner.plan("找人打掃", resident)
+
+    prompt = llm.prompts[0][1]["content"]
+    assert "weekend" in prompt
+    assert "evening" in prompt
+
+
 def test_rejects_a_plan_that_sprawls_beyond_the_step_ceiling(registry, resident):
     planner, _ = _planner(
         registry,

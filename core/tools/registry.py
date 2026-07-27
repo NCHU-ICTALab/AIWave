@@ -79,13 +79,18 @@ def validate_arguments(schema: dict[str, Any], arguments: dict[str, Any]) -> dic
     if unknown:
         raise ToolError(f"不認識的參數：{'、'.join(sorted(unknown))}")
 
-    missing = [name for name in required if arguments.get(name) is None]
+    def _blank(value: Any) -> bool:
+        # 模型「知道要填但不知道填什麼」時會給空字串。這等同沒填，
+        # 不能讓它一路帶到 handler 才失敗——那會變成一步已執行、一步報錯的半套狀態。
+        return value is None or (isinstance(value, str) and not value.strip())
+
+    missing = [name for name in required if _blank(arguments.get(name))]
     if missing:
         raise ToolError(f"缺少必要參數：{'、'.join(missing)}")
 
     cleaned: dict[str, Any] = {}
     for name, value in arguments.items():
-        if value is None:
+        if _blank(value):
             continue
         spec = properties[name]
         expected = spec.get("type")

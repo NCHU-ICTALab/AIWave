@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from core.clients import LlmClient
+from core.forms.service_catalog import list_services
 from core.tools.registry import ToolContext, ToolError, ToolRegistry, validate_arguments
 
 #: 一句話最多拆成幾件事——超過通常是模型在發散，不是使用者真的要做八件事
@@ -37,9 +38,12 @@ _SYSTEM = (
     "規則：\n"
     "1. 只能使用提供的能力清單裡的名稱，不可自行發明。\n"
     "2. 一句話可能包含多件事，請全部拆出來，各自一個步驟。\n"
-    "3. 參數必須符合該能力的 schema；不確定的參數就不要填。\n"
+    "3. 參數必須符合該能力的 schema；不確定的參數就不要填，寧可少填也不要猜。\n"
     "4. 使用者只是閒聊或需求不明時，steps 給空陣列。\n"
     "5. 不要在計畫裡重複同一個能力做同一件事。\n"
+    "6. service_id 一律從下方「服務代碼對照」原樣複製，不可自行簡寫或組合。\n"
+    "7. 計畫是一次產生的，後面的步驟看不到前面步驟的結果，"
+    "所以不要為了「先查出代碼」而多排一步——代碼在對照表裡已經給你了。\n"
     "只輸出一個 JSON 物件，不要多餘文字或程式碼區塊。\n"
     'schema：{"understanding":"<20 字內中文，複述你理解的需求>",'
     '"steps":[{"tool":"<能力名稱>","arguments":{},"why":"<15 字內中文，為什麼要做這步>"}]}'
@@ -192,15 +196,36 @@ class Planner:
 
     # ---- 提示詞 --------------------------------------------------------
 
+    @staticmethod
+    def _describe_param(name: str, spec: dict) -> str:
+        """列出參數時一併給出合法值。
+
+        只給參數名稱時，模型會用中文寫 slot="週末"，導致整份計畫因為一個列舉值作廢——
+        使用者的需求其實完全合理，錯只錯在它不知道代碼長什麼樣。
+        service_id 的合法值另有對照表，這裡不重複展開。
+        """
+        allowed = spec.get("enum")
+        if allowed and name != "service_id":
+            return f"{name}∈[{'|'.join(map(str, allowed))}]"
+        return f"{name}:{spec.get('type')}"
+
     def _prompt(self, utterance: str, context: ToolContext) -> str:
         lines = []
         for tool in self.registry.list(role=context.role):
-            params = ", ".join(
-                f"{name}:{spec.get('type')}" for name, spec in tool.parameters.get("properties", {}).items()
-            )
+            params = ", ".join(self._describe_param(name, spec) for name, spec in tool.parameters.get("properties", {}).items())
             required = tool.parameters.get("required") or []
             signature = f"（參數：{params}；必填：{'、'.join(required) or '無'}）" if params else "（無參數）"
             lines.append(f"- {tool.name}{signature}：{tool.description}")
-        catalog = "\n".join(lines)
+        tools = "\n".join(lines)
+
+        # 服務代碼直接給模型，而不是要它「先查再猜」。
+        # 計畫是一次產生的，第二步看不到第一步的結果——實測中模型會因此填出
+        # service_id="" 或 "cleaning" 這種猜測值。目錄只有 9 項，塞進提示詞最直接。
+        services = "\n".join(f"- {service.id}：{service.name}（{service.summary}）" for service in list_services())
+
         who = "已登入" if context.account_id else "尚未登入（需要身分的能力不可用）"
-        return f"能力清單：\n{catalog}\n\n使用者身分：{context.role}，{who}\n使用者說：「{utterance}」"
+        return (
+            f"能力清單：\n{tools}\n\n"
+            f"服務代碼對照（service_id 只能用這裡的值）：\n{services}\n\n"
+            f"使用者身分：{context.role}，{who}\n使用者說：「{utterance}」"
+        )

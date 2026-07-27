@@ -15,6 +15,7 @@ from typing import Any
 
 from core.community.group_buy import GroupBuyRepository
 from core.data.regions import resolve as resolve_region
+from core.forms.service_catalog import list_services as list_catalog_services
 from core.insights.behavior import build_trail, summarize
 from core.insights.recommendations import recommend
 from core.matching import match as match_vendors_by_rules
@@ -34,6 +35,20 @@ def _require_account(context: ToolContext) -> str:
 
 def _empty_schema() -> dict[str, Any]:
     return {"type": "object", "properties": {}}
+
+
+def _service_id_schema(description: str) -> dict[str, Any]:
+    """service_id 一律帶 enum。
+
+    提示詞裡寫「只能用這些代碼」擋不住模型——實測它仍會填出 `cleaning` 這種簡寫。
+    把合法值放進 schema，幻覺的代碼在參數驗證就被擋掉（整份計畫作廢），
+    而不是等到執行時才失敗；外部 Agent 透過 MCP 也會看到同一份限制。
+    """
+    return {
+        "type": "string",
+        "enum": [service.id for service in list_catalog_services()],
+        "description": description,
+    }
 
 
 def build_registry(
@@ -76,7 +91,7 @@ def build_registry(
             "確定使用者要申請哪項服務之後，用這個取得後續要引導填答的題目。",
             parameters={
                 "type": "object",
-                "properties": {"service_id": {"type": "string", "description": "服務代碼，例如 service-aircon"}},
+                "properties": {"service_id": _service_id_schema("服務代碼")},
                 "required": ["service_id"],
             },
             handler=get_service_form,
@@ -89,7 +104,7 @@ def build_registry(
             "使用者問「大概多少錢」時使用；這是估價不是正式報價，正式報價由廠商提出。",
             parameters={
                 "type": "object",
-                "properties": {"service_id": {"type": "string"}},
+                "properties": {"service_id": _service_id_schema("服務代碼")},
                 "required": ["service_id"],
             },
             handler=estimate_price,
@@ -137,7 +152,7 @@ def build_registry(
             parameters={
                 "type": "object",
                 "properties": {
-                    "service_id": {"type": "string", "description": "服務代碼，例如 service-repair"},
+                    "service_id": _service_id_schema("服務代碼"),
                     "district": {"type": "string", "description": "行政區口語名稱，例如 大同區"},
                     "county": {"type": "string", "description": "縣市口語名稱，例如 台北市"},
                     "budget": {"type": "integer", "description": "預算上限（新台幣元）"},

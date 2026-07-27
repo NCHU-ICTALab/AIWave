@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from core.community.group_buy import SqliteGroupBuyRepository
+from core.forms.service_catalog import list_services
 from core.inquiries import SqliteInquiryRepository
 from core.services import LifeServicesService
 from core.tools.catalog import build_registry
@@ -88,8 +89,15 @@ class TestReadOnlyTools:
         assert form["fields"]
 
     def test_rejects_an_unknown_service_instead_of_returning_nothing(self, registry, context):
-        with pytest.raises(ToolError, match="沒有這項服務"):
+        with pytest.raises(ToolError, match="必須是下列之一"):
             registry.call("get_service_form", {"service_id": "service-teleport"}, context)
+
+    def test_service_ids_are_enumerated_in_the_schema(self, registry):
+        """代碼合法值放進 schema，幻覺的簡寫（如 cleaning）在驗證就被擋掉。"""
+        catalog = {service.id for service in list_services()}
+        for name in ("get_service_form", "estimate_price", "match_vendors"):
+            spec = registry.get(name).parameters["properties"]["service_id"]
+            assert set(spec["enum"]) == catalog, name
 
 
 class TestIdentityIsolation:
