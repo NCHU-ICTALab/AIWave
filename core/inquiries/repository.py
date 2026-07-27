@@ -50,9 +50,18 @@ class InquiryTransitionError(ValueError):
 
 
 class InquiryRepository(Protocol):
-    def create(self, *, form_id: int, feedback_content: dict, service_id: str | None = ..., summary: list | None = ...) -> dict: ...
+    def create(
+        self,
+        *,
+        form_id: int,
+        feedback_content: dict,
+        service_id: str | None = ...,
+        account_id: str | None = ...,
+        summary: list | None = ...,
+    ) -> dict: ...
     def get(self, inquiry_id: str) -> dict | None: ...
     def list_all(self) -> list[dict]: ...
+    def list_for_account(self, account_id: str) -> list[dict]: ...
     def list_by_status(self, status: str) -> list[dict]: ...
     def add_quote(self, inquiry_id: str, *, items: list[dict], vendor_name: str) -> dict: ...
     def confirm_quote(self, inquiry_id: str) -> dict: ...
@@ -100,6 +109,7 @@ class SqliteInquiryRepository:
             existing = {row["name"] for row in connection.execute("PRAGMA table_info(inquiries)")}
             for column, ddl in (
                 ("service_id", "TEXT"),
+                ("account_id", "TEXT"),
                 ("summary", "TEXT"),
                 ("quote_items", "TEXT"),
                 ("quote_amount", "INTEGER"),
@@ -145,6 +155,7 @@ class SqliteInquiryRepository:
         form_id: int,
         feedback_content: dict,
         service_id: str | None = None,
+        account_id: str | None = None,
         summary: list | None = None,
     ) -> dict:
         created_at = self._now()
@@ -154,12 +165,13 @@ class SqliteInquiryRepository:
         with self._connect() as connection:
             cursor = connection.execute(
                 """
-                INSERT INTO inquiries (id, form_id, service_id, status, feedback_content, summary, created_at)
-                VALUES (NULL, ?, ?, ?, ?, ?, ?)
+                INSERT INTO inquiries (id, form_id, service_id, account_id, status, feedback_content, summary, created_at)
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     form_id,
                     service_id,
+                    account_id,
                     PENDING_QUOTE,
                     json.dumps(feedback_content, ensure_ascii=False),
                     json.dumps(summary or [], ensure_ascii=False),
@@ -183,6 +195,7 @@ class SqliteInquiryRepository:
             "id": row["id"],
             "form_id": row["form_id"],
             "service_id": row["service_id"] if "service_id" in keys else None,
+            "account_id": row["account_id"] if "account_id" in keys else None,
             "status": row["status"],
             "status_label": STATUS_LABEL.get(row["status"], row["status"]),
             "official_status": OFFICIAL_STATUS.get(row["status"]),
@@ -211,6 +224,18 @@ class SqliteInquiryRepository:
     def list_all(self) -> list[dict]:
         with self._connect() as connection:
             rows = connection.execute("SELECT * FROM inquiries ORDER BY seq DESC").fetchall()
+            return [self._row_to_record(connection, row) for row in rows]
+
+    def list_for_account(self, account_id: str) -> list[dict]:
+        """只回傳屬於該帳號的諮詢單。
+
+        沒有 `account_id` 的舊資料**不會**被歸給任何人——寧可讓 demo 帳號少看到
+        一筆歷史資料，也不要把別人的委託算在他頭上。
+        """
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM inquiries WHERE account_id = ? ORDER BY seq DESC", (account_id,)
+            ).fetchall()
             return [self._row_to_record(connection, row) for row in rows]
 
     def list_by_status(self, status: str) -> list[dict]:

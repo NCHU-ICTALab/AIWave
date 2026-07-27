@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from agent.form_agent import FormAgent
 from agent.intent_agent import IntentAgent
+from agent.planner import Plan, PlanStep, Planner
 from core.clients import LlmClient, get_llm
 from core.forms import Form, FormError, FormSession
 from core.forms.dto import topic_to_field
@@ -25,6 +26,8 @@ from core.forms.service_catalog import list_services as list_catalog_services
 from core.community import GroupBuyError, GroupBuyRepository, SqliteGroupBuyRepository
 from core.inquiries import InquiryRepository, InquiryTransitionError, SqliteInquiryRepository
 from core.services import CommunityService, InsightsService, LifeServicesService
+from core.tools.catalog import build_registry
+from core.tools.registry import ToolContext
 
 DEMO_TODAY = date(2026, 7, 25)
 _CONFIRM_WORDS = {"對", "好", "沒問題", "確認", "確認送出", "送出", "可以", "ok", "yes", "是", "嗯"}
@@ -88,6 +91,22 @@ class JoinCampaignReq(BaseModel):
     quantity: int = 1
 
 
+class PlanReq(BaseModel):
+    """一句口語 ＋ 呼叫者身分。身分由前端的登入狀態帶入，不由 LLM 決定。"""
+
+    message: str
+    account_id: str | None = None
+    role: str = "user"
+    display_name: str = "住戶"
+
+
+class ExecutePlanReq(PlanReq):
+    """執行計畫；`approved` 是使用者已點頭的寫入步驟索引。"""
+
+    steps: list[dict] = []
+    approved: list[int] = []
+
+
 def _progress(session: FormSession) -> dict[str, int]:
     return session.progress()
 
@@ -114,6 +133,8 @@ def create_app(
     insights = InsightsService(today=DEMO_TODAY)
     community = CommunityService(group_buy_repository)
     life_services_catalog = list_catalog_services
+    # 能力層：規劃器與 MCP server 共用這一份（ADR-0017）
+    tool_registry = build_registry(services=life_services, group_buys=group_buy_repository, today=DEMO_TODAY)
     application = FastAPI(title="智慧生活管家 AI API")
 
     @application.get("/api/forms")
@@ -279,6 +300,76 @@ def create_app(
         """把口語需求判讀成一項服務；判讀不出時回 null，由介面退回服務目錄。"""
         match = IntentAgent(llm_factory()).match(req.need)
         return {"data": None if match is None else match.to_dict()}
+
+    # --- 規劃器：LLM 規劃、規則執行（ADR-0017） ---
+
+    def _context(req: PlanReq) -> ToolContext:
+        return ToolContext(account_id=req.account_id, role=req.role, display_name=req.display_name)
+
+    @application.get("/api/v1/assistant/tools")
+    def list_tools(role: str = "user") -> dict:
+        """目前身分可用的能力清單——與 MCP server 對外曝露的是同一份。"""
+        return {"data": tool_registry.describe(role=role)}
+
+    @application.post("/api/v1/assistant/plan")
+    def create_plan(req: PlanReq) -> dict:
+        """把一句話拆成計畫並執行唯讀步驟；寫入步驟留著等使用者確認。"""
+        planner = Planner(llm_factory(), tool_registry)
+        context = _context(req)
+        plan = planner.execute(planner.plan(req.message, context), context)
+        return {"data": plan.to_dict()}
+
+    @application.post("/api/v1/assistant/plan/execute")
+    def execute_plan(req: ExecutePlanReq) -> dict:
+        """執行使用者已確認的寫入步驟。
+
+        步驟由前端帶回，但**不信任前端**：每一步都重新過一次註冊表的驗證與角色檢查，
+        所以偽造的步驟過不了這一關。
+        """
+        planner = Planner(llm_factory(), tool_registry)
+        context = _context(req)
+        plan = Plan(understanding=req.message)
+        for raw in req.steps:
+            tool = tool_registry.get(raw.get("tool"))
+            if tool is None or not tool.allows(context.role):
+                raise HTTPException(400, f"無法執行的步驟：{raw.get('tool')}")
+            plan.steps.append(
+                PlanStep(
+                    tool=tool.name,
+                    arguments=raw.get("arguments") or {},
+                    why=str(raw.get("why") or ""),
+                    writes=tool.writes,
+                    status="needs_confirmation" if tool.writes else "ready",
+                )
+            )
+        return {"data": planner.execute(plan, context, approved=set(req.approved)).to_dict()}
+
+    @application.get("/api/v1/match/{service_id}")
+    def match_vendors(
+        service_id: str,
+        district: str | None = None,
+        county: str | None = None,
+        budget: int | None = None,
+        slot: str | None = None,
+        urgent: bool = False,
+    ) -> dict:
+        """服務媒合（FR-S-04）：依地區／時段／預算／緊急程度／評分列 2–3 家比較。"""
+        try:
+            result = tool_registry.call(
+                "match_vendors",
+                {
+                    "service_id": service_id,
+                    "district": district,
+                    "county": county,
+                    "budget": budget,
+                    "slot": slot,
+                    "urgent": urgent,
+                },
+                ToolContext(),
+            )
+        except Exception as error:  # noqa: BLE001
+            raise HTTPException(404, str(error)) from error
+        return {"data": result}
 
     # --- 個人洞察：全部由官方 mms_order_record 算出 ---
 

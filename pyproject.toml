@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.139.2",
+    "mcp>=1.28.1",
     "openai>=2.48.0",
     "pydantic>=2",
     "python-dotenv>=1.2.2",
@@ -14,7 +15,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "anyio>=4.14.2",
     "pytest>=8",
+    "pytest-asyncio>=1.4.0",
 ]
 
 # 不打包成 wheel，當作應用專案；模組以 pythonpath 匯入
@@ -25,3 +28,4 @@ package = false
 pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-q"
+asyncio_mode = "auto"

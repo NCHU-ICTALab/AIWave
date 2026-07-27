@@ -1,9 +1,12 @@
 # 04・MCP Tool 與統一生活服務 API 規格
 
-> MCP Server 為自建、符合標準協定，可同時掛本系統 Agent 與官方 Lumine one 平台的 Agent（命題繳交要求）。
-> 兩層關係：**MCP 工具**是對外能力介面（Agent 呼叫）；**統一生活服務 API**是其下的唯一業務資料出入口（模擬層）。MCP 工具一律經 API 存取，兩者一對一鏡像。
+> ⚠️ **「按域拆 6 server」已由 [ADR-0017](../adr/0017-llm-plans-rules-execute.md) 取代**。
+> 新的作法是**單一工具註冊表、雙重曝露**：規劃器（in-process）與 Lumine one（MCP 協定）
+> 呼叫的是同一份工具定義，不必為 demo 與為交付各做一套。下方的工具清單仍是有效的
+> **能力藍圖**，但「拆成幾個 server」屬於封裝細節，競賽版以單一 server 承載已實作能力。
 >
-> 定案：**厚 MCP**（加值智慧也封裝為工具）＋**按域拆 6 server**（各自獨立部署，貼合 [ADR-0004](../adr/0004-local-first-aws-portable.md) 的「乾淨邊界＝無痛移植」）。
+> MCP Server 為自建、符合標準協定，可同時掛本系統 Agent 與官方 Lumine one 平台的 Agent（命題繳交要求）。
+> 兩層關係：**MCP 工具**是對外能力介面（Agent 呼叫）；**統一生活服務 API**是其下的唯一業務資料出入口（模擬層）。
 
 ## A. MCP 邊界原則
 

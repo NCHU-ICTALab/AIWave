@@ -34,7 +34,14 @@ class LifeServicesService:
 
     # ---- 諮詢單與其生命週期 -------------------------------------------
 
-    def submit_inquiry(self, *, form_id: int, feedback_content: dict, service_id: str | None = None) -> dict:
+    def submit_inquiry(
+        self,
+        *,
+        form_id: int,
+        feedback_content: dict,
+        service_id: str | None = None,
+        account_id: str | None = None,
+    ) -> dict:
         """建立諮詢單，並存下可讀摘要供廠商檢視。"""
         summary: list[dict] = []
         if service_id:
@@ -45,6 +52,7 @@ class LifeServicesService:
             form_id=form_id,
             feedback_content=feedback_content,
             service_id=service_id,
+            account_id=account_id,
             summary=summary,
         )
 
@@ -53,6 +61,10 @@ class LifeServicesService:
 
     def list_inquiries(self) -> list[dict]:
         return self.inquiries.list_all()
+
+    def list_inquiries_for(self, account_id: str) -> list[dict]:
+        """住戶只看自己的委託（spec 08 驗收：看不到不屬於自己的資料）。"""
+        return self.inquiries.list_for_account(account_id)
 
     def list_pending_for_vendor(self) -> list[dict]:
         """廠商待處理：等待報價的諮詢單。"""

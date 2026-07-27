@@ -44,6 +44,8 @@
 | [0014](adr/0014-line-deep-link-first-liff-optional.md) | LINE 以 Web 深層連結為預設，LIFF 為選配增強層 |
 | [0015](adr/0015-role-separated-entry-points.md) | 角色分離入口與登入身分，取代工作區切換器（**修正 0006**） |
 | [0016](adr/0016-conversation-first-home.md) | 住戶首頁的主動作是自然語言輸入，不是服務目錄 |
+| [0017](adr/0017-llm-plans-rules-execute.md) | LLM 規劃、規則執行；能力即 MCP 工具（**取代 04 的 6-server 拆法**） |
+| [0018](adr/0018-aws-sized-for-speed.md) | AWS 以體驗速度為第一優先、規格從寬（**修正 0004 的成本論述**） |
 
 ## 已定案速查
 
