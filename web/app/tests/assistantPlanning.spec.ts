@@ -70,7 +70,11 @@ const MATCH_RESULT = {
 }
 
 /** 攔截規劃 API，並記錄送出的請求，用來驗證「沒確認就不該送」。 */
-function stubPlanner(response: unknown, executeResponse?: unknown) {
+function stubPlanner(
+  response: unknown,
+  executeResponse?: unknown,
+  extra?: (url: string, init?: RequestInit) => Response | undefined,
+) {
   const posted: Array<{ url: string; body: unknown }> = []
   stubCatalogFetch((url, init) => {
     if (url.includes('/api/v1/assistant/plan/execute')) {
@@ -81,7 +85,7 @@ function stubPlanner(response: unknown, executeResponse?: unknown) {
       posted.push({ url, body: JSON.parse(String(init?.body)) })
       return json({ data: response })
     }
-    return undefined
+    return extra?.(url, init)
   })
   return posted
 }
@@ -311,6 +315,61 @@ describe('assistant planning', () => {
 
     expect(wrapper.get('[data-testid="retail-result"]').text()).toContain('中興門市')
     expect(wrapper.get('[data-testid="retail-result"]').text()).toContain('庫存 8')
+  })
+
+  it('turns an issue diagnosis into a confirmed, trackable support ticket', async () => {
+    let created = 0
+    stubPlanner(plan({
+      understanding: '查明委託延遲並協助處理',
+      steps: [{
+        tool: 'diagnose_order_issue',
+        arguments: { subject_id: 'INQ-20260728-001', issue_text: '約定時間已過但師傅還沒到' },
+        why: '確認目前狀態與處理時限',
+        writes: false,
+        status: 'done',
+        error: null,
+        result: {
+          subject: { type: 'inquiry', id: 'INQ-20260728-001', status: 'quoted', statusLabel: '待確認報價' },
+          issueText: '約定時間已過但師傅還沒到',
+          category: 'delay', categoryLabel: '到場或處理延遲', priority: 'high', slaHours: 4,
+          dueAt: '2026-07-28T13:00:00+00:00', recommendedRoute: 'service_coordination',
+          evidence: ['目前狀態：待確認報價', '最近事件：廠商已報價'], computedBy: 'deterministic_rules',
+          diagnosisToken: 'diagnosis-123', previewExpiresInSeconds: 300,
+        },
+      }],
+    }), undefined, (url, init) => {
+      if (!url.includes('/api/v1/support/tickets')) return undefined
+      created += 1
+      expect(JSON.parse(String(init?.body))).toEqual({
+        subject_id: 'INQ-20260728-001',
+        issue_text: '約定時間已過但師傅還沒到',
+        diagnosis_token: 'diagnosis-123',
+      })
+      expect(new Headers(init?.headers).get('X-Account-Id')).toBe('019a52d3-7f6b-7da3-b48d-9c9e2522d616')
+      return json({ data: {
+        id: 'SUP-20260728-001', accountId: '019a52d3-7f6b-7da3-b48d-9c9e2522d616', subjectType: 'inquiry',
+        subjectId: 'INQ-20260728-001', category: 'delay', categoryLabel: '到場或處理延遲',
+        issueText: '約定時間已過但師傅還沒到', status: 'open', statusLabel: '待處理',
+        priority: 'high', slaHours: 4, dueAt: '2026-07-28T13:00:00+00:00', events: [],
+      } })
+    })
+    const { wrapper } = await mountApp('/user/assistant?need=' + encodeURIComponent('INQ-20260728-001 師傅還沒到'))
+
+    const diagnosis = wrapper.get('[data-testid="support-diagnosis"]')
+    expect(diagnosis.text()).toContain('到場或處理延遲')
+    expect(diagnosis.text()).toContain('4 小時內開始處理')
+    expect(diagnosis.text()).toContain('目前狀態：待確認報價')
+
+    await wrapper.get('[data-testid="support-create-action"]').trigger('click')
+    expect(created).toBe(0)
+    expect(wrapper.get('[aria-label="確認建立客服工單"]').text()).toContain('INQ-20260728-001')
+
+    await wrapper.get('[data-testid="support-create-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(created).toBe(1)
+    expect(wrapper.get('[role="status"]').text()).toContain('SUP-20260728-001')
+    expect(wrapper.find('[data-testid="support-create-action"]').exists()).toBe(false)
   })
 
   // ---- 誠實 ----

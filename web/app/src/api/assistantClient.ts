@@ -53,21 +53,20 @@ export interface AssistantClient {
 export function createAssistantClient(options: AssistantClientOptions = {}): AssistantClient {
   const baseUrl = options.baseUrl ?? '/api/v1/assistant'
 
-  function identityBody(identity: PlanIdentity = {}) {
+  function identityHeaders(identity: PlanIdentity = {}) {
     return {
-      account_id: identity.accountId ?? null,
-      role: identity.role ?? 'user',
-      display_name: identity.displayName ?? '住戶',
+      'X-Account-Id': identity.accountId ?? '',
+      'X-Role': identity.role ?? 'user',
     }
   }
 
-  async function post(path: string, body: unknown): Promise<PlanOutcome> {
+  async function post(path: string, body: unknown, identity: PlanIdentity = {}): Promise<PlanOutcome> {
     const fetcher = options.fetcher ?? globalThis.fetch
     try {
       const response = await fetcher(`${baseUrl}${path}`, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...identityHeaders(identity) },
         body: JSON.stringify(body),
       })
       if (!response.ok) {
@@ -81,22 +80,21 @@ export function createAssistantClient(options: AssistantClientOptions = {}): Ass
   }
 
   return {
-    plan: (message, identity) => post('/plan', { message, ...identityBody(identity) }),
+    plan: (message, identity) => post('/plan', { message }, identity),
 
     execute: (message, steps, approved, identity) =>
       post('/plan/execute', {
         message,
-        ...identityBody(identity),
         // 只回傳執行需要的欄位；結果與狀態由後端重算，前端送什麼都不算數
         steps: steps.map((step) => ({ tool: step.tool, arguments: step.arguments, why: step.why })),
         approved,
-      }),
+      }, identity),
 
     async tools(role = 'user') {
       const fetcher = options.fetcher ?? globalThis.fetch
-      const response = await fetcher(`${baseUrl}/tools?role=${encodeURIComponent(role)}`, {
+      const response = await fetcher(`${baseUrl}/tools`, {
         credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
+        headers: { Accept: 'application/json', ...identityHeaders({ role }) },
       })
       if (!response.ok) return []
       return ((await response.json()) as { data: Array<{ name: string; description: string }> }).data

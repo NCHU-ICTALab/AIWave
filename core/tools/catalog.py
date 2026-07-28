@@ -21,6 +21,7 @@ from core.insights.recommendations import recommend
 from core.matching import match as match_vendors_by_rules
 from core.personalization import PersonalizationService
 from core.retail import RetailService
+from core.support import SupportService
 from core.services.life_services import LifeServicesService
 from core.tools.registry import Tool, ToolContext, ToolError, ToolRegistry
 
@@ -59,6 +60,7 @@ def build_registry(
     group_buys: GroupBuyRepository,
     personalization: PersonalizationService | None = None,
     retail: RetailService | None = None,
+    support: SupportService | None = None,
     today: date,
 ) -> ToolRegistry:
     """組出這個部署可用的全部能力。"""
@@ -398,6 +400,102 @@ def build_registry(
                 parameters=_empty_schema(),
                 handler=lambda context: retail.list_watches(_require_account(context)),
                 roles=RESIDENT,
+            )
+        )
+
+    # ---- 訂單異常診斷與客服閉環 --------------------------------------
+
+    if support is not None:
+        registry.register(
+            Tool(
+                name="diagnose_order_issue",
+                description="依目前住戶自己的委託／訂單狀態與問題描述，判斷延遲、付款、品質或改期問題，"
+                "回傳證據、優先級、處理路由與 SLA 預覽；不會直接建立工單。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "subject_id": {"type": "string", "description": "INQ- 或 ORD- 開頭的追蹤編號"},
+                        "issue_text": {"type": "string", "description": "使用者描述發生什麼事"},
+                    },
+                    "required": ["subject_id", "issue_text"],
+                },
+                handler=lambda context, subject_id, issue_text: support.diagnose(
+                    account_id=_require_account(context), subject_id=subject_id, issue_text=issue_text
+                ),
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="create_support_ticket",
+                description="針對住戶自己的委託／訂單建立可追蹤客服工單。會重新驗證所有權與分類，"
+                "並避免同一訂單重複開啟工單；寫入前必須展示診斷預覽並取得確認。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "subject_id": {"type": "string"},
+                        "issue_text": {"type": "string"},
+                        "diagnosis_token": {"type": "string", "description": "由 diagnose_order_issue 取得的短效預覽 token"},
+                    },
+                    "required": ["subject_id", "issue_text", "diagnosis_token"],
+                },
+                handler=lambda context, subject_id, issue_text, diagnosis_token: support.create_ticket(
+                    account_id=_require_account(context), subject_id=subject_id, issue_text=issue_text,
+                    diagnosis_token=diagnosis_token,
+                ),
+                writes=True,
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="list_my_support_tickets",
+                description="列出目前住戶自己的客服工單、SLA、處理狀態與完整事件。",
+                parameters=_empty_schema(),
+                handler=lambda context: support.list_for_account(_require_account(context)),
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="list_support_queue",
+                description="社區客服查看尚未完成的異常工單，依優先級與建立時間排序。",
+                parameters=_empty_schema(),
+                handler=lambda context: support.list_queue(),
+                roles=MANAGER,
+            )
+        )
+        registry.register(
+            Tool(
+                name="start_support_ticket",
+                description="社區客服接手一張待處理工單並留下事件；執行前必須確認。",
+                parameters={
+                    "type": "object",
+                    "properties": {"ticket_id": {"type": "string"}},
+                    "required": ["ticket_id"],
+                },
+                handler=lambda context, ticket_id: support.start_ticket(ticket_id, actor=context.display_name),
+                writes=True,
+                roles=MANAGER,
+            )
+        )
+        registry.register(
+            Tool(
+                name="resolve_support_ticket",
+                description="社區客服填寫處理結果並完成工單；處理結果不可空白，執行前必須確認。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "ticket_id": {"type": "string"},
+                        "note": {"type": "string", "description": "已採取的處理方式"},
+                    },
+                    "required": ["ticket_id", "note"],
+                },
+                handler=lambda context, ticket_id, note: support.resolve_ticket(
+                    ticket_id, actor=context.display_name, note=note
+                ),
+                writes=True,
+                roles=MANAGER,
             )
         )
     registry.register(

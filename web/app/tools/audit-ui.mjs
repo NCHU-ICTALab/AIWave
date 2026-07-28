@@ -1,7 +1,7 @@
 import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 
-const BASE = 'http://localhost:5173'
+const BASE = process.env.UI_AUDIT_BASE_URL ?? 'http://localhost:5173'
 const OUT = 'tmp/shots'
 mkdirSync(OUT, { recursive: true })
 

@@ -22,6 +22,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -197,6 +198,22 @@ class Planner:
         """
         steps: list[PlanStep] = []
         lowered = text.lower()
+
+        support_terms = ("客服", "有問題", "延遲", "晚", "沒來", "未到", "扣款", "付款", "退款", "做不好", "損壞", "改期")
+        subject_match = re.search(r"\b(?:INQ|ORD)-[A-Z0-9-]+\b", text.upper())
+        if (
+            self.registry.get("diagnose_order_issue")
+            and subject_match
+            and any(term in lowered for term in support_terms)
+        ):
+            steps.append(
+                PlanStep(
+                    tool="diagnose_order_issue",
+                    arguments={"subject_id": subject_match.group(0), "issue_text": text},
+                    why="依訂單狀態整理問題與客服處理方向",
+                    writes=False,
+                )
+            )
 
         retail_terms = ("庫存", "門市", "哪間", "有賣", "缺貨", "限定", "聯名")
         if self.registry.get("search_store_inventory") and any(term in lowered for term in retail_terms):

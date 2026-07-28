@@ -26,7 +26,7 @@ import os
 import secrets
 import time
 from copy import deepcopy
-from datetime import date
+from datetime import date, datetime, timezone
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -38,6 +38,7 @@ from core.inquiries import SqliteInquiryRepository
 from core.personalization import PersonalizationService, SqlitePersonalizationRepository
 from core.orders import SqliteOrderRepository
 from core.retail import RetailService, SqliteRetailRepository
+from core.support import SupportService, SqliteSupportRepository
 from core.services import LifeServicesService
 from core.tools.catalog import build_registry
 from core.tools.registry import ToolContext, ToolError, ToolRegistry, validate_arguments
@@ -51,6 +52,9 @@ def build_default_registry(*, today: date | None = None) -> ToolRegistry:
     """用與 HTTP API 相同的相依組出註冊表。"""
     config = get_settings()
     resolved_today = today or config.demo_today
+    demo_now = lambda: datetime(  # noqa: E731
+        resolved_today.year, resolved_today.month, resolved_today.day, tzinfo=timezone.utc
+    )
     return build_registry(
         services=LifeServicesService(
             SqliteInquiryRepository(config.inquiry_db_path),
@@ -62,6 +66,12 @@ def build_default_registry(*, today: date | None = None) -> ToolRegistry:
             SqlitePersonalizationRepository(config.inquiry_db_path), today=resolved_today
         ),
         retail=RetailService(SqliteRetailRepository(config.inquiry_db_path)),
+        support=SupportService(
+            SqliteSupportRepository(config.inquiry_db_path, now=demo_now),
+            inquiries=SqliteInquiryRepository(config.inquiry_db_path),
+            orders=SqliteOrderRepository(config.inquiry_db_path),
+            now=demo_now,
+        ),
         today=resolved_today,
     )
 

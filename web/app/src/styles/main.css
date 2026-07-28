@@ -425,6 +425,21 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .order-disclosure[open] .disclosure-mark { transform: rotate(225deg) translate(-2px, -2px); }
 .order-disclosure[open] .order-summary { border-bottom: 2px solid var(--ink); background: var(--surface-2); }
 .order-disclosure-body { padding: var(--space-4); }
+
+/* 訂單異常不是彈窗岔路：在原訂單內完成描述、診斷預覽、確認與後續追蹤。 */
+.support-entry, .support-ticket { margin-top: var(--space-4); border-top: 2px solid var(--line); padding-top: var(--space-4); }
+.support-form, .support-ticket { display: grid; gap: var(--space-3); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--surface-2); padding: var(--space-4); }
+.support-form-heading, .support-ticket-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.support-form textarea { width: 100%; resize: vertical; }
+.support-preview { display: grid; gap: var(--space-3); border-top: 2px solid var(--line); padding-top: var(--space-3); }
+.support-preview p, .support-ticket p { margin-bottom: 0; }
+.support-sla { border-radius: var(--radius-sm); background: var(--primary-soft); padding: var(--space-2) var(--space-3); color: var(--primary-hover); font-weight: 700; }
+.support-queue-panel { margin-bottom: var(--space-5); }
+.support-queue-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.support-queue-card { display: grid; gap: var(--space-3); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--surface-2); padding: var(--space-4); }
+.support-queue-card p { margin-bottom: 0; }
+.support-resolution { display: grid; gap: var(--space-2); }
+.support-resolution textarea { width: 100%; }
 .recommendation-feedback { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: var(--space-4) 0 0; padding: var(--space-3) var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--mint); color: var(--ink); font-size: var(--text-sm); }
 .summary-list.compact { display: grid; gap: .25rem; margin: .5rem 0; }
 .summary-list.compact > div { display: flex; justify-content: space-between; gap: 1rem; font-size: .88rem; }
@@ -477,6 +492,7 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
   .assistant-form { align-items: stretch; }
   .service-result-grid { grid-template-columns: 1fr; }
   .result-highlight, .store-result { grid-template-columns: 1fr; }
+  .support-queue-grid { grid-template-columns: 1fr; }
   .saving { justify-items: start; }
   .order-summary { align-items: flex-start; flex-wrap: wrap; padding-right: 3rem; }
 }

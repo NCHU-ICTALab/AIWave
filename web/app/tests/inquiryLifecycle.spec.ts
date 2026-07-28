@@ -144,6 +144,72 @@ describe('inquiry lifecycle across roles', () => {
     expect(wrapper.find('[data-testid="cancel-inquiry-INQ-20260725-001"]').exists()).toBe(true)
   })
 
+  it('turns a free-text service problem into a previewed and trackable support ticket', async () => {
+    const confirmed = { ...QUOTED, status: 'confirmed', status_label: '已確認，等待服務' }
+    const createdBodies: Array<Record<string, unknown>> = []
+    stubCatalogFetch((url, init) => {
+      if (url.endsWith('/api/v1/inquiries')) return json({ data: [confirmed] })
+      if (url.endsWith('/api/v1/support/tickets') && !init?.method) return json({ data: [] })
+      if (url.endsWith('/api/v1/support/diagnose') && init?.method === 'POST') {
+        return json({ data: {
+          subject: { type: 'inquiry', id: confirmed.id, status: 'confirmed', statusLabel: '已確認，等待服務' },
+          issueText: '師傅晚兩小時還沒來，也沒有通知',
+          category: 'delay', categoryLabel: '服務延遲／未到場', priority: 'high',
+          slaHours: 4, dueAt: '2026-07-28T13:00:00+00:00', recommendedRoute: 'service_coordination',
+          evidence: ['訂單目前狀態：已確認，等待服務'], computedBy: 'deterministic_rules',
+          diagnosisToken: 'diagnosis-456', previewExpiresInSeconds: 300,
+        } })
+      }
+      if (url.endsWith('/api/v1/support/tickets') && init?.method === 'POST') {
+        createdBodies.push(JSON.parse(String(init.body)))
+        return json({ data: {
+          id: 'SUP-20260728-001', accountId: 'A001', subjectId: confirmed.id,
+          categoryLabel: '服務延遲／未到場', issueText: '師傅晚兩小時還沒來，也沒有通知',
+          status: 'open', statusLabel: '等待客服處理', priority: 'high', slaHours: 4,
+          dueAt: '2026-07-28T13:00:00+00:00', events: [{ type: 'support.created', actor: '住戶', occurred_at: '2026-07-28T09:00:00+00:00' }],
+        } })
+      }
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/orders')
+
+    await wrapper.get('[data-testid="support-action-INQ-20260725-001"]').trigger('click')
+    await wrapper.get('[data-testid="support-issue-INQ-20260725-001"]').setValue('師傅晚兩小時還沒來，也沒有通知')
+    await wrapper.get('[data-testid="support-diagnose-INQ-20260725-001"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('服務延遲／未到場')
+    expect(wrapper.text()).toContain('4 小時內開始處理')
+    expect(wrapper.text()).toContain('訂單目前狀態：已確認，等待服務')
+    expect(createdBodies).toEqual([])
+
+    await wrapper.get('[data-testid="support-confirm-INQ-20260725-001"]').trigger('click')
+    await flushPromises()
+
+    expect(createdBodies).toHaveLength(1)
+    expect(createdBodies[0]).toMatchObject({ diagnosis_token: 'diagnosis-456' })
+    expect(wrapper.text()).toContain('SUP-20260728-001')
+    expect(wrapper.text()).toContain('等待客服處理')
+  })
+
+  it('keeps resolved history while allowing a later issue on the same order', async () => {
+    const confirmed = { ...QUOTED, status: 'confirmed', status_label: '已確認，等待服務' }
+    stubCatalogFetch((url, init) => {
+      if (url.endsWith('/api/v1/inquiries')) return json({ data: [confirmed] })
+      if (url.endsWith('/api/v1/support/tickets') && !init?.method) return json({ data: [{
+        id: 'SUP-20260728-001', accountId: 'A001', subjectId: confirmed.id,
+        categoryLabel: '服務延遲／未到場', issueText: '上次師傅未到', status: 'resolved',
+        statusLabel: '已處理完成', priority: 'high', slaHours: 4, dueAt: '2026-07-28T13:00:00+00:00',
+        events: [{ type: 'support.resolved', actor: '社區客服', occurred_at: '2026-07-28T10:00:00+00:00', detail: '已重新安排' }],
+      }] })
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/orders')
+
+    expect(wrapper.text()).toContain('已處理完成')
+    expect(wrapper.get('[data-testid="support-action-INQ-20260725-001"]').text()).toContain('建立新的客服工單')
+  })
+
   it('shows the resident’s actual request in the vendor workspace', async () => {
     stubCatalogFetch((url) => (url.endsWith('/api/v1/vendor/workload')
       ? json({ data: { pendingQuote: [SUBMITTED], awaitingResident: [], scheduled: [] } })

@@ -2,17 +2,22 @@
 import { computed, onMounted, ref } from 'vue'
 
 import { createInquiryLifecycleClient, type Inquiry, type PlatformOrder } from '@/api/inquiryLifecycleClient'
+import { createSupportClient, type SupportTicket } from '@/api/supportClient'
+import SupportIssuePanel from '@/components/SupportIssuePanel.vue'
 import { useDemoStore } from '@/stores/demo'
 import { useSessionStore } from '@/stores/session'
 
 const store = useDemoStore()
 const session = useSessionStore()
 const client = createInquiryLifecycleClient()
+const supportClient = createSupportClient()
 const inquiries = ref<Inquiry[]>([])
 const platformOrders = ref<PlatformOrder[]>([])
 const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
 const acting = ref<string | null>(null)
 const error = ref('')
+const supportTickets = ref<SupportTicket[]>([])
+const supportStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
 
 const hasAnything = computed(() => inquiries.value.length > 0 || platformOrders.value.length > 0 || store.orders.length > 0)
 const currency = (value: number) => `NT$ ${(value ?? 0).toLocaleString('zh-TW')}`
@@ -28,9 +33,31 @@ async function load() {
       ? await client.listOrders(session.accountId).catch(() => [])
       : []
     status.value = 'ready'
+    void loadSupport()
   } catch {
     status.value = 'unavailable'
   }
+}
+
+async function loadSupport() {
+  if (!session.accountId) {
+    supportTickets.value = []
+    supportStatus.value = 'ready'
+    return
+  }
+  supportStatus.value = 'loading'
+  try {
+    supportTickets.value = await supportClient.listMine(session.accountId)
+    supportStatus.value = 'ready'
+  } catch {
+    supportStatus.value = 'unavailable'
+  }
+}
+
+const supportFor = (subjectId: string) => supportTickets.value.find((ticket) => ticket.subjectId === subjectId) ?? null
+
+function recordSupport(ticket: SupportTicket) {
+  supportTickets.value = [ticket, ...supportTickets.value.filter((item) => item.id !== ticket.id)]
 }
 
 function replace(updated: Inquiry) {
@@ -96,6 +123,11 @@ onMounted(load)
   <div v-if="status === 'ready' && hasAnything" class="grid">
     <section class="panel span-8" aria-labelledby="active-orders">
       <h2 id="active-orders">進行中</h2>
+      <div v-if="supportStatus === 'unavailable'" class="error-state compact" role="alert">
+        <strong>客服進度暫時無法載入</strong>
+        <p>訂單資料仍可查看；重新連線後再載入客服進度。</p>
+        <button class="button" type="button" @click="loadSupport">重新載入客服</button>
+      </div>
 
       <details
         v-for="order in platformOrders"
@@ -120,6 +152,13 @@ onMounted(load)
             </li>
           </ol>
           <p class="muted source-note">平台訂單已持久化；品牌履約接入目前為競賽模擬。</p>
+          <SupportIssuePanel
+            v-if="session.accountId"
+            :account-id="session.accountId"
+            :subject-id="order.id"
+            :ticket="supportFor(order.id)"
+            @created="recordSupport"
+          />
         </div>
       </details>
 
@@ -250,6 +289,13 @@ onMounted(load)
             <span v-if="event.detail" class="muted">・{{ event.detail }}</span>
           </li>
         </ol>
+        <SupportIssuePanel
+          v-if="session.accountId && inquiry.status !== 'cancelled'"
+          :account-id="session.accountId"
+          :subject-id="inquiry.id"
+          :ticket="supportFor(inquiry.id)"
+          @created="recordSupport"
+        />
         </div>
       </details>
 

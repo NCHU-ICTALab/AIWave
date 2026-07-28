@@ -21,6 +21,7 @@ const emit = defineEmits<{
   feedback: [recommendationId: string, action: 'dismiss' | 'undo']
   reminder: []
   watch: [productId: string, storeId: string]
+  support: [subjectId: string, issueText: string, diagnosisToken: string]
 }>()
 
 const matchResult = computed(() => (props.step.tool === 'match_vendors' ? asMatchResult(props.step.result) : null))
@@ -52,6 +53,12 @@ const TOOL_LABELS: Record<string, string> = {
   list_vendor_workload: '查詢待處理案件',
   submit_quote: '送出報價',
   complete_inquiry: '回報完工',
+  diagnose_order_issue: '診斷訂單問題',
+  create_support_ticket: '建立客服工單',
+  list_my_support_tickets: '查看客服進度',
+  list_support_queue: '查看客服佇列',
+  start_support_ticket: '開始處理工單',
+  resolve_support_ticket: '完成客服工單',
 }
 
 const label = computed(() => TOOL_LABELS[props.step.tool] ?? props.step.tool)
@@ -71,12 +78,28 @@ const serviceRows = computed<Array<Record<string, unknown>>>(() => {
 })
 const restock = computed(() => props.step.tool === 'get_restock_plan' ? objectResult.value : null)
 const retail = computed(() => props.step.tool === 'search_store_inventory' ? objectResult.value : null)
-const pendingAction = ref<{ kind: 'reminder' | 'watch'; productId?: string; storeId?: string } | null>(null)
+const supportDiagnosis = computed(() => props.step.tool === 'diagnose_order_issue' ? objectResult.value : null)
+const pendingAction = ref<{
+  kind: 'reminder' | 'watch' | 'support'
+  productId?: string
+  storeId?: string
+  subjectId?: string
+  issueText?: string
+  diagnosisToken?: string
+} | null>(null)
 
 function confirmPending() {
   if (pendingAction.value?.kind === 'reminder') emit('reminder')
   if (pendingAction.value?.kind === 'watch') {
     emit('watch', pendingAction.value.productId ?? '', pendingAction.value.storeId ?? '')
+  }
+  if (pendingAction.value?.kind === 'support') {
+    emit(
+      'support',
+      pendingAction.value.subjectId ?? '',
+      pendingAction.value.issueText ?? '',
+      pendingAction.value.diagnosisToken ?? '',
+    )
   }
   pendingAction.value = null
 }
@@ -194,6 +217,43 @@ const currency = (value: unknown) => `NT$ ${Number(value ?? 0).toLocaleString('z
       <div v-if="pendingAction?.kind === 'reminder'" class="inline-confirm" role="group" aria-label="確認補貨提醒">
         <p>將建立「衛生紙」每 30 天提醒，下次為 2026-08-24。</p>
         <div class="button-row"><button class="button primary" type="button" @click="confirmPending">確認建立</button><button class="button" type="button" @click="pendingAction = null">取消</button></div>
+      </div>
+    </section>
+
+    <!-- 異常處理：先顯示可追溯診斷，再由使用者確認建立正式工單。 -->
+    <section v-else-if="supportDiagnosis" class="result-stack" data-testid="support-diagnosis">
+      <div class="result-highlight">
+        <div>
+          <strong>{{ text(supportDiagnosis.categoryLabel) }}</strong>
+          <p>{{ text(supportDiagnosis.issueText) }}</p>
+        </div>
+        <div class="saving">
+          <span>{{ supportDiagnosis.priority === 'high' ? '高優先' : supportDiagnosis.priority === 'medium' ? '中優先' : '一般' }}</span>
+          <strong>{{ text(supportDiagnosis.slaHours) }} 小時</strong>
+          <small>內開始處理</small>
+        </div>
+      </div>
+      <details v-if="supportDiagnosis.evidence?.length" class="reason-details">
+        <summary>查看判斷依據</summary>
+        <ul><li v-for="item in supportDiagnosis.evidence" :key="text(item)">{{ text(item) }}</li></ul>
+      </details>
+      <p class="source-note muted">分類與 SLA 由可重算規則產生，不由語言模型決定。</p>
+      <p v-if="supportDiagnosis.createdTicket" class="recommendation-feedback" role="status">
+        客服工單 {{ text(supportDiagnosis.createdTicket.id) }} 已建立；可到訂單頁持續查看進度。
+      </p>
+      <button
+        v-else
+        class="button primary"
+        type="button"
+        data-testid="support-create-action"
+        @click="pendingAction = { kind: 'support', subjectId: text(supportDiagnosis.subject?.id), issueText: text(supportDiagnosis.issueText), diagnosisToken: text(supportDiagnosis.diagnosisToken) }"
+      >建立客服工單</button>
+      <div v-if="pendingAction?.kind === 'support'" class="inline-confirm" role="group" aria-label="確認建立客服工單">
+        <p>確認要為 {{ pendingAction.subjectId }} 建立可追蹤的客服工單？</p>
+        <div class="button-row">
+          <button class="button primary" type="button" data-testid="support-create-confirm" @click="confirmPending">確認建立</button>
+          <button class="button" type="button" @click="pendingAction = null">取消</button>
+        </div>
       </div>
     </section>
 

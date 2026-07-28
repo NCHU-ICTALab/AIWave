@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
@@ -29,6 +29,7 @@ from core.inquiries import InquiryRepository, InquiryTransitionError, SqliteInqu
 from core.personalization import PersonalizationService, SqlitePersonalizationRepository
 from core.orders import SqliteOrderRepository
 from core.retail import RetailService, SqliteRetailRepository
+from core.support import SupportError, SupportRepository, SupportService, SqliteSupportRepository
 from core.insights.today import build_briefing
 from core.services import CommunityService, InsightsService, LifeServicesService
 from core.sessions import ConversationState, InMemorySessionStore, SessionStore
@@ -151,6 +152,42 @@ class StockWatchReq(BaseModel):
     store_id: str
 
 
+class SupportIssueReq(BaseModel):
+    subject_id: str
+    issue_text: str
+
+
+class SupportTicketReq(SupportIssueReq):
+    diagnosis_token: str
+
+
+class SupportActionReq(BaseModel):
+    note: str | None = None
+
+
+def _support_http_context(
+    account_id: str | None = Header(default=None, alias="X-Account-Id"),
+    role: str = Header(default="user", alias="X-Role"),
+) -> ToolContext:
+    """競賽 Web 的單一身分 seam；正式部署只需在此改驗 OIDC/session。
+
+    客服 request body 不接受帳號、角色或稽核 actor，避免模型或表單參數直接指定他人身分。
+    目前 header 由假登入 adapter 提供，因此仍不可視為正式公開部署的認證機制。
+    """
+    if role not in {"user", "manager", "partner"}:
+        raise HTTPException(403, "未知的使用者角色")
+    display_name = {"user": "住戶", "manager": "社區管理者", "partner": "合作廠商"}[role]
+    return ToolContext(account_id=account_id, role=role, display_name=display_name)
+
+
+def _require_support_role(context: ToolContext, role: str) -> str:
+    if context.role != role:
+        raise HTTPException(403, "目前身分無法使用這項客服能力")
+    if role == "user" and not context.account_id:
+        raise HTTPException(401, "請先登入住戶帳號")
+    return context.account_id or ""
+
+
 def _progress(session: FormSession) -> dict[str, int]:
     return session.progress()
 
@@ -170,6 +207,7 @@ def create_app(
     personalization_repository: SqlitePersonalizationRepository | None = None,
     retail_repository: SqliteRetailRepository | None = None,
     order_repository: SqliteOrderRepository | None = None,
+    support_repository: SupportRepository | None = None,
     llm_factory: Callable[[], LlmClient] = get_llm,
 ) -> FastAPI:
     demo_db = Path(__file__).resolve().parents[1] / "tmp" / "life_ai_demo.sqlite3"
@@ -189,6 +227,12 @@ def create_app(
         today=DEMO_TODAY,
     )
     retail = RetailService(retail_repository or SqliteRetailRepository(demo_db, now=demo_now))
+    support = SupportService(
+        support_repository or SqliteSupportRepository(demo_db, now=demo_now),
+        inquiries=inquiry_repository,
+        orders=life_services.orders,
+        now=demo_now,
+    )
     life_services_catalog = list_catalog_services
     # 能力層：規劃器與 MCP server 共用這一份（ADR-0017）
     tool_registry = build_registry(
@@ -196,6 +240,7 @@ def create_app(
         group_buys=group_buy_repository,
         personalization=personalization,
         retail=retail,
+        support=support,
         today=DEMO_TODAY,
     )
     application = FastAPI(title="智慧生活管家 AI API")
@@ -479,31 +524,26 @@ def create_app(
 
     # --- 規劃器：LLM 規劃、規則執行（ADR-0017） ---
 
-    def _context(req: PlanReq) -> ToolContext:
-        return ToolContext(account_id=req.account_id, role=req.role, display_name=req.display_name)
-
     @application.get("/api/v1/assistant/tools")
-    def list_tools(role: str = "user") -> dict:
+    def list_tools(context: ToolContext = Depends(_support_http_context)) -> dict:
         """目前身分可用的能力清單——與 MCP server 對外曝露的是同一份。"""
-        return {"data": tool_registry.describe(role=role)}
+        return {"data": tool_registry.describe(role=context.role)}
 
     @application.post("/api/v1/assistant/plan")
-    def create_plan(req: PlanReq) -> dict:
+    def create_plan(req: PlanReq, context: ToolContext = Depends(_support_http_context)) -> dict:
         """把一句話拆成計畫並執行唯讀步驟；寫入步驟留著等使用者確認。"""
         planner = Planner(llm_factory(), tool_registry)
-        context = _context(req)
         plan = planner.execute(planner.plan(req.message, context), context)
         return {"data": plan.to_dict()}
 
     @application.post("/api/v1/assistant/plan/execute")
-    def execute_plan(req: ExecutePlanReq) -> dict:
+    def execute_plan(req: ExecutePlanReq, context: ToolContext = Depends(_support_http_context)) -> dict:
         """執行使用者已確認的寫入步驟。
 
         步驟由前端帶回，但**不信任前端**：每一步都重新過一次註冊表的驗證與角色檢查，
         所以偽造的步驟過不了這一關。
         """
         planner = Planner(llm_factory(), tool_registry)
-        context = _context(req)
         plan = Plan(understanding=req.message)
         for raw in req.steps:
             tool = tool_registry.get(raw.get("tool"))
@@ -635,6 +675,70 @@ def create_app(
                 req.account_id, product_id=req.product_id, store_id=req.store_id
             )}
         except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    # --- 訂單異常與客服：診斷預覽 → 人確認 → 工單與處理事件 ---
+
+    @application.post("/api/v1/support/diagnose")
+    def diagnose_support_issue(
+        req: SupportIssueReq,
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        account_id = _require_support_role(context, "user")
+        try:
+            return {"data": support.diagnose(
+                account_id=account_id, subject_id=req.subject_id, issue_text=req.issue_text
+            )}
+        except SupportError as exc:
+            status_code = 404 if "查無" in str(exc) else 400
+            raise HTTPException(status_code, str(exc)) from exc
+
+    @application.post("/api/v1/support/tickets")
+    def create_support_ticket(
+        req: SupportTicketReq,
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        account_id = _require_support_role(context, "user")
+        try:
+            return {"data": support.create_ticket(
+                account_id=account_id, subject_id=req.subject_id, issue_text=req.issue_text,
+                diagnosis_token=req.diagnosis_token,
+            )}
+        except SupportError as exc:
+            status_code = 404 if "查無" in str(exc) else 409
+            raise HTTPException(status_code, str(exc)) from exc
+
+    @application.get("/api/v1/support/tickets")
+    def list_support_tickets(context: ToolContext = Depends(_support_http_context)) -> dict:
+        return {"data": support.list_for_account(_require_support_role(context, "user"))}
+
+    @application.get("/api/v1/support/queue")
+    def list_support_queue(context: ToolContext = Depends(_support_http_context)) -> dict:
+        _require_support_role(context, "manager")
+        return {"data": support.list_queue()}
+
+    @application.post("/api/v1/support/tickets/{ticket_id}/start")
+    def start_support_ticket(
+        ticket_id: str,
+        req: SupportActionReq,
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        _require_support_role(context, "manager")
+        try:
+            return {"data": support.start_ticket(ticket_id, actor=context.display_name)}
+        except SupportError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/support/tickets/{ticket_id}/resolve")
+    def resolve_support_ticket(
+        ticket_id: str,
+        req: SupportActionReq,
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        _require_support_role(context, "manager")
+        try:
+            return {"data": support.resolve_ticket(ticket_id, actor=context.display_name, note=req.note or "")}
+        except SupportError as exc:
             raise HTTPException(409, str(exc)) from exc
 
     @application.get("/api/v1/inquiries")

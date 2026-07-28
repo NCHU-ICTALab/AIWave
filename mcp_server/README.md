@@ -59,7 +59,7 @@ uv run python -m mcp_server.server
 
 上 AWS 後這裡要換成由 OIDC token 解出身分，`ToolContext` 的建構是唯一需要改的地方。
 
-## 能力一覽（完整 Registry 30 項）
+## 能力一覽（完整 Registry 36 項）
 
 | 工具 | 寫入 | 說明 |
 | --- | --- | --- |
@@ -88,8 +88,11 @@ uv run python -m mcp_server.server
 | `search_store_inventory` | | 查商品、門市能力、庫存與替代門市 |
 | `join_stock_waitlist` | ✎ | 缺貨門市加入候補 |
 | `list_stock_watches` | | 查看到貨候補 |
+| `diagnose_order_issue` | | 驗證本人訂單並以規則判斷問題類型、優先級與 SLA |
+| `create_support_ticket` | ✎ | 以 `diagnose_order_issue` 的短效 token 為本人訂單建立可追蹤客服工單 |
+| `list_my_support_tickets` | | 查看本人的客服進度與事件 |
 
-完整 Registry 共 30 項；實際 `tools/list` 仍依角色過濾。`MCP_ROLE=manager` 另有 `open_group_buy`、`close_group_buy`；
+完整 Registry 共 36 項；實際 `tools/list` 仍依角色過濾。`MCP_ROLE=manager` 另有 `open_group_buy`、`close_group_buy`、`list_support_queue`、`start_support_ticket`、`resolve_support_ticket`；
 `MCP_ROLE=partner` 另有 `list_vendor_workload`、`submit_quote`、`complete_inquiry`。
 
 標記 ✎ 的會寫入資料。系統內的規劃器對這類工具一律先向使用者確認才執行

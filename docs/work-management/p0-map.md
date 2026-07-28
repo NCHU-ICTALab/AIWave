@@ -1,7 +1,7 @@
 # P0 競賽展示工作地圖
 
 > 狀態：執行中  
-> 最後更新：2026-07-25  
+> 最後更新：2026-07-28
 > 規格基線：[競賽 Demo 垂直切片](../specs/07-demo-vertical-slice.md)
 
 ## Destination
@@ -36,7 +36,7 @@
 | --- | --- | --- | --- |
 | 1 | [真 AI 諮詢閉環](tickets/007-real-ai-inquiry-loop.md) | **完成** | — |
 | 2 | [九項服務題組與報價規則](tickets/001-service-forms-and-pricing.md) | 完成 | — |
-| 3 | [訂單事件、異常與客服閉環](tickets/002-order-events-and-support.md) | 待辦 | 真 AI 諮詢閉環 |
+| 3 | [訂單事件、異常與客服閉環](tickets/002-order-events-and-support.md) | **完成** | — |
 | 4 | [社區與廠商 Hero 深化](tickets/003-community-vendor-hero.md) | 待辦 | 真 AI 諮詢閉環 |
 | 5 | [三種廠商接入與測試主控台](tickets/004-connector-console.md) | 待辦 | 社區與廠商 Hero 深化 |
 | 6 | [種子資料、離線與錯誤狀態](tickets/005-resilience-and-seed.md) | 待辦 | 前五項 |

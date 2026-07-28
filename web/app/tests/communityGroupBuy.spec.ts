@@ -94,10 +94,22 @@ describe('community group buy', () => {
     stubCommunity()
     const { wrapper } = await mountApp('/community', { identity: MANAGER })
 
-    expect(wrapper.get('h1').text()).toBe('團購管理')
+    expect(wrapper.get('h1').text()).toBe('社區營運中心')
     const joins = wrapper.get('[data-joins-for="1"]').text()
     expect(joins).toContain('A 戶')
     expect(joins).toContain('B 戶')
+  })
+
+  it('keeps group-buy operations available when only the support queue fails', async () => {
+    stubCommunity((url) => url.endsWith('/api/v1/support/queue')
+      ? new Response(JSON.stringify({ detail: 'offline' }), { status: 503, headers: { 'Content-Type': 'application/json' } })
+      : undefined)
+    const { wrapper } = await mountApp('/community', { identity: MANAGER })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('愛文芒果 5 斤')
+    expect(wrapper.get('[role="alert"]').text()).toContain('客服佇列暫時無法載入')
+    expect(wrapper.get('[role="alert"]').text()).toContain('團購功能仍可使用')
   })
 
   it('produces a purchase order for the vendor when the manager closes it', async () => {
@@ -144,5 +156,48 @@ describe('community group buy', () => {
     await flushPromises()
 
     expect(posted[0]).toMatchObject({ title: '八月團購', item_name: '文旦 10 斤', unit_price: 400 })
+  })
+
+  it('lets community support take ownership and resolve a resident issue with confirmation', async () => {
+    const calls: string[] = []
+    const openTicket = {
+      id: 'SUP-20260728-001', accountId: 'A001', subjectType: 'inquiry', subjectId: 'INQ-001',
+      category: 'delay', categoryLabel: '服務延遲／未到場', issueText: '師傅晚兩小時還沒來',
+      status: 'open', statusLabel: '等待客服處理', priority: 'high', slaHours: 4,
+      dueAt: '2026-07-28T13:00:00+00:00',
+      events: [{ type: 'support.created', actor: '住戶', occurred_at: '2026-07-28T09:00:00+00:00' }],
+    }
+    const working = { ...openTicket, status: 'in_progress', statusLabel: '客服處理中' }
+    stubCommunity((url, init) => {
+      if (url.endsWith('/support/queue')) return json({ data: [openTicket] })
+      if (url.endsWith('/support/tickets/SUP-20260728-001/start') && init?.method === 'POST') {
+        calls.push('start')
+        return json({ data: working })
+      }
+      if (url.endsWith('/support/tickets/SUP-20260728-001/resolve') && init?.method === 'POST') {
+        calls.push(`resolve:${JSON.parse(String(init.body)).note}`)
+        return json({ data: { ...working, status: 'resolved', statusLabel: '已處理完成' } })
+      }
+      return undefined
+    })
+    const { wrapper } = await mountApp('/community', { identity: MANAGER })
+
+    expect(wrapper.text()).toContain('服務延遲／未到場')
+    expect(wrapper.text()).toContain('師傅晚兩小時還沒來')
+    await wrapper.get('[data-testid="support-start-SUP-20260728-001"]').trigger('click')
+    expect(calls).toEqual([])
+    await wrapper.get('[data-testid="support-start-confirm-SUP-20260728-001"]').trigger('click')
+    await flushPromises()
+    expect(calls).toEqual(['start'])
+
+    await wrapper.get('[data-testid="support-resolution-SUP-20260728-001"]').setValue('已重新安排 14:00 到場')
+    await wrapper.get('[data-testid="support-resolve-SUP-20260728-001"]').trigger('click')
+    expect(calls).toEqual(['start'])
+    await wrapper.get('[data-testid="support-resolve-confirm-SUP-20260728-001"]').trigger('click')
+    await flushPromises()
+
+    expect(calls).toEqual(['start', 'resolve:已重新安排 14:00 到場'])
+    expect(wrapper.text()).toContain('SUP-20260728-001 已結案')
+    expect(wrapper.find('[data-testid="support-start-SUP-20260728-001"]').exists()).toBe(false)
   })
 })

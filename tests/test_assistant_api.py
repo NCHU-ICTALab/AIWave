@@ -17,6 +17,9 @@ from api.app import create_app
 from core.community import SqliteGroupBuyRepository
 from core.inquiries import SqliteInquiryRepository
 
+RESIDENT_HEADERS = {"X-Account-Id": "A001", "X-Role": "user"}
+MANAGER_HEADERS = {"X-Role": "manager"}
+
 
 class ScriptedLlm:
     """依序回傳預先寫好的規劃結果。"""
@@ -55,7 +58,7 @@ def test_exposes_the_tool_list_for_the_current_role(make_client):
     assert "match_vendors" in names
     assert "open_group_buy" not in names, "住戶不該看到管委會的能力"
     assert "open_group_buy" in {
-        tool["name"] for tool in client.get("/api/v1/assistant/tools?role=manager").json()["data"]
+        tool["name"] for tool in client.get("/api/v1/assistant/tools", headers=MANAGER_HEADERS).json()["data"]
     }
 
 
@@ -71,7 +74,8 @@ def test_plans_and_runs_read_only_steps_in_one_call(make_client):
     })
     response = client.post(
         "/api/v1/assistant/plan",
-        json={"message": "冷氣不冷想找人洗，另外社區有團購嗎", "account_id": "A001"},
+        headers=RESIDENT_HEADERS,
+        json={"message": "冷氣不冷想找人洗，另外社區有團購嗎"},
     )
 
     plan = response.json()["data"]
@@ -91,7 +95,7 @@ def test_a_write_step_comes_back_needing_confirmation(make_client):
     ).json()["data"]
 
     plan = client.post(
-        "/api/v1/assistant/plan", json={"message": "幫我跟團兩份", "account_id": "A001"}
+        "/api/v1/assistant/plan", headers=RESIDENT_HEADERS, json={"message": "幫我跟團兩份"}
     ).json()["data"]
 
     assert plan["needsConfirmation"], "寫入動作應該先問過使用者"
@@ -115,10 +119,9 @@ def test_executing_a_confirmed_step_actually_writes(make_client):
 
     response = client.post(
         "/api/v1/assistant/plan/execute",
+        headers=RESIDENT_HEADERS,
         json={
             "message": "跟團",
-            "account_id": "A001",
-            "display_name": "王小明",
             "steps": [{"tool": "join_group_buy", "arguments": {"campaign_id": 1, "quantity": 2}, "why": "跟團"}],
             "approved": [0],
         },
@@ -136,7 +139,7 @@ def test_rejects_a_step_the_role_may_not_run_even_if_the_client_sends_it(make_cl
         json={
             "message": "開團",
             "account_id": "A001",
-            "role": "user",
+            "role": "manager",
             "steps": [{"tool": "open_group_buy", "arguments": {"title": "米", "item_name": "米", "unit_price": 1}, "why": "越權"}],
             "approved": [0],
         },
@@ -161,9 +164,9 @@ def test_an_unapproved_write_step_is_not_executed_even_when_posted(make_client):
 
     response = client.post(
         "/api/v1/assistant/plan/execute",
+        headers=RESIDENT_HEADERS,
         json={
             "message": "跟團",
-            "account_id": "A001",
             "steps": [{"tool": "join_group_buy", "arguments": {"campaign_id": 1, "quantity": 2}, "why": "跟團"}],
             "approved": [],
         },

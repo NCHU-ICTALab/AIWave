@@ -11,6 +11,7 @@ import {
 } from '@/api/aiInquiryClient'
 import { createAssistantClient, type Plan, type PlanStep } from '@/api/assistantClient'
 import { createLifestyleClient } from '@/api/lifestyleClient'
+import { createSupportClient } from '@/api/supportClient'
 import PlanStepCard from '@/components/PlanStepCard.vue'
 import { useDemoStore } from '@/stores/demo'
 import { useSessionStore } from '@/stores/session'
@@ -22,6 +23,7 @@ const session = useSessionStore()
 const client = createAiInquiryClient()
 const assistant = createAssistantClient()
 const lifestyle = createLifestyleClient()
+const support = createSupportClient()
 
 interface ChatMessage {
   role: 'assistant' | 'user'
@@ -159,6 +161,22 @@ async function joinWatch(productId: string, storeId: string) {
     planNotice.value = '已加入到貨候補；補貨後可由通知通路提醒你。'
   } catch {
     planError.value = '目前無法加入候補，請稍後再試。'
+  } finally {
+    planBusy.value = false
+  }
+}
+
+async function createSupportTicket(step: PlanStep, subjectId: string, issueText: string, diagnosisToken: string) {
+  if (!session.accountId || !subjectId || !issueText || !diagnosisToken || planBusy.value) return
+  planBusy.value = true
+  planError.value = ''
+  try {
+    const ticket = await support.create(session.accountId, subjectId, issueText, diagnosisToken)
+    const result = step.result as Record<string, unknown>
+    result.createdTicket = ticket
+    planNotice.value = `客服工單 ${ticket.id} 已建立，目前狀態：${ticket.statusLabel}。你也可以在訂單頁持續查看進度。`
+  } catch (reason) {
+    planError.value = reason instanceof Error ? reason.message : '客服工單目前無法建立，請稍後再試。'
   } finally {
     planBusy.value = false
   }
@@ -365,6 +383,7 @@ watch(() => route.fullPath, enter)
             @feedback="(id, action) => changeFeedback(step, id, action)"
             @reminder="createRestockReminder"
             @watch="(productId, storeId) => joinWatch(productId, storeId)"
+            @support="(subjectId, issueText, diagnosisToken) => createSupportTicket(step, subjectId, issueText, diagnosisToken)"
           />
         </ol>
 
