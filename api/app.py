@@ -24,7 +24,14 @@ from core.forms.dto import topic_to_field
 from core.forms.service_catalog import get_service as catalog_service
 from core.forms.service_catalog import get_service_form as catalog_service_form
 from core.forms.service_catalog import list_services as list_catalog_services
-from core.community import GroupBuyError, GroupBuyRepository, SqliteGroupBuyRepository
+from core.community import (
+    GroupBuyError,
+    GroupBuyRepository,
+    JointServiceError,
+    JointServiceRepository,
+    SqliteGroupBuyRepository,
+    SqliteJointServiceRepository,
+)
 from core.inquiries import InquiryRepository, InquiryTransitionError, SqliteInquiryRepository
 from core.personalization import PersonalizationService, SqlitePersonalizationRepository
 from core.orders import SqliteOrderRepository
@@ -119,6 +126,26 @@ class JoinCampaignReq(BaseModel):
     quantity: int = 1
 
 
+class JointServiceDraftReq(BaseModel):
+    title: str
+    service_id: str = "service-aircon"
+
+
+class JointServiceAssignReq(BaseModel):
+    proposal_id: str
+
+
+class JointServiceCompleteReq(BaseModel):
+    note: str
+
+
+class JointServiceJoinReq(BaseModel):
+    units: int
+    equipment: str
+    preferred_slot: str
+    special_requirement: str | None = None
+
+
 class PlanReq(BaseModel):
     """一句口語 ＋ 呼叫者身分。身分由前端的登入狀態帶入，不由 LLM 決定。"""
 
@@ -203,6 +230,7 @@ def create_app(
     *,
     repository: InquiryRepository | None = None,
     group_buys: GroupBuyRepository | None = None,
+    joint_services: JointServiceRepository | None = None,
     sessions: SessionStore | None = None,
     personalization_repository: SqlitePersonalizationRepository | None = None,
     retail_repository: SqliteRetailRepository | None = None,
@@ -214,6 +242,7 @@ def create_app(
     demo_now = lambda: datetime(2026, 7, 25, 0, 0, tzinfo=timezone.utc)  # noqa: E731
     inquiry_repository = repository or SqliteInquiryRepository(demo_db, now=demo_now)
     group_buy_repository = group_buys or SqliteGroupBuyRepository(demo_db, now=demo_now)
+    joint_service_repository = joint_services or SqliteJointServiceRepository(demo_db, now=demo_now)
     session_store: SessionStore = sessions or InMemorySessionStore()
     life_services = LifeServicesService(
         inquiry_repository,
@@ -238,6 +267,7 @@ def create_app(
     tool_registry = build_registry(
         services=life_services,
         group_buys=group_buy_repository,
+        joint_services=joint_service_repository,
         personalization=personalization,
         retail=retail,
         support=support,
@@ -785,6 +815,99 @@ def create_app(
     @application.get("/api/v1/community/my-participation")
     def my_participation(account_id: str) -> dict:
         return {"data": community.my_participation(account_id)}
+
+    # --- 社區聯合服務：匿名需求 → 方案決策 → 廠商履約 ---
+
+    @application.get("/api/v1/community/joint-services")
+    def list_joint_services(context: ToolContext = Depends(_support_http_context)) -> dict:
+        _require_support_role(context, "manager")
+        return {"data": joint_service_repository.list_campaigns()}
+
+    @application.post("/api/v1/community/joint-services")
+    def create_joint_service(req: JointServiceDraftReq, context: ToolContext = Depends(_support_http_context)) -> dict:
+        _require_support_role(context, "manager")
+        try:
+            return {"data": joint_service_repository.create_draft(
+                title=req.title, service_id=req.service_id, created_by=context.display_name,
+            )}
+        except JointServiceError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/community/joint-services/{campaign_id}/publish")
+    def publish_joint_service(campaign_id: int, context: ToolContext = Depends(_support_http_context)) -> dict:
+        _require_support_role(context, "manager")
+        try:
+            return {"data": joint_service_repository.publish(campaign_id, actor=context.display_name)}
+        except JointServiceError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/community/joint-services/{campaign_id}/join")
+    def join_joint_service(
+        campaign_id: int, req: JointServiceJoinReq, context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        account_id = _require_support_role(context, "user")
+        try:
+            return {"data": joint_service_repository.join(
+                campaign_id, account_id=account_id, units=req.units, equipment=req.equipment,
+                preferred_slot=req.preferred_slot, special_requirement=req.special_requirement,
+            )}
+        except JointServiceError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/community/joint-services/{campaign_id}/prepare-proposals")
+    def prepare_joint_service_proposals(
+        campaign_id: int, context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        _require_support_role(context, "manager")
+        try:
+            return {"data": joint_service_repository.prepare_proposals(campaign_id, actor=context.display_name)}
+        except JointServiceError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/community/joint-services/{campaign_id}/assign")
+    def assign_joint_service(
+        campaign_id: int, req: JointServiceAssignReq, context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        _require_support_role(context, "manager")
+        try:
+            return {"data": joint_service_repository.assign(
+                campaign_id, proposal_id=req.proposal_id, actor=context.display_name,
+            )}
+        except JointServiceError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.get("/api/v1/vendor/joint-services")
+    def vendor_joint_services(context: ToolContext = Depends(_support_http_context)) -> dict:
+        vendor_id = _require_support_role(context, "partner")
+        if not vendor_id:
+            raise HTTPException(401, "合作廠商工作台需要廠商帳號")
+        return {"data": joint_service_repository.list_assigned(vendor_id=vendor_id)}
+
+    @application.post("/api/v1/vendor/joint-services/{campaign_id}/start")
+    def start_joint_service(campaign_id: int, context: ToolContext = Depends(_support_http_context)) -> dict:
+        vendor_id = _require_support_role(context, "partner")
+        if not vendor_id:
+            raise HTTPException(401, "合作廠商工作台需要廠商帳號")
+        try:
+            return {"data": joint_service_repository.start(
+                campaign_id, vendor_id=vendor_id, actor=context.display_name,
+            )}
+        except JointServiceError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/vendor/joint-services/{campaign_id}/complete")
+    def complete_joint_service(
+        campaign_id: int, req: JointServiceCompleteReq, context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        vendor_id = _require_support_role(context, "partner")
+        if not vendor_id:
+            raise HTTPException(401, "合作廠商工作台需要廠商帳號")
+        try:
+            return {"data": joint_service_repository.complete(
+                campaign_id, vendor_id=vendor_id, actor=context.display_name, note=req.note,
+            )}
+        except JointServiceError as exc:
+            raise HTTPException(409, str(exc)) from exc
 
     # --- 諮詢單生命週期：住戶送出 → 廠商報價 → 住戶確認 → 廠商完工 ---
 

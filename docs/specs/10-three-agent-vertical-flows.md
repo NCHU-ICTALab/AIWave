@@ -51,7 +51,7 @@ Planner 與外部 MCP Agent 共用的垂直流程。
    展示帳號的競賽假登入，不構成正式驗證邊界；公開部署前必須由 OIDC／API gateway 注入身分，
    並移除 path、query 與 body 的帳號信任。
 4. 官方訂單、競賽 seed、平台自有狀態在 DTO 中各自標示來源。
-5. 三條主流程加上跨角色客服閉環共用 36-tool Registry；HTTP 與 MCP 不各自維護商業規則。
+5. 三條主流程、跨角色客服閉環與社區聯合服務共用 45-tool Registry；HTTP 與 MCP 不各自維護商業規則。
 
 ## Demo 三句話
 

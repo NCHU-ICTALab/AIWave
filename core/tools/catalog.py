@@ -14,6 +14,7 @@ from datetime import date
 from typing import Any
 
 from core.community.group_buy import GroupBuyRepository
+from core.community.joint_service import JointServiceRepository
 from core.data.regions import resolve as resolve_region
 from core.forms.service_catalog import list_services as list_catalog_services
 from core.insights.behavior import build_trail, summarize
@@ -58,6 +59,7 @@ def build_registry(
     *,
     services: LifeServicesService,
     group_buys: GroupBuyRepository,
+    joint_services: JointServiceRepository | None = None,
     personalization: PersonalizationService | None = None,
     retail: RetailService | None = None,
     support: SupportService | None = None,
@@ -666,6 +668,115 @@ def build_registry(
             roles=MANAGER,
         )
     )
+
+    # ---- 社區聯合服務 --------------------------------------------------
+
+    if joint_services is not None:
+        def get_joint_service_summary(context: ToolContext, *, campaign_id: int) -> Any:
+            campaign = joint_services.get_campaign(campaign_id)
+            if campaign is None:
+                raise ToolError(f"查無聯合服務 {campaign_id}")
+            return campaign
+
+        def create_joint_service(context: ToolContext, *, title: str, service_id: str) -> Any:
+            return joint_services.create_draft(title=title, service_id=service_id, created_by=context.display_name)
+
+        def publish_joint_service(context: ToolContext, *, campaign_id: int) -> Any:
+            return joint_services.publish(campaign_id, actor=context.display_name)
+
+        def join_joint_service(
+            context: ToolContext, *, campaign_id: int, units: int, equipment: str,
+            preferred_slot: str, special_requirement: str | None = None,
+        ) -> Any:
+            return joint_services.join(
+                campaign_id, account_id=_require_account(context), units=units, equipment=equipment,
+                preferred_slot=preferred_slot, special_requirement=special_requirement,
+            )
+
+        def prepare_joint_service_proposals(context: ToolContext, *, campaign_id: int) -> Any:
+            return joint_services.prepare_proposals(campaign_id, actor=context.display_name)
+
+        def assign_joint_service_vendor(context: ToolContext, *, campaign_id: int, proposal_id: str) -> Any:
+            return joint_services.assign(campaign_id, proposal_id=proposal_id, actor=context.display_name)
+
+        def list_assigned_joint_services(context: ToolContext) -> Any:
+            return joint_services.list_assigned(vendor_id=_require_account(context))
+
+        def start_joint_service(context: ToolContext, *, campaign_id: int) -> Any:
+            return joint_services.start(campaign_id, vendor_id=_require_account(context), actor=context.display_name)
+
+        def complete_joint_service(context: ToolContext, *, campaign_id: int, note: str) -> Any:
+            return joint_services.complete(
+                campaign_id, vendor_id=_require_account(context), actor=context.display_name, note=note,
+            )
+
+        registry.register(Tool(
+            name="get_joint_service_summary",
+            description="管委會查看社區聯合服務的匿名需求統計、AI 草稿、候選方案、決策與履約事件。",
+            parameters={"type": "object", "properties": {"campaign_id": {"type": "integer"}},
+                        "required": ["campaign_id"]},
+            handler=get_joint_service_summary, roles=MANAGER,
+        ))
+        registry.register(Tool(
+            name="create_joint_service",
+            description="管委會建立一份聯合服務草稿；只建立草稿，不會直接對住戶發布，執行前必須確認。",
+            parameters={"type": "object", "properties": {
+                "title": {"type": "string"}, "service_id": _service_id_schema("服務目錄代碼"),
+            }, "required": ["title", "service_id"]},
+            handler=create_joint_service, writes=True, roles=MANAGER,
+        ))
+        registry.register(Tool(
+            name="publish_joint_service",
+            description="管委會確認 AI 草稿後發布聯合服務、開始募集匿名需求；執行前必須確認。",
+            parameters={"type": "object", "properties": {"campaign_id": {"type": "integer"}},
+                        "required": ["campaign_id"]},
+            handler=publish_joint_service, writes=True, roles=MANAGER,
+        ))
+        registry.register(Tool(
+            name="join_joint_service",
+            description="住戶以目前登入帳號匿名加入社區聯合服務；重複加入會更新需求，執行前必須確認台數與時段。",
+            parameters={"type": "object", "properties": {
+                "campaign_id": {"type": "integer"}, "units": {"type": "integer"},
+                "equipment": {"type": "string"}, "preferred_slot": {"type": "string"},
+                "special_requirement": {"type": "string"},
+            }, "required": ["campaign_id", "units", "equipment", "preferred_slot"]},
+            handler=join_joint_service, writes=True, roles=RESIDENT,
+        ))
+        registry.register(Tool(
+            name="prepare_joint_service_proposals",
+            description="管委會截止匿名需求募集並依聚合台數產生兩份分項方案，執行前必須確認。",
+            parameters={"type": "object", "properties": {"campaign_id": {"type": "integer"}},
+                        "required": ["campaign_id"]},
+            handler=prepare_joint_service_proposals, writes=True, roles=MANAGER,
+        ))
+        registry.register(Tool(
+            name="assign_joint_service_vendor",
+            description="管委會看完兩案價格、時段、優點與限制後，確認指派其中一案；指派不可重複，執行前必須確認。",
+            parameters={"type": "object", "properties": {
+                "campaign_id": {"type": "integer"}, "proposal_id": {"type": "string"},
+            }, "required": ["campaign_id", "proposal_id"]},
+            handler=assign_joint_service_vendor, writes=True, roles=MANAGER,
+        ))
+        registry.register(Tool(
+            name="list_assigned_joint_services",
+            description="合作廠商查看已指派的社區聯合服務標準工單、匿名需求摘要、報價與履約狀態。",
+            parameters=_empty_schema(), handler=list_assigned_joint_services, roles=PARTNER,
+        ))
+        registry.register(Tool(
+            name="start_joint_service",
+            description="合作廠商回報已開始執行社區聯合服務，狀態與事件會同步回管委會；執行前必須確認。",
+            parameters={"type": "object", "properties": {"campaign_id": {"type": "integer"}},
+                        "required": ["campaign_id"]},
+            handler=start_joint_service, writes=True, roles=PARTNER,
+        ))
+        registry.register(Tool(
+            name="complete_joint_service",
+            description="合作廠商填寫完工說明並完成社區聯合服務，結果會同步回管委會；執行前必須確認。",
+            parameters={"type": "object", "properties": {
+                "campaign_id": {"type": "integer"}, "note": {"type": "string"},
+            }, "required": ["campaign_id", "note"]},
+            handler=complete_joint_service, writes=True, roles=PARTNER,
+        ))
 
     # ---- 個人洞察（皆由官方訂單算出） --------------------------------
 

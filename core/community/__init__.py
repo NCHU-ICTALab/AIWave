@@ -1,4 +1,16 @@
-"""社區領域：住戶共享範圍下的集體服務（目前為團購）。"""
+"""社區領域：住戶共享範圍下的團購與聯合服務。"""
+
+from .joint_service import (
+    ASSIGNED,
+    COLLECTING,
+    COMPLETED,
+    DRAFT,
+    IN_PROGRESS,
+    PROPOSAL_REVIEW,
+    JointServiceError,
+    JointServiceRepository,
+    SqliteJointServiceRepository,
+)
 
 from .group_buy import (
     CLOSED,
@@ -18,4 +30,13 @@ __all__ = [
     "GroupBuyError",
     "GroupBuyRepository",
     "SqliteGroupBuyRepository",
+    "ASSIGNED",
+    "COLLECTING",
+    "COMPLETED",
+    "DRAFT",
+    "IN_PROGRESS",
+    "PROPOSAL_REVIEW",
+    "JointServiceError",
+    "JointServiceRepository",
+    "SqliteJointServiceRepository",
 ]

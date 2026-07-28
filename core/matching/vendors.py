@@ -115,6 +115,7 @@ VENDORS: tuple[Vendor, ...] = (
         supports_urgent=False,
         counties=_WIDE,
         offerings=(
+            _offering("service-aircon", 1600, "weekday_morning", "weekday_afternoon"),
             _offering("service-cleaning", 2900, "weekday_morning", "weekday_afternoon"),
             _offering("service-housework", 380, "weekday_morning", "weekday_afternoon", "weekend"),
         ),

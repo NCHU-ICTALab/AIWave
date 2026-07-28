@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from core.community.group_buy import SqliteGroupBuyRepository
+from core.community.joint_service import SqliteJointServiceRepository
 from core.inquiries import SqliteInquiryRepository
 from core.services import LifeServicesService
 from core.tools.catalog import build_registry
@@ -32,6 +33,7 @@ def registry(tmp_path: Path):
     return build_registry(
         services=services,
         group_buys=SqliteGroupBuyRepository(tmp_path / "groupbuys.sqlite3"),
+        joint_services=SqliteJointServiceRepository(tmp_path / "joint-services.sqlite3"),
         today=TODAY,
     )
 
@@ -96,6 +98,17 @@ async def test_matching_is_callable_over_mcp(registry):
     assert payload["ok"] is True
     assert payload["result"]["vendors"], "台北市大同區應該媒合得到水電廠商"
     assert payload["result"]["vendors"][0]["supportsUrgent"] is True
+
+
+@pytest.mark.anyio
+async def test_joint_service_summary_is_callable_over_mcp_for_manager(registry):
+    """聯合服務不是 Web 私有端點；外部管理 Agent 看到同一份需求與方案證據。"""
+    server = create_server(registry, ToolContext(role="manager", display_name="社區管理者"))
+    payload = await _call_tool(server, "get_joint_service_summary", {"campaign_id": 1})
+
+    assert payload["ok"] is True
+    assert payload["result"]["demand"]["householdCount"] == 18
+    assert len(payload["result"]["proposals"]) == 2
 
 
 @pytest.mark.anyio

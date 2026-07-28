@@ -33,6 +33,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool as McpTool
 
 from core.community.group_buy import SqliteGroupBuyRepository
+from core.community.joint_service import SqliteJointServiceRepository
 from core.config import get_settings
 from core.inquiries import SqliteInquiryRepository
 from core.personalization import PersonalizationService, SqlitePersonalizationRepository
@@ -62,6 +63,7 @@ def build_default_registry(*, today: date | None = None) -> ToolRegistry:
             today=resolved_today,
         ),
         group_buys=SqliteGroupBuyRepository(config.group_buy_db_path),
+        joint_services=SqliteJointServiceRepository(config.group_buy_db_path),
         personalization=PersonalizationService(
             SqlitePersonalizationRepository(config.inquiry_db_path), today=resolved_today
         ),

@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { ROLE_HOME, ROLE_LABEL, useSessionStore, type Role } from '@/stores/session'
+import { ROLE_HOME, useSessionStore, type Role } from '@/stores/session'
 
 /**
  * 展示住戶（不是原始通路帳號）。
@@ -26,6 +26,11 @@ const router = useRouter()
 const session = useSessionStore()
 const accounts = ref<AccountOption[]>([])
 const accountsStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
+const staffEntries = [
+  { role: 'manager' as const, accountId: null, label: '社區管理者工作台', name: '社區管理者' },
+  { role: 'partner' as const, accountId: 'vendor-cleanpro', label: '潔沛家事工作台', name: '潔沛家事服務' },
+  { role: 'partner' as const, accountId: 'vendor-homekeeper', label: '安家管家工作台', name: '安家管家' },
+]
 
 onMounted(async () => {
   try {
@@ -125,13 +130,13 @@ async function enter(role: Role, accountId: string | null, displayName: string) 
         <p class="muted login-hint">社區管理者與合作廠商使用各自的工作台。</p>
         <div class="staff-options">
           <button
-            v-for="role in (['manager', 'partner'] as Role[])"
-            :key="role"
+            v-for="entry in staffEntries"
+            :key="`${entry.role}-${entry.accountId}`"
             class="button full"
             type="button"
-            :data-testid="`enter-${role}`"
-            @click="enter(role, null, ROLE_LABEL[role])"
-          >{{ ROLE_LABEL[role] }}工作台</button>
+            :data-testid="entry.role === 'manager' ? 'enter-manager' : `enter-${entry.accountId}`"
+            @click="enter(entry.role, entry.accountId, entry.name)"
+          >{{ entry.label }}</button>
         </div>
       </section>
     </div>

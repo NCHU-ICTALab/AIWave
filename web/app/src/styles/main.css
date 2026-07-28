@@ -382,6 +382,55 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .inline-confirm { padding: var(--space-3); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--accent-soft); }
 .inline-confirm p { margin: 0 0 var(--space-3); }
 
+/* 社區聯合服務 Hero：先呈現需求證據，再比較方案，最後才允許決策。 */
+.joint-hero, .vendor-joint-panel { display: grid; gap: var(--space-4); margin-bottom: var(--space-5); }
+.joint-hero .section-heading p, .vendor-joint-panel .section-heading p { margin-bottom: 0; }
+.data-notice { margin: 0; padding: var(--space-3) var(--space-4); border-left: 4px solid var(--primary); background: var(--primary-soft); color: var(--ink); font-size: var(--text-sm); }
+.copilot-draft { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(12rem, .6fr); gap: var(--space-4); padding: var(--space-3) var(--space-4); border: 2px dashed var(--ink); border-radius: var(--radius-md); background: var(--surface-2); }
+.copilot-draft p { margin-bottom: var(--space-1); }
+.joint-draft-form { display: grid; gap: var(--space-2); padding-top: var(--space-4); border-top: 2px solid var(--line); }
+.joint-draft-form label { font-weight: 800; }
+.joint-draft-form input { flex: 1 1 16rem; min-width: 0; min-height: var(--tap); }
+.joint-draft-form p { margin: 0; }
+.joint-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+.joint-metrics > div, .work-order-grid > div { min-width: 0; padding: var(--space-3); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--surface-2); }
+.joint-metrics span, .work-order-grid span { display: block; color: var(--muted); font-size: var(--text-xs); }
+.joint-metrics strong { display: block; margin-top: var(--space-1); font-family: var(--font-mono); font-size: var(--text-lg); overflow-wrap: anywhere; }
+.evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); padding-top: var(--space-3); }
+.evidence-grid h3 { margin-bottom: var(--space-2); font-size: var(--text-sm); }
+.proposal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.comparison-method { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.proposal-card { display: grid; align-content: start; gap: var(--space-3); min-width: 0; padding: var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--surface); box-shadow: 4px 4px 0 var(--ink); }
+.proposal-card.recommended { background: var(--mint); }
+.proposal-card p, .proposal-card h3 { margin: 0; }
+.proposal-head { display: flex; justify-content: space-between; align-items: start; gap: var(--space-3); }
+.proposal-head h3 { margin-top: var(--space-2); }
+.proposal-score { flex: 0 0 auto; text-align: right; }
+.proposal-score strong { font-family: var(--font-mono); font-size: var(--text-xl); }
+.proposal-score span { font-size: var(--text-xs); }
+.source-note { color: var(--muted); font-size: var(--text-xs); }
+.quote-breakdown { display: grid; gap: var(--space-2); margin: 0; }
+.quote-breakdown > div { display: flex; justify-content: space-between; gap: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--line); font-size: var(--text-sm); }
+.quote-breakdown dt, .quote-breakdown dd { margin: 0; }
+.quote-breakdown dd { flex: 0 0 auto; font-family: var(--font-mono); font-weight: 800; }
+.quote-breakdown .quote-sum { border-bottom: 0; font-size: var(--text-base); font-weight: 900; }
+.decision-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; font-size: var(--text-sm); }
+.decision-list li { display: grid; grid-template-columns: 1.2rem minmax(0, 1fr); gap: var(--space-2); }
+.decision-list li span { display: grid; place-items: center; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--success-soft); color: var(--success); font-weight: 900; }
+.decision-list li.concern span { background: var(--danger-soft); color: var(--danger); }
+.assigned-summary { display: grid; grid-template-columns: minmax(12rem, .7fr) minmax(16rem, 1.3fr); gap: var(--space-4); align-items: start; padding: var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--mint); }
+.assigned-summary h3 { margin: 0; }
+.event-timeline { display: grid; gap: var(--space-3); margin: 0; padding-left: 1.3rem; }
+.event-timeline li strong, .event-timeline li span { display: block; }
+.event-timeline li span { margin-top: var(--space-1); color: var(--muted); font-size: var(--text-sm); }
+.joint-work-order { display: grid; gap: var(--space-4); padding: var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--surface-2); }
+.joint-work-order h3 { margin: 0; }
+.work-order-grid { display: grid; grid-template-columns: .7fr 1fr 1.3fr; gap: var(--space-3); }
+.work-order-grid strong { display: block; margin-top: var(--space-1); overflow-wrap: anywhere; }
+.completion-form { display: grid; gap: var(--space-2); }
+.completion-form label { font-weight: 800; }
+.completion-form textarea { width: 100%; min-width: 0; resize: vertical; }
+
 /* 廠商比較（FR-S-04）：不是一個結論，是一張可改選的比較表 */
 .vendor-compare { margin-top: var(--space-3); }
 .vendor-criteria { margin: 0 0 var(--space-3); font-size: var(--text-sm); }
@@ -493,6 +542,7 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
   .service-result-grid { grid-template-columns: 1fr; }
   .result-highlight, .store-result { grid-template-columns: 1fr; }
   .support-queue-grid { grid-template-columns: 1fr; }
+  .joint-metrics, .proposal-grid, .evidence-grid, .assigned-summary, .work-order-grid, .copilot-draft { grid-template-columns: 1fr; }
   .saving { justify-items: start; }
   .order-summary { align-items: flex-start; flex-wrap: wrap; padding-right: 3rem; }
 }

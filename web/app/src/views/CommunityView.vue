@@ -2,12 +2,14 @@
 import { onMounted, reactive, ref } from 'vue'
 
 import { createCommunityClient, type Campaign, type PurchaseOrder } from '@/api/communityClient'
+import { createJointServiceClient, type JointProposal, type JointServiceCampaign } from '@/api/jointServiceClient'
 import { createSupportClient, type SupportTicket } from '@/api/supportClient'
 import { useSessionStore } from '@/stores/session'
 
 /** 管委會工作台：開團、看跟團狀況、結單並產出給廠商的採購彙總。 */
 const client = createCommunityClient()
 const supportClient = createSupportClient()
+const jointClient = createJointServiceClient()
 const session = useSessionStore()
 
 const campaigns = ref<Campaign[]>([])
@@ -23,9 +25,20 @@ const confirmingStart = ref<string | null>(null)
 const confirmingResolve = ref<string | null>(null)
 const resolutionNotes = reactive<Record<string, string>>({})
 const supportNotice = ref('')
+const jointCampaigns = ref<JointServiceCampaign[]>([])
+const jointStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
+const jointActing = ref<number | null>(null)
+const confirmingProposal = ref<string | null>(null)
+const jointNotice = ref('')
+const jointDraftTitle = ref('九月社區冷氣聯合服務')
+const confirmingJointAction = ref<{ id: number; action: 'publish' | 'prepare' } | null>(null)
 
 const draft = reactive({ title: '', item_name: '', unit_price: 0, min_quantity: 10, pickup: '社區管理室' })
 const currency = (value: number) => `NT$ ${(value ?? 0).toLocaleString('zh-TW')}`
+const eventLabel = (type: string) => ({
+  'joint_service.proposals_ready': '方案已備妥', 'joint_service.assigned': '方案已指派',
+  'joint_service.started': '廠商已開工', 'joint_service.completed': '服務已完成',
+}[type] ?? type)
 const priorityLabel = (priority: SupportTicket['priority']) => ({ high: '高優先', medium: '中優先', normal: '一般' })[priority]
 const deadline = (value: string) => new Intl.DateTimeFormat('zh-TW', {
   month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
@@ -42,8 +55,61 @@ async function load() {
     campaigns.value = await client.listAll()
     status.value = 'ready'
     void loadSupport()
+    void loadJointServices()
   } catch {
     status.value = 'unavailable'
+  }
+}
+
+async function loadJointServices() {
+  jointStatus.value = 'loading'
+  try {
+    jointCampaigns.value = await jointClient.managerList()
+    jointStatus.value = 'ready'
+  } catch {
+    jointStatus.value = 'unavailable'
+  }
+}
+
+async function assignProposal(campaign: JointServiceCampaign, proposal: JointProposal) {
+  jointActing.value = campaign.id
+  error.value = ''
+  try {
+    const updated = await jointClient.assign(campaign.id, proposal.id)
+    jointCampaigns.value = jointCampaigns.value.map((item) => item.id === updated.id ? updated : item)
+    jointNotice.value = `已指派「${proposal.vendorName}」，廠商工作台已收到同一筆標準工單。`
+    confirmingProposal.value = null
+  } catch (reason) {
+    error.value = reason instanceof Error ? reason.message : '方案指派未完成，請稍後再試。'
+  } finally {
+    jointActing.value = null
+  }
+}
+
+async function createJointDraft() {
+  if (!jointDraftTitle.value.trim()) return
+  try {
+    const created = await jointClient.create(jointDraftTitle.value.trim())
+    jointCampaigns.value = [created, ...jointCampaigns.value]
+    jointNotice.value = 'AI 草稿已建立；預覽內容後仍需人工確認才會發布。'
+  } catch (reason) {
+    error.value = reason instanceof Error ? reason.message : '草稿建立失敗。'
+  }
+}
+
+async function advanceJoint(campaign: JointServiceCampaign, action: 'publish' | 'prepare') {
+  jointActing.value = campaign.id
+  try {
+    const updated = action === 'publish'
+      ? await jointClient.publish(campaign.id)
+      : await jointClient.prepareProposals(campaign.id)
+    jointCampaigns.value = jointCampaigns.value.map((item) => item.id === updated.id ? updated : item)
+    jointNotice.value = action === 'publish' ? '已發布，住戶現在可匿名回覆需求。' : '已截止募集並產生兩案比較。'
+    confirmingJointAction.value = null
+  } catch (reason) {
+    error.value = reason instanceof Error ? reason.message : '聯合服務狀態更新失敗。'
+  } finally {
+    jointActing.value = null
   }
 }
 
@@ -138,6 +204,116 @@ onMounted(load)
   <p v-if="status === 'unavailable'" class="panel muted" role="status">
     無法取得團購資料，請確認後端服務是否啟動。
   </p>
+
+  <section v-if="jointStatus !== 'unavailable'" class="panel joint-hero" data-testid="joint-service-hero" aria-label="社區聯合服務管理">
+    <p v-if="jointStatus === 'loading'" class="muted" role="status">正在彙整社區需求與合作方案…</p>
+    <template v-for="campaign in jointCampaigns" :key="campaign.id">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">社區聯合服務 Hero</p>
+          <h2>{{ campaign.title }}</h2>
+          <p>{{ campaign.draft.notification }}</p>
+        </div>
+        <span class="status" :data-status="campaign.status">{{ campaign.statusLabel }}</span>
+      </div>
+
+      <p class="data-notice" role="note"><strong>資料說明：</strong>{{ campaign.dataNotice }}</p>
+      <div class="copilot-draft">
+        <div><p class="eyebrow">AI Copilot 草稿</p><p>{{ campaign.draft.generatedBy }}</p><p class="muted">{{ campaign.draft.serviceContext }}</p></div>
+        <ul v-if="campaign.draft.questionnaire?.length" class="plain-list"><li v-for="question in campaign.draft.questionnaire" :key="question">{{ question }}</li></ul>
+      </div>
+      <p v-if="jointNotice" class="recommendation-feedback" role="status">{{ jointNotice }}</p>
+
+      <div class="joint-metrics" aria-label="匿名需求摘要">
+        <div><span>已表達需求</span><strong>{{ campaign.demand.householdCount }} 戶</strong></div>
+        <div><span>待清洗設備</span><strong>{{ campaign.demand.unitCount }} 台</strong></div>
+        <div><span>最多數時段</span><strong>{{ campaign.demand.timePreferences?.[0]?.label }}</strong></div>
+        <div><span>個資保護</span><strong>匿名聚合</strong></div>
+      </div>
+
+      <details class="reason-details">
+        <summary>查看需求證據與 AI 草稿</summary>
+        <div class="evidence-grid">
+          <div>
+            <h3>需求怎麼算</h3>
+            <ul class="plain-list">
+              <li v-for="item in campaign.demand.equipment" :key="item.label">{{ item.label }} {{ item.count }} 台</li>
+              <li v-for="item in campaign.demand.timePreferences" :key="item.label">{{ item.label }} {{ item.households }} 戶</li>
+            </ul>
+          </div>
+          <div>
+            <h3>需廠商確認</h3>
+            <ul class="plain-list"><li v-for="item in campaign.demand.specialRequirements" :key="item">{{ item }}</li></ul>
+            <p class="muted">{{ campaign.demand.privacy }}</p>
+          </div>
+        </div>
+      </details>
+
+      <div v-if="campaign.status === 'draft'" class="inline-confirm">
+        <p>草稿尚未對住戶公開。請先核對服務名稱與資料題目，再確認發布。</p>
+        <button class="button" type="button" @click="confirmingJointAction = { id: campaign.id, action: 'publish' }">預覽發布</button>
+        <div v-if="confirmingJointAction?.id === campaign.id && confirmingJointAction.action === 'publish'" role="group" aria-label="確認發布聯合服務">
+          <p>確認發布「{{ campaign.title }}」並開始募集匿名需求？</p>
+          <button class="button primary" type="button" @click="advanceJoint(campaign, 'publish')">確認發布</button>
+        </div>
+      </div>
+      <div v-if="campaign.status === 'collecting'" class="inline-confirm">
+        <p>目前已彙整 {{ campaign.demand.householdCount }} 戶／{{ campaign.demand.unitCount }} 台；至少一戶才能截止並產生方案。</p>
+        <button class="button" type="button" :disabled="campaign.demand.householdCount < 1" @click="confirmingJointAction = { id: campaign.id, action: 'prepare' }">預覽截止募集</button>
+        <div v-if="confirmingJointAction?.id === campaign.id && confirmingJointAction.action === 'prepare'" role="group" aria-label="確認截止需求募集">
+          <p>確認停止收件並依匿名彙總產生兩案比較？</p>
+          <button class="button primary" type="button" @click="advanceJoint(campaign, 'prepare')">確認截止並產生方案</button>
+        </div>
+      </div>
+
+      <p v-if="campaign.status === 'proposal_review'" class="comparison-method">
+        條件符合度：住戶時段 40%＋價格 30%＋特殊需求涵蓋 30%；分數只協助比較，最終由管委會決定。
+      </p>
+      <div v-if="campaign.status === 'proposal_review'" class="proposal-grid" aria-label="合作方案比較">
+        <article v-for="proposal in campaign.proposals" :key="proposal.id" class="proposal-card" :class="{ recommended: proposal.id === 'proposal-care' }">
+          <div class="proposal-head">
+            <div><span class="badge primary">{{ proposal.badge }}</span><h3>{{ proposal.vendorName }}</h3></div>
+            <div class="proposal-score" :aria-label="`條件符合度 ${proposal.score} 分`"><strong>{{ proposal.score }}</strong><span>／100</span></div>
+          </div>
+          <p class="source-note">{{ proposal.sourceLabel }}</p>
+          <dl class="quote-breakdown">
+            <div v-for="item in proposal.items" :key="item.name"><dt>{{ item.name }}</dt><dd>{{ currency(item.amount) }}</dd></div>
+            <div class="quote-sum"><dt>合計</dt><dd>{{ currency(proposal.total) }}</dd></div>
+          </dl>
+          <p><strong>可服務：</strong>{{ proposal.availableSlots.join('、') }}</p>
+          <ul class="decision-list">
+            <li v-for="item in proposal.strengths" :key="item"><span aria-hidden="true">✓</span>{{ item }}</li>
+            <li v-for="item in proposal.concerns" :key="item" class="concern"><span aria-hidden="true">!</span>{{ item }}</li>
+          </ul>
+          <button class="button" type="button" :data-testid="`choose-${proposal.id}`" @click="confirmingProposal = proposal.id">
+            選擇這個方案
+          </button>
+          <div v-if="confirmingProposal === proposal.id" class="inline-confirm" role="group" :aria-label="`確認指派 ${proposal.vendorName}`">
+            <p>確認指派「{{ proposal.vendorName }}」？總額 {{ currency(proposal.total) }}，確認後廠商會收到工單。</p>
+            <div class="button-row">
+              <button class="button primary" type="button" :data-testid="`confirm-${proposal.id}`" :disabled="jointActing === campaign.id" @click="assignProposal(campaign, proposal)">確認指派</button>
+              <button class="button" type="button" @click="confirmingProposal = null">返回比較</button>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div v-else class="assigned-summary">
+        <div><p class="eyebrow">已選方案</p><h3>{{ campaign.selectedProposal?.vendorName }}</h3><p>{{ campaign.selectedProposal ? currency(campaign.selectedProposal.total) : '' }}</p></div>
+        <ol class="event-timeline">
+          <li v-for="event in campaign.events" :key="`${event.type}-${event.occurredAt}`"><strong>{{ eventLabel(event.type) }}</strong><span>{{ event.detail }}</span></li>
+        </ol>
+      </div>
+    </template>
+    <form class="joint-draft-form" @submit.prevent="createJointDraft">
+      <label for="joint-draft-title">建立下一檔 AI 草稿</label>
+      <div class="button-row"><input id="joint-draft-title" v-model="jointDraftTitle" type="text" /><button class="button" type="submit">建立草稿</button></div>
+      <p class="muted">只建立草稿，不會直接通知住戶。</p>
+    </form>
+  </section>
+  <div v-else class="error-state" role="status">
+    <strong>聯合服務暫時無法載入</strong><p>客服與團購仍可使用。</p><button class="button" type="button" @click="loadJointServices">重新載入</button>
+  </div>
 
   <section v-if="status === 'ready'" class="panel support-queue-panel" aria-labelledby="support-queue-title">
     <div class="section-heading">
