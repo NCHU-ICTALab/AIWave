@@ -43,23 +43,32 @@ Vue ── /api/v1 ──> 真實平台 FastAPI ── RetailConnector ─┬─
 
 先啟動 fake upstream：
 
-```powershell
-$env:FAKE_CONTROL_KEY='local-demo-control'
+```bash
+export FAKE_CONTROL_KEY='local-demo-control'
 python -m fake_upstreams.app
 ```
 
 再讓平台透過 HTTP adapter 連線：
 
-```powershell
-$env:RETAIL_UPSTREAM_URL='http://127.0.0.1:8010'
-$env:UPSTREAM_TIMEOUT_SECONDS='2.0'
+```bash
+export RETAIL_UPSTREAM_URL='http://127.0.0.1:8010'
+export UPSTREAM_TIMEOUT_SECONDS='2.0'
 python -m uvicorn api.app:app --host 127.0.0.1 --port 8000
 ```
 
 注入一次 503 後，下一次相同請求會自動恢復；平台在失敗那次回傳離線備援資料：
 
-```powershell
-$headers = @{ 'X-Fake-Control-Key' = 'local-demo-control' }
-$body = @{ method='GET'; path='/v1/retail/inventory/limited-cup'; status=503; detail='品牌庫存維護中'; delay_ms=0 } | ConvertTo-Json
-Invoke-RestMethod -Method Put -Uri http://127.0.0.1:8010/__fake__/faults/next -Headers $headers -ContentType application/json -Body $body
+```bash
+curl --fail --silent --show-error \
+  -X PUT \
+  -H 'X-Fake-Control-Key: local-demo-control' \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "method": "GET",
+    "path": "/v1/retail/inventory/limited-cup",
+    "status": 503,
+    "detail": "品牌庫存維護中",
+    "delay_ms": 0
+  }' \
+  http://127.0.0.1:8010/__fake__/faults/next
 ```

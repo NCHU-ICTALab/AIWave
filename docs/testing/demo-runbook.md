@@ -6,12 +6,12 @@
 
 在專案根目錄執行：
 
-```powershell
+```bash
 uv sync --dev
 uv run python -m openapi_spec_validator contracts/vendor-openapi.yaml
 uv run pytest -q
 
-Set-Location web\app
+cd web/app
 npm install
 npm test
 npm run typecheck
@@ -24,24 +24,24 @@ OpenAPI validator 回報 `OK`，production build 成功。
 
 ## 2. 手動啟動
 
-請在三個 PowerShell 終端機分別執行，不要關閉：
+請在三個 Bash 終端機分別執行，不要關閉：
 
-```powershell
+```bash
 # 終端機 1
-$env:VENDOR_FAKE_CONTROL_KEY = "local-demo-key"
+export VENDOR_FAKE_CONTROL_KEY="local-demo-key"
 uv run python -m fake_upstreams.vendor_app
 ```
 
-```powershell
+```bash
 # 終端機 2
-$env:VENDOR_MODE = "fake"
-$env:VENDOR_FAKE_URL = "http://127.0.0.1:8020"
+export VENDOR_MODE="fake"
+export VENDOR_FAKE_URL="http://127.0.0.1:8020"
 uv run main.py
 ```
 
-```powershell
+```bash
 # 終端機 3
-Set-Location web\app
+cd web/app
 npm run dev
 ```
 
@@ -78,10 +78,10 @@ npm run dev
 
 手動掛載 MCP server：
 
-```powershell
-$env:MCP_ROLE = "user"
-$env:MCP_ACCOUNT_ID = "019a52d3-7f6b-7da3-b48d-9c9e2522d616"
-$env:MCP_DISPLAY_NAME = "小圓"
+```bash
+export MCP_ROLE="user"
+export MCP_ACCOUNT_ID="019a52d3-7f6b-7da3-b48d-9c9e2522d616"
+export MCP_DISPLAY_NAME="小圓"
 uv run python -m mcp_server.server
 ```
 

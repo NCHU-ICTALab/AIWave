@@ -19,18 +19,18 @@
 
 請各開一個終端機；命令不會由測試自動常駐。
 
-```powershell
+```bash
 # 終端機 1：獨立廠商 API，預設 http://127.0.0.1:8020
-$env:VENDOR_FAKE_CONTROL_KEY = "請換成自己的本機測試金鑰"
+export VENDOR_FAKE_CONTROL_KEY="請換成自己的本機測試金鑰"
 uv run python -m fake_upstreams.vendor_app
 
 # 終端機 2：AIWave 平台 API，預設 http://127.0.0.1:8000
-$env:VENDOR_MODE = "fake"
-$env:VENDOR_FAKE_URL = "http://127.0.0.1:8020"
+export VENDOR_MODE="fake"
+export VENDOR_FAKE_URL="http://127.0.0.1:8020"
 uv run main.py
 
 # 終端機 3：Vue
-Set-Location web\app
+cd web/app
 npm run dev
 ```
 
@@ -39,25 +39,37 @@ npm run dev
 
 ### 驗證與重置
 
-```powershell
-Invoke-RestMethod http://127.0.0.1:8020/healthz
-Invoke-RestMethod http://127.0.0.1:8020/v1/vendors?serviceId=service-repair
+```bash
+curl --fail --silent --show-error http://127.0.0.1:8020/healthz
+curl --fail --silent --show-error \
+  "http://127.0.0.1:8020/v1/vendors?serviceId=service-repair"
 
-$controlHeaders = @{ "X-Fake-Control-Key" = "請換成自己的本機測試金鑰" }
-Invoke-RestMethod http://127.0.0.1:8020/__fake__/state -Headers $controlHeaders
-Invoke-RestMethod http://127.0.0.1:8020/__fake__/reset -Method Post -Headers $controlHeaders
+export VENDOR_FAKE_CONTROL_KEY="請換成自己的本機測試金鑰"
+curl --fail --silent --show-error \
+  -H "X-Fake-Control-Key: ${VENDOR_FAKE_CONTROL_KEY}" \
+  http://127.0.0.1:8020/__fake__/state
+curl --fail --silent --show-error \
+  -X POST \
+  -H "X-Fake-Control-Key: ${VENDOR_FAKE_CONTROL_KEY}" \
+  http://127.0.0.1:8020/__fake__/reset
 ```
 
 控制面可用 `PUT /__fake__/faults/next` 注入單次慢速、503、逾時或格式錯誤；
 下一個相符 request 消耗後即恢復。控制端點一律要求 `X-Fake-Control-Key`。
 
-```powershell
-$fault = @{
-  method = "POST"; path = "/v1/inquiries"; status = 503
-  detail = "廠商接案服務維護中"; delay_ms = 0
-} | ConvertTo-Json
-Invoke-RestMethod http://127.0.0.1:8020/__fake__/faults/next `
-  -Method Put -Headers $controlHeaders -ContentType "application/json" -Body $fault
+```bash
+curl --fail --silent --show-error \
+  -X PUT \
+  -H "X-Fake-Control-Key: ${VENDOR_FAKE_CONTROL_KEY}" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "method": "POST",
+    "path": "/v1/inquiries",
+    "status": 503,
+    "detail": "廠商接案服務維護中",
+    "delay_ms": 0
+  }' \
+  http://127.0.0.1:8020/__fake__/faults/next
 ```
 
 接著在 AI 頁確認 Hero 任務：第一次會顯示部分失敗與「安全重試未完成案件」；
@@ -67,11 +79,11 @@ Invoke-RestMethod http://127.0.0.1:8020/__fake__/faults/next `
 
 正式模式不改 Vue、不改 Agent、不改 MCP 工具，也不改媒合規則，只換後端環境變數：
 
-```powershell
-$env:VENDOR_MODE = "real"
-$env:VENDOR_REAL_URL = "https://partner-api.example.com"
-$env:VENDOR_API_TOKEN = "由合作方安全提供的 token"
-$env:VENDOR_TIMEOUT_SECONDS = "2.0"
+```bash
+export VENDOR_MODE="real"
+export VENDOR_REAL_URL="https://partner-api.example.com"
+export VENDOR_API_TOKEN="由合作方安全提供的 token"
+export VENDOR_TIMEOUT_SECONDS="2.0"
 uv run main.py
 ```
 
@@ -83,7 +95,7 @@ uv run main.py
 
 既有商品／門市庫存 server 預設使用 8010：
 
-```powershell
-$env:FAKE_CONTROL_KEY = "請換成自己的本機測試金鑰"
+```bash
+export FAKE_CONTROL_KEY="請換成自己的本機測試金鑰"
 uv run python -m fake_upstreams.app
 ```
