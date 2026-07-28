@@ -5,6 +5,31 @@ interface LifestyleClientOptions {
   baseUrl?: string
 }
 
+export interface RestockPlan {
+  recommendation: {
+    id: string
+    title: string
+    serviceId: string
+    reasonText: string
+    suppressed: boolean
+  }
+  wallet: {
+    openpointBalance: number
+    coupon: { id: string; label: string; amount: number } | null
+    payment: string | null
+    dataSource: string
+  }
+  bestOffer: {
+    baseAmount: number
+    finalAmount: number
+    savedAmount: number
+    applied: string[]
+    computedBy: string
+  }
+  evidence: unknown[]
+  source: string
+}
+
 export function createLifestyleClient(options: LifestyleClientOptions = {}) {
   const fetcher = options.fetcher ?? globalThis.fetch
   const baseUrl = options.baseUrl ?? '/api/v1'
@@ -20,7 +45,20 @@ export function createLifestyleClient(options: LifestyleClientOptions = {}) {
     return ((await response.json()) as { data: T }).data
   }
 
+  async function get<T>(path: string): Promise<T> {
+    const response = await fetcher(`${baseUrl}${path}`, {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+    })
+    if (!response.ok) throw new Error(`讀取失敗（${response.status}）`)
+    return ((await response.json()) as { data: T }).data
+  }
+
   return {
+    restockPlan(accountId: string) {
+      return get<RestockPlan>(`/personalization/${encodeURIComponent(accountId)}/restock-plan`)
+    },
     feedback(accountId: string, recommendationId: string, action: 'dismiss' | 'undo') {
       return post<{ active: boolean }>(`/personalization/${accountId}/feedback`, {
         recommendation_id: recommendationId,

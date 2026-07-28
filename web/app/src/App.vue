@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import AppIcon from '@/components/AppIcon.vue'
 import { useDemoStore } from '@/stores/demo'
 import { ROLE_LABEL, useSessionStore } from '@/stores/session'
 
@@ -10,16 +11,18 @@ const router = useRouter()
 const route = useRoute()
 const store = useDemoStore()
 const session = useSessionStore()
+type AppIconName = 'home' | 'points' | 'ai' | 'services' | 'member'
 
 /** 導覽由身分決定；工作人員的工作台只有單頁，不需要導覽列。 */
 const navItems = computed(() => {
   if (session.role !== 'user') return []
   return [
-    { to: '/user', label: '今日' },
-    { to: '/user/services', label: '找服務' },
-    { to: '/user/orders', label: '訂單' },
-    { to: '/user/community', label: '社區' },
-  ]
+    { to: '/user', label: '首頁', icon: 'home' },
+    { to: '/user/points', label: '點數兌換', icon: 'points' },
+    { to: '/user/assistant', label: 'AI', icon: 'ai' },
+    { to: '/user/services', label: '服務', icon: 'services' },
+    { to: '/user/member', label: '會員中心', icon: 'member' },
+  ] satisfies Array<{ to: string; label: string; icon: AppIconName }>
 })
 
 const showChrome = computed(() => route.name !== 'login')
@@ -50,7 +53,8 @@ watch(() => route.fullPath, async () => {
 
         <nav v-if="navItems.length" class="main-nav" aria-label="主要導覽">
           <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" class="nav-link">
-            {{ item.label }}
+            <AppIcon :name="item.icon" />
+            <span>{{ item.label }}</span>
           </RouterLink>
         </nav>
 
@@ -59,9 +63,6 @@ watch(() => route.fullPath, async () => {
             {{ session.identity?.displayName }}
             <span class="muted">・{{ session.role ? ROLE_LABEL[session.role] : '' }}</span>
           </span>
-          <RouterLink v-if="session.role === 'user'" class="button primary" to="/user/assistant">
-            問生活管家
-          </RouterLink>
           <button class="button" type="button" data-testid="sign-out" @click="signOut">登出</button>
         </div>
       </div>

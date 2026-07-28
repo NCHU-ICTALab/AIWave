@@ -129,9 +129,10 @@ h3 { margin-bottom: .4rem; }
 .wordmark small { display: block; color: var(--muted); font-size: .68rem; font-weight: 600; }
 .main-nav { display: flex; justify-content: center; gap: .2rem; flex: 1; }
 .nav-link { display: inline-flex; align-items: center; gap: .3rem; padding: 0 .8rem; border-radius: 14px; color: var(--muted); font-weight: 750; text-decoration: none; white-space: nowrap; }
-.nav-link span { font-family: var(--font-mono); font-size: .68rem; }
+.nav-link span { font-size: .9rem; }
+.nav-icon { width: 19px; height: 19px; flex: 0 0 auto; }
 /* 現在頁＝薄荷磚（demo 的 badge 語彙：粉彩底＋深墨字＋深墨細框） */
-.nav-link.router-link-active { background: var(--mint); color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+.nav-link.router-link-exact-active { background: var(--mint); color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
 .top-actions { display: flex; align-items: center; gap: .5rem; }
 .role-field select { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); padding: 0 2rem 0 .75rem; font-weight: 700; }
 main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; padding: 1.4rem 0 3rem; }
@@ -558,3 +559,108 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
   .value-grid { grid-template-columns: 1fr; }.modal-card { padding: 1.1rem; }.modal-actions .button { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; transition-duration: .001ms !important; } }
+
+/* 會員產品殼：首頁、點數與會員中心共用。 */
+.member-page { display: grid; gap: var(--space-6); width: min(100%, 1120px); margin: auto; }
+.home-page { gap: var(--space-5); }
+.home-overview { display: grid; gap: var(--space-4); }
+.overview-panel { display: grid; gap: var(--space-4); }
+.home-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.home-metrics .metric { min-width: 0; background: var(--surface-2); }
+.home-metrics strong { overflow-wrap: anywhere; }
+.overview-footer { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); }
+.overview-footer p { margin: 0; }
+.text-link { display: inline-flex; align-items: center; min-height: var(--tap); color: var(--primary); font-weight: 800; text-underline-offset: .2em; }
+.usage-disclosure { border-top: 1px solid var(--line); padding-top: var(--space-2); }
+.usage-disclosure summary, .privacy-disclosure summary { display: flex; align-items: center; min-height: var(--tap); cursor: pointer; color: var(--primary); font-weight: 800; }
+.home-ai { width: 100%; max-width: none; margin: 0; text-align: left; }
+.home-ai h2 { margin: .3rem 0 .5rem; font-size: clamp(1.6rem, 3vw, 2.2rem); }
+.home-ai .need-form { margin-inline: 0; }
+.onboarding-steps.compact { margin-top: var(--space-4); grid-template-columns: repeat(3, minmax(0, 1fr)); text-align: left; }
+.home-section { display: grid; gap: var(--space-3); }
+.shortcut-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.shortcut-card { display: grid; gap: var(--space-1); min-height: 8rem; color: var(--ink); text-decoration: none; transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
+.shortcut-card:hover { transform: translate(2px, 2px); box-shadow: 4px 4px 0 var(--ink), var(--clay-inset); }
+.shortcut-card strong { font-size: var(--text-lg); }
+.shortcut-card span { color: var(--muted); }
+.promotion-card { display: flex; justify-content: space-between; align-items: center; gap: var(--space-5); background: var(--lilac); }
+.promotion-card h2, .promotion-card p:last-child { margin-bottom: 0; }
+
+/* 點數：展示錢包與可重現的規則試算明確分區，不暗示真實即時餘額。 */
+.points-grid { display: grid; grid-template-columns: minmax(17rem, .75fr) minmax(0, 1.25fr); gap: var(--space-5); align-items: start; }
+.wallet-card { background: var(--blue); }
+.points-balance { display: flex; align-items: baseline; gap: var(--space-2); margin: var(--space-4) 0; }
+.points-balance strong { font-size: clamp(2.8rem, 7vw, 4.8rem); line-height: 1; }
+.points-balance span { font-weight: 900; }
+.wallet-list { display: grid; gap: var(--space-3); margin: 0; }
+.wallet-list > div { display: grid; gap: var(--space-1); padding-top: var(--space-3); border-top: 2px solid rgb(45 55 72 / 35%); }
+.wallet-list dt, .wallet-list dd { margin: 0; }
+.wallet-list dt { font-size: var(--text-sm); }
+.wallet-list dd { font-weight: 800; }
+.offer-card { display: grid; gap: var(--space-3); }
+.offer-total { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3); padding: var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--mint); }
+.offer-total span { font-weight: 800; }
+.offer-total strong { font-size: clamp(2rem, 5vw, 3rem); }
+.offer-total del { color: var(--muted); }
+.applied-list { display: grid; gap: var(--space-2); margin: 0; padding-left: 1.3rem; }
+.state-panel { min-height: 16rem; align-content: center; justify-items: start; }
+
+/* 會員中心：次層能力要能點擊，不以靜態清單冒充功能。 */
+.member-profile { display: flex; align-items: center; gap: var(--space-4); background: var(--peach); }
+.member-profile h2, .member-profile p:last-child { margin-bottom: 0; }
+.member-avatar { display: grid; place-items: center; width: 72px; height: 72px; flex: 0 0 auto; border: var(--border-chunky) solid var(--ink); border-radius: 22px; background: var(--surface); font-size: 2rem; font-weight: 900; box-shadow: 3px 3px 0 var(--ink); }
+.member-action-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.member-action { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: 9rem; color: var(--ink); text-decoration: none; }
+.member-action strong, .member-action small { display: block; }
+.member-action strong { font-size: var(--text-lg); }
+.member-action small { margin-top: var(--space-1); color: var(--muted); font-size: var(--text-sm); }
+.member-action-mark { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid var(--ink); border-radius: 14px; font: 900 var(--text-sm)/1 var(--font-mono); }
+.member-action-mark.blue { background: var(--blue); }
+.member-action-mark.mint { background: var(--mint); }
+.member-action-mark.peach { background: var(--peach); }
+.action-arrow { font-size: 1.5rem; font-weight: 900; }
+.privacy-disclosure > div { padding-top: var(--space-3); border-top: 1px solid var(--line); }
+
+@media (max-width: 820px) {
+  .home-metrics, .points-grid, .member-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wallet-card { grid-column: 1 / -1; }
+  .offer-card { grid-column: 1 / -1; }
+}
+
+@media (max-width: 650px) {
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  #main-content, [id]:target { scroll-margin-top: 5rem; }
+  .topbar-main { flex-wrap: nowrap; padding-block: .55rem; }
+  .identity-badge { display: none; }
+  .top-actions { margin-left: auto; }
+  .top-actions .button { min-width: 60px; min-height: var(--tap); box-shadow: 2px 2px 0 var(--ink); }
+  .main-nav {
+    position: fixed;
+    z-index: 40;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0;
+    width: 100%;
+    min-height: 72px;
+    padding: .35rem .25rem calc(.35rem + env(safe-area-inset-bottom));
+    border-top: var(--border-chunky) solid var(--ink);
+    background: rgb(255 255 255 / 98%);
+    box-shadow: 0 -3px 0 rgb(45 55 72 / 8%);
+    overflow: visible;
+  }
+  .nav-link { display: flex; min-width: 0; min-height: 58px; flex-direction: column; justify-content: center; gap: .1rem; padding: .2rem .1rem; border-radius: 12px; }
+  .nav-link span { max-width: 100%; overflow: hidden; font-size: .68rem; line-height: 1.2; text-overflow: ellipsis; }
+  .nav-icon { width: 22px; height: 22px; }
+  main { padding-bottom: 2rem; }
+  .member-page { gap: var(--space-5); }
+  .home-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overview-footer, .promotion-card { align-items: flex-start; flex-direction: column; }
+  .onboarding-steps.compact, .shortcut-grid, .member-action-grid, .points-grid { grid-template-columns: 1fr; }
+  .wallet-card, .offer-card { grid-column: auto; }
+  .shortcut-card { min-height: 0; }
+  .member-action { min-height: 7rem; }
+  .home-ai { padding: 1.25rem 1rem; }
+}

@@ -54,3 +54,13 @@
   三項分岔待決策。
 - **文件整理**（本次）：過時文件移入 [archive/](../archive/)；`brand-spec` 提升為現行規格。
 - 測試現況：後端 65、前端 36，typecheck 與 production build 通過。
+
+## 2026-07-28・會員產品殼與首頁資訊架構
+
+- 會員主導覽改為固定五頁籤：首頁、點數兌換、AI、服務、會員中心；訂單與群組收回次層入口。
+- 手機使用同一組語意導覽固定於底部，補齊 safe area、44px 觸控目標與精確 active state。
+- 首頁依核准順序呈現資源總覽、待處理、輕量 AI、單項可撤回推薦、常用功能與優惠。
+- 點數頁透過 `/personalization/{account_id}/restock-plan` 顯示展示錢包與確定性節省方案，明確標示非 OPENPOINT 即時帳戶。
+- 會員中心顯示目前登入身分，並提供訂單、群組與點數的可操作次層入口；不以靜態條列冒充功能。
+- `ui-ux-pro-max` 的 AI 原生與 WCAG 規則已整理進 `design-system/aiwave/MASTER.md`；視覺仍以 LearnHub 品牌規範為準。
+- 驗證：前端 17 個測試檔、123 項測試、typecheck、production build、聊天內捲稽核皆通過；390×844 與 1440×900 的 12 頁實際 UI 稽核未發現溢出、觸控、HTTP 或 console 問題。

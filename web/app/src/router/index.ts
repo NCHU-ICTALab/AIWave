@@ -22,6 +22,7 @@ const routes: RouteRecordRaw[] = [
 
   // 住戶
   { path: '/user', name: 'user-home', component: () => import('@/views/TodayView.vue'), meta: { role: 'user' } },
+  { path: '/user/points', name: 'points', component: () => import('@/views/PointsView.vue'), meta: { role: 'user' } },
   {
     path: '/user/services/:serviceSlug?',
     name: 'services',
@@ -29,6 +30,7 @@ const routes: RouteRecordRaw[] = [
     meta: { role: 'user' },
   },
   { path: '/user/assistant', name: 'assistant', component: () => import('@/views/AssistantView.vue'), meta: { role: 'user' } },
+  { path: '/user/member', name: 'member-center', component: () => import('@/views/MemberView.vue'), meta: { role: 'user' } },
   { path: '/user/orders', name: 'orders', component: () => import('@/views/OrdersView.vue'), meta: { role: 'user' } },
   { path: '/user/community', name: 'community-board', component: () => import('@/views/CommunityBoardView.vue'), meta: { role: 'user' } },
 

@@ -34,7 +34,7 @@ export const ROLE_HOME: Record<Role, string> = {
 }
 
 export const ROLE_LABEL: Record<Role, string> = {
-  user: '住戶',
+  user: '會員',
   manager: '社區管理者',
   partner: '合作廠商',
 }

@@ -112,6 +112,33 @@ export function stubCatalogFetch(extra?: (url: string, init?: RequestInit) => Re
       if (url.includes('/trail')) return json({ data: insightTrail })
     }
 
+    if (url.includes('/api/v1/personalization/') && url.endsWith('/restock-plan')) {
+      return json({ data: {
+        recommendation: {
+          id: 'restock-monthly',
+          title: '月初日用品補貨',
+          serviceId: 'service-shopping',
+          reasonText: '依近期補貨紀錄推測，現在一起使用點數與優惠券較划算。',
+          suppressed: false,
+        },
+        wallet: {
+          openpointBalance: 180,
+          coupon: { id: 'seed-restock-70', label: '日用品滿額折 NT$70', amount: 70 },
+          payment: 'icash Pay',
+          dataSource: 'competition_seed_wallet',
+        },
+        bestOffer: {
+          baseAmount: 699,
+          finalAmount: 579,
+          savedAmount: 120,
+          applied: ['日用品滿額券 −NT$ 70', 'OPENPOINT 折抵 50 點'],
+          computedBy: 'deterministic_rules',
+        },
+        evidence: [],
+        source: 'official_orders+competition_seed_wallet',
+      } })
+    }
+
     return new Response('{}', { status: 404 })
   })
   vi.stubGlobal('fetch', fetcher)

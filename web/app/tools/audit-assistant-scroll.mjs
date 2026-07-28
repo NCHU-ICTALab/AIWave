@@ -108,10 +108,13 @@ for (const viewport of viewports) {
 
   await page.goto(`${baseUrl}/user`, { waitUntil: 'networkidle' })
   const homeSpacing = await page.evaluate(() => {
-    const briefing = document.querySelector('[data-testid="today-briefing"]')
+    const briefing = document.querySelector('[data-home-section="recommendations"]')
+    if (!briefing) throw new Error('找不到首頁推薦區塊')
     const source = briefing.querySelector('.source-note')
     const lastItem = briefing.querySelector('.briefing-item:last-child')
+    if (!source || !lastItem) throw new Error('首頁推薦區塊缺少來源或建議卡')
     const nextPanel = briefing.nextElementSibling?.querySelector('.panel') ?? briefing.nextElementSibling
+    if (!nextPanel) throw new Error('首頁推薦區塊後缺少下一個功能區')
     return {
       sourceGap: source.getBoundingClientRect().top - lastItem.getBoundingClientRect().bottom,
       panelGap: nextPanel.getBoundingClientRect().top - briefing.getBoundingClientRect().bottom,

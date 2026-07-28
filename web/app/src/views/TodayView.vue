@@ -2,12 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import {
-  createInsightsClient,
-  type BehaviorSummary,
-  type BriefingItem,
-  type Recommendation,
-} from '@/api/insightsClient'
+import { createInsightsClient, type BehaviorSummary, type BriefingItem } from '@/api/insightsClient'
 import { createLifestyleClient } from '@/api/lifestyleClient'
 import { useDemoStore } from '@/stores/demo'
 import { useSessionStore } from '@/stores/session'
@@ -18,19 +13,13 @@ const router = useRouter()
 const lifestyle = createLifestyleClient()
 
 const summary = ref<BehaviorSummary | null>(null)
-const recommendations = ref<Recommendation[]>([])
 const briefing = ref<BriefingItem[]>([])
 const status = ref<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
 const need = ref('')
 const feedbackStatus = ref('')
+const matching = ref(false)
 
-/** 起手式用真實說法，不是功能名稱——它同時負責教學（ADR-0016）。 */
-const starters = [
-  '浴室的燈不亮了',
-  '想找人來打掃',
-  '週末想訂餐廳',
-]
-
+const starters = ['浴室的燈不亮了', '想找人來打掃', '週末想訂餐廳']
 const hasHistory = computed(() => (summary.value?.totalOrders ?? 0) > 0)
 const currency = (value: number) => `NT$ ${(value ?? 0).toLocaleString('zh-TW')}`
 
@@ -42,11 +31,11 @@ const KIND_LABELS: Record<BriefingItem['kind'], string> = {
   suggestion: '建議',
 }
 
-/** 說「不感興趣」只收起被點的那一則；真正的待辦不受影響。 */
 const visibleBriefing = computed(() =>
   briefing.value.filter((item) => !store.dismissedRecommendationIds.includes(item.id)),
 )
-
+const pendingBriefing = computed(() => visibleBriefing.value.filter((item) => item.kind !== 'suggestion'))
+const suggestedBriefing = computed(() => visibleBriefing.value.filter((item) => item.kind === 'suggestion'))
 const lastDismissedRecommendation = computed(() =>
   briefing.value.find((item) => item.id === store.lastDismissedRecommendationId) ?? null,
 )
@@ -71,22 +60,15 @@ function undoRecommendation(item: BriefingItem) {
   }
 }
 
-/**
- * 把證據講成人話。
- *
- * 不同種類的摘要帶的證據形狀不同（諮詢單／團購活動／官方訂單），
- * 但共同的承諾是一樣的：**每一則都指得出一件真實存在的東西**。
- */
 function describeEvidence(record: Record<string, unknown>): string {
   if (record.type === 'inquiry') return `委託 ${record.id}`
-  if (record.type === 'campaign') return `社區團購活動 #${record.id}`
-  const parts = [
+  if (record.type === 'campaign') return `群組活動 #${record.id}`
+  return [
     String(record.serviceName ?? ''),
     record.occurredOn ? String(record.occurredOn) : '',
     record.orderNo ? `訂單 ${record.orderNo}` : '',
     record.detail ? `（${record.detail}）` : '',
-  ].filter(Boolean)
-  return parts.join('・')
+  ].filter(Boolean).join('・')
 }
 
 function isSummary(value: unknown): value is BehaviorSummary {
@@ -95,10 +77,8 @@ function isSummary(value: unknown): value is BehaviorSummary {
 }
 
 async function load() {
-  // 新使用者沒有帳號，因此不會有任何紀錄——不需要也不應該去查
   if (!session.accountId) {
     summary.value = null
-    recommendations.value = []
     briefing.value = []
     status.value = 'ready'
     return
@@ -106,9 +86,8 @@ async function load() {
   status.value = 'loading'
   const client = createInsightsClient()
   try {
-    const [loadedSummary, loadedRecommendations, loadedBriefing] = await Promise.all([
+    const [loadedSummary, loadedBriefing] = await Promise.all([
       client.summary(session.accountId),
-      client.recommendations(session.accountId),
       client.today(session.accountId),
     ])
     if (!isSummary(loadedSummary)) {
@@ -116,7 +95,6 @@ async function load() {
       return
     }
     summary.value = loadedSummary
-    recommendations.value = Array.isArray(loadedRecommendations) ? loadedRecommendations : []
     briefing.value = Array.isArray(loadedBriefing) ? loadedBriefing : []
     status.value = 'ready'
   } catch {
@@ -127,24 +105,10 @@ async function load() {
 onMounted(load)
 watch(() => session.accountId, load)
 
-const matching = ref(false)
-const needError = ref('')
-
-/**
- * 需求交給**規劃器**處理，而不是單一意圖比對（ADR-0017）。
- *
- * 差別在使用者說「冷氣不冷，順便看看團購」時：意圖比對只會挑到一項服務、
- * 默默丟掉後半句；規劃器會把兩件事都排進計畫。像「我上次什麼時候叫過清潔」
- * 這種問題也不必被硬塞進某張表單才能得到答案。
- *
- * 這裡不做判讀，直接把話帶到生活管家頁——判讀結果與依據要在那裡攤開給使用者看，
- * 而不是在首頁默默決定完就跳走。
- */
 async function submitNeed(text: string) {
   const description = text.trim()
   if (!description || matching.value) return
   matching.value = true
-  needError.value = ''
   try {
     await router.push({ name: 'assistant', query: { need: description } })
   } finally {
@@ -154,134 +118,145 @@ async function submitNeed(text: string) {
 </script>
 
 <template>
-  <!-- 主動作：說出需求（ADR-0016） -->
-  <section class="need-hero" aria-labelledby="need-title">
-    <p class="eyebrow">{{ hasHistory ? '今日生活中心' : '歡迎使用' }}</p>
-    <h1 id="need-title">今天需要什麼？</h1>
-    <p class="need-lede">用你自己的話描述就好，我會判斷該用哪項服務並幫你把資料填齊。</p>
-
-    <form class="need-form" @submit.prevent="submitNeed(need)">
-      <label class="visually-hidden" for="need-input">描述你的需求</label>
-      <input
-        id="need-input"
-        v-model="need"
-        data-testid="need-input"
-        type="text"
-        placeholder="例如：浴室的燈不亮了"
-        autocomplete="off"
-      />
-      <button class="button primary" type="submit" data-testid="need-submit" :disabled="matching">
-        {{ matching ? '判讀中…' : '開始' }}
-      </button>
-    </form>
-
-    <p v-if="needError" class="need-error" role="alert" data-testid="need-error">{{ needError }}</p>
-
-    <div class="need-starters">
-      <span class="muted">試試看：</span>
-      <button
-        v-for="starter in starters"
-        :key="starter"
-        class="starter-chip"
-        type="button"
-        data-testid="need-starter"
-        @click="submitNeed(starter)"
-      >{{ starter }}</button>
-    </div>
-
-    <p class="muted need-alt">
-      已經知道要什麼？<RouterLink to="/user/services">直接瀏覽所有服務</RouterLink>
-    </p>
-  </section>
-
-  <!--
-    今日摘要：先回答「我現在該做什麼」，再談其他。
-    排序依據是「誰在等誰」——卡在使用者身上的事排最前面（見 core/insights/today.py）。
-  -->
-  <!--
-    收起最後一則建議之後區塊仍要留著——否則整個面板連同確認訊息一起消失，
-    使用者按下「不感興趣」後得不到任何回饋，會以為是壞掉了。
-  -->
-  <section
-    v-if="visibleBriefing.length || store.recommendationDismissed"
-    class="panel briefing"
-    aria-labelledby="briefing-title"
-    data-testid="today-briefing"
-  >
-    <h2 id="briefing-title">今天該處理的事</h2>
-    <p v-if="!visibleBriefing.length" class="muted">目前沒有需要處理的事。</p>
-    <ul v-else class="briefing-list">
-      <li v-for="item in visibleBriefing" :key="item.id" class="briefing-item" :class="item.kind" data-testid="briefing-item">
-        <div class="briefing-body">
-          <!-- 種類不倚賴顏色傳達，文字本身讀得出輕重（WCAG 1.4.1） -->
-          <span class="briefing-tag" :data-kind="item.kind">{{ KIND_LABELS[item.kind] }}</span>
-          <strong>{{ item.title }}</strong>
-          <p class="muted">{{ item.detail }}</p>
-
-          <!-- 可解釋性：這一則憑什麼出現在你的畫面上（ADR-0011） -->
-          <details v-if="item.evidence.length" class="reason-details">
-            <summary>為什麼提這件事？</summary>
-            <ul :data-testid="`briefing-evidence-${item.id}`">
-              <li v-for="(record, index) in item.evidence" :key="index">{{ describeEvidence(record) }}</li>
-            </ul>
-          </details>
+  <section class="member-page home-page">
+    <section class="home-overview" data-home-section="overview" aria-labelledby="home-title">
+      <header class="page-heading">
+        <div>
+          <p class="eyebrow">YOUR DAY</p>
+          <h1 id="home-title">生活總覽</h1>
+          <p class="muted">先看資源與待辦，再把接下來的事交給 AI。</p>
         </div>
-        <div class="briefing-actions">
-          <RouterLink v-if="item.actionRoute" class="button inline" :to="item.actionRoute">
-            {{ item.actionLabel }}
-          </RouterLink>
-          <!-- 只有建議可以說不感興趣；待辦不是偏好問題，不該被「關掉」 -->
-          <button
-            v-if="item.kind === 'suggestion'"
-            class="text-button"
-            type="button"
-            data-testid="briefing-dismiss"
-            :aria-label="`不顯示「${item.title}」這則建議`"
-            @click="dismissRecommendation(item)"
-          >不感興趣</button>
+        <span class="page-status">{{ hasHistory ? '資料已更新' : '從第一件事開始' }}</span>
+      </header>
+
+      <div v-if="status === 'ready' && summary" class="panel overview-panel">
+        <div class="metric-row home-metrics">
+          <div class="metric"><span>資料期間消費</span><strong data-testid="metric-spend">{{ currency(summary.totalSpend) }}</strong></div>
+          <div class="metric"><span>累積點數</span><strong>{{ summary.earnedPoints.toLocaleString('zh-TW') }}</strong></div>
+          <div class="metric"><span>進行中</span><strong data-testid="metric-open">{{ summary.openOrders }}</strong></div>
+          <div class="metric"><span>使用服務</span><strong>{{ summary.distinctServices }}</strong></div>
         </div>
-      </li>
-    </ul>
-    <p v-if="lastDismissedRecommendation" class="recommendation-feedback" role="status" data-testid="briefing-dismissed">
-      已收起「{{ lastDismissedRecommendation.title }}」，其他建議不受影響。
-      <button class="text-button" type="button" @click="undoRecommendation(lastDismissedRecommendation)">復原</button>
-    </p>
-    <p v-if="feedbackStatus" class="need-error" role="alert">{{ feedbackStatus }}</p>
-    <p class="muted source-note">依你的委託、社區活動與使用紀錄以規則整理，非語言模型生成。</p>
-  </section>
-
-  <!-- 零狀態：新使用者沒有紀錄，這裡負責說明接下來會發生什麼 -->
-  <section v-if="status === 'ready' && !hasHistory" class="panel onboarding" aria-labelledby="onboarding-title">
-    <h2 id="onboarding-title">接下來會這樣進行</h2>
-    <ol class="onboarding-steps" data-testid="onboarding-steps">
-      <li><strong>描述需求</strong><span>用日常說法就好，不必知道服務名稱。</span></li>
-      <li><strong>補齊必要資訊</strong><span>只問這項服務真正需要的欄位，其餘自動略過。</span></li>
-      <li><strong>確認後才送出</strong><span>金額與內容先讓你確認，確認前不會建立任何委託。</span></li>
-    </ol>
-    <p class="muted">完成第一件事之後，這裡會顯示進度與值得提醒你的事。</p>
-  </section>
-
-  <!-- 有紀錄時：使用概況（「該做什麼」已由上方今日摘要負責） -->
-  <div v-else-if="status === 'ready'" class="grid">
-    <aside class="panel span-12" aria-labelledby="month-overview">
-      <h2 id="month-overview">你的使用概況</h2>
-      <div v-if="summary" class="metric-row">
-        <div class="metric"><span>已完成消費</span><strong data-testid="metric-spend">{{ currency(summary.totalSpend) }}</strong></div>
-        <div class="metric"><span>進行中</span><strong data-testid="metric-open">{{ summary.openOrders }}</strong></div>
-        <div class="metric"><span>使用服務</span><strong>{{ summary.distinctServices }}</strong></div>
-        <div class="metric"><span>累積點數</span><strong>{{ summary.earnedPoints.toLocaleString('zh-TW') }}</strong></div>
+        <div class="overview-footer">
+          <p class="source-note">來源：競賽提供的服務紀錄；「資料期間消費」不假稱為即時月帳單。</p>
+          <RouterLink class="text-link" to="/user/points">查看點數與優惠方案 →</RouterLink>
+        </div>
+        <details v-if="summary.services.length" class="usage-disclosure">
+          <summary>查看常用服務紀錄</summary>
+          <ul class="plain-list" data-testid="service-usage-list">
+            <li v-for="usage in summary.services" :key="usage.serviceName">
+              <strong>{{ usage.serviceName }}</strong> {{ usage.count }} 次
+              <span v-if="usage.daysSinceLast !== null" class="muted">・{{ usage.daysSinceLast }} 天前</span>
+            </li>
+          </ul>
+        </details>
       </div>
-      <ul v-if="summary?.services.length" class="plain-list" data-testid="service-usage-list">
-        <li v-for="usage in summary.services" :key="usage.serviceName">
-          <strong>{{ usage.serviceName }}</strong> {{ usage.count }} 次
-          <span v-if="usage.daysSinceLast !== null" class="muted">・{{ usage.daysSinceLast }} 天前</span>
+      <div v-else-if="status === 'ready'" class="panel empty-overview">
+        <strong>尚無消費與點數紀錄</strong>
+        <p class="muted">新會員不會看到其他人的展示數字；完成第一件服務後才開始累積。</p>
+      </div>
+      <p v-else-if="status === 'unavailable'" class="panel muted" role="status">目前無法取得你的使用紀錄，請確認後端服務是否啟動。</p>
+      <div v-else class="panel" role="status">正在整理你的生活資訊…</div>
+    </section>
+
+    <section class="panel briefing" data-home-section="pending" data-testid="today-pending" aria-labelledby="pending-title">
+      <div class="section-title-row">
+        <div>
+          <p class="eyebrow">NEXT ACTION</p>
+          <h2 id="pending-title">待處理事項</h2>
+        </div>
+        <RouterLink class="text-link" to="/user/orders">查看全部訂單</RouterLink>
+      </div>
+      <p v-if="!pendingBriefing.length" class="muted">目前沒有等你處理的案件。</p>
+      <ul v-else class="briefing-list">
+        <li v-for="item in pendingBriefing" :key="item.id" class="briefing-item" :class="item.kind" data-testid="briefing-item">
+          <div class="briefing-body">
+            <span class="briefing-tag" :data-kind="item.kind">{{ KIND_LABELS[item.kind] }}</span>
+            <strong>{{ item.title }}</strong>
+            <p class="muted">{{ item.detail }}</p>
+            <details v-if="item.evidence.length" class="reason-details">
+              <summary>為什麼提這件事？</summary>
+              <ul :data-testid="`briefing-evidence-${item.id}`">
+                <li v-for="(record, index) in item.evidence" :key="index">{{ describeEvidence(record) }}</li>
+              </ul>
+            </details>
+          </div>
+          <RouterLink v-if="item.actionRoute" class="button inline" :to="item.actionRoute">{{ item.actionLabel }}</RouterLink>
         </li>
       </ul>
-      <p class="muted source-note">來源：你的服務紀錄</p>
-    </aside>
-  </div>
+      <p class="source-note">依你的委託與案件狀態以規則整理，非語言模型生成。</p>
+    </section>
 
-  <p v-else-if="status === 'unavailable'" class="panel muted" role="status">
-    目前無法取得你的使用紀錄，請確認後端服務是否啟動。
-  </p>
+    <section class="need-hero home-ai" data-home-section="ai" aria-labelledby="need-title">
+      <p class="eyebrow">AI LIFE ASSISTANT</p>
+      <h2 id="need-title">接下來想處理什麼？</h2>
+      <p class="need-lede">直接說生活目標，AI 會拆成可確認的步驟，不會只丟一串服務名稱。</p>
+      <form class="need-form" @submit.prevent="submitNeed(need)">
+        <label class="visually-hidden" for="need-input">描述你的需求</label>
+        <input id="need-input" v-model="need" data-testid="need-input" type="text" placeholder="例如：爸媽週六要來，幫我安排清潔和修繕" autocomplete="off" />
+        <button class="button primary" type="submit" data-testid="need-submit" :disabled="matching">{{ matching ? '準備中…' : '交給 AI' }}</button>
+      </form>
+      <div class="need-starters">
+        <span class="muted">試試看：</span>
+        <button v-for="starter in starters" :key="starter" class="starter-chip" type="button" data-testid="need-starter" @click="submitNeed(starter)">{{ starter }}</button>
+      </div>
+      <ol v-if="status === 'ready' && !hasHistory" class="onboarding-steps compact" data-testid="onboarding-steps">
+        <li><strong>描述需求</strong><span>用日常說法即可。</span></li>
+        <li><strong>預覽方案</strong><span>AI 補齊必要資訊。</span></li>
+        <li><strong>確認才執行</strong><span>交易與送單不會偷跑。</span></li>
+      </ol>
+    </section>
+
+    <section class="panel briefing" data-home-section="recommendations" aria-labelledby="recommendation-title">
+      <div class="section-title-row">
+        <div>
+          <p class="eyebrow">FOR YOU</p>
+          <h2 id="recommendation-title">為你整理的建議</h2>
+        </div>
+      </div>
+      <p v-if="!suggestedBriefing.length" class="muted">使用服務後，這裡會出現有依據、可單獨調整的建議。</p>
+      <ul v-else class="briefing-list">
+        <li v-for="item in suggestedBriefing" :key="item.id" class="briefing-item suggestion" data-testid="briefing-item">
+          <div class="briefing-body">
+            <span class="briefing-tag" data-kind="suggestion">建議</span>
+            <strong>{{ item.title }}</strong>
+            <p class="muted">{{ item.detail }}</p>
+            <details v-if="item.evidence.length" class="reason-details">
+              <summary>為什麼提這件事？</summary>
+              <ul :data-testid="`briefing-evidence-${item.id}`">
+                <li v-for="(record, index) in item.evidence" :key="index">{{ describeEvidence(record) }}</li>
+              </ul>
+            </details>
+          </div>
+          <div class="briefing-actions">
+            <RouterLink v-if="item.actionRoute" class="button inline" :to="item.actionRoute">{{ item.actionLabel }}</RouterLink>
+            <button class="text-button" type="button" data-testid="briefing-dismiss" :aria-label="`不顯示「${item.title}」這則建議`" @click="dismissRecommendation(item)">不感興趣</button>
+          </div>
+        </li>
+      </ul>
+      <p v-if="lastDismissedRecommendation" class="recommendation-feedback" role="status" data-testid="briefing-dismissed">
+        已收起「{{ lastDismissedRecommendation.title }}」，其他建議不受影響。
+        <button class="text-button" type="button" @click="undoRecommendation(lastDismissedRecommendation)">復原</button>
+      </p>
+      <p v-if="feedbackStatus" class="need-error" role="alert">{{ feedbackStatus }}</p>
+      <p class="source-note">依你的使用紀錄以規則整理，非語言模型生成。</p>
+    </section>
+
+    <section class="home-section" data-home-section="shortcuts" aria-labelledby="shortcuts-title">
+      <div class="section-title-row"><h2 id="shortcuts-title">常用功能</h2></div>
+      <div class="shortcut-grid">
+        <RouterLink class="panel shortcut-card" to="/user/orders"><strong>追蹤訂單</strong><span>報價、進度與異常處理</span></RouterLink>
+        <RouterLink class="panel shortcut-card" to="/user/services"><strong>瀏覽服務</strong><span>清潔、修繕、訂位與購物</span></RouterLink>
+        <RouterLink class="panel shortcut-card" to="/user/community"><strong>群組共享</strong><span>家庭、朋友與社區任務</span></RouterLink>
+      </div>
+    </section>
+
+    <section class="panel promotion-card" data-home-section="promotions" aria-labelledby="promotion-title">
+      <div>
+        <p class="eyebrow">SMART SAVING</p>
+        <h2 id="promotion-title">不要只看點數，讓 AI 一起算優惠</h2>
+        <p class="muted">整合展示點數、優惠券與支付方式，先試算再決定是否使用。</p>
+      </div>
+      <RouterLink class="button primary" to="/user/points">查看節省方案</RouterLink>
+    </section>
+  </section>
 </template>

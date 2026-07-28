@@ -9,12 +9,25 @@ import { mountApp, NEW_USER } from './fixtures/mountApp'
 describe('resident home', () => {
   beforeEach(() => stubCatalogFetch())
 
-  it('makes describing a need the primary action', async () => {
+  it('leads with a life overview while keeping AI available as the lightweight action', async () => {
     const { wrapper } = await mountApp('/user')
 
-    expect(wrapper.get('h1').text()).toBe('今天需要什麼？')
+    expect(wrapper.get('h1').text()).toBe('生活總覽')
     expect(wrapper.find('[data-testid="need-input"]').exists()).toBe(true)
     expect(wrapper.findAll('[data-testid="need-starter"]').length).toBeGreaterThan(0)
+  })
+
+  it('renders the six approved home sections in product reading order', async () => {
+    const { wrapper } = await mountApp('/user')
+
+    expect(wrapper.findAll('[data-home-section]').map((section) => section.attributes('data-home-section'))).toEqual([
+      'overview',
+      'pending',
+      'ai',
+      'recommendations',
+      'shortcuts',
+      'promotions',
+    ])
   })
 
   /**
@@ -26,14 +39,15 @@ describe('resident home', () => {
 
     const items = wrapper.findAll('[data-testid="briefing-item"]')
     expect(items.length).toBeGreaterThan(0)
-    expect(wrapper.get('[data-testid="today-briefing"]').text()).toContain(todayBriefing[0]!.title)
+    expect(wrapper.get('[data-testid="today-pending"]').text()).toContain('待處理事項')
     expect(wrapper.text()).toContain('非語言模型生成')
   })
 
   it('shows nothing to do rather than filler for a brand-new user', async () => {
     const { wrapper } = await mountApp('/user', { identity: NEW_USER })
 
-    expect(wrapper.find('[data-testid="today-briefing"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="today-pending"]').text()).toContain('目前沒有等你處理的案件')
+    expect(wrapper.findAll('[data-testid="briefing-item"]')).toHaveLength(0)
   })
 
   it('teaches a brand-new user what happens next instead of showing empty panels', async () => {
@@ -61,7 +75,7 @@ describe('resident home', () => {
     const { wrapper } = await mountApp('/user')
     const withEvidence = todayBriefing.find((item) => item.evidence.length > 0)!
 
-    await wrapper.get(`[data-testid="today-briefing"] .reason-details summary`).trigger('click')
+    await wrapper.get('.briefing .reason-details summary').trigger('click')
     const evidence = wrapper.get(`[data-testid="briefing-evidence-${withEvidence.id}"]`).text()
 
     expect(evidence.length).toBeGreaterThan(0)

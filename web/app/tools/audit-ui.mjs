@@ -2,6 +2,7 @@ import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 
 const BASE = process.env.UI_AUDIT_BASE_URL ?? 'http://localhost:5173'
+const API_BASE = process.env.UI_AUDIT_API_URL ?? 'http://127.0.0.1:8000'
 const OUT = 'tmp/shots'
 mkdirSync(OUT, { recursive: true })
 
@@ -20,6 +21,7 @@ const IDENTITIES = {
 const PAGES = [
   { name: '01-login', path: '/login', identity: null },
   { name: '02-home', path: '/user', identity: 'resident' },
+  { name: '02b-points', path: '/user/points', identity: 'resident' },
   { name: '03-assistant', path: '/user/assistant?service=service-repair', identity: 'resident' },
   // 規劃模式：走真的 LLM，所以這兩頁也順帶驗證規劃器在瀏覽器裡真的跑得通
   { name: '03b-plan-match', path: `/user/assistant?need=${encodeURIComponent('浴室水管漏水，很急，台北市大同區，預算兩千以內')}`, identity: 'resident' },
@@ -27,6 +29,7 @@ const PAGES = [
   { name: '04-services', path: '/user/services/aircon', identity: 'resident' },
   { name: '05-orders', path: '/user/orders', identity: 'resident' },
   { name: '06-community', path: '/user/community', identity: 'resident' },
+  { name: '06b-member', path: '/user/member', identity: 'resident' },
   { name: '07-manager', path: '/community', identity: 'manager' },
   { name: '08-partner', path: '/partner', identity: 'partner' },
 ]
@@ -37,8 +40,32 @@ const browser = await chromium.launch()
 for (const vp of VIEWPORTS) {
   const context = await browser.newContext({ viewport: { width: vp.width, height: vp.height } })
   const page = await context.newPage()
+  // UI 稽核的重點是實際前端搭配實際本機 API；直接轉送可避免殘留 Vite
+  // 程序或外部 shell 環境覆寫 proxy target，造成與產品無關的 502。
+  await page.route('**/api/**', async (route) => {
+    const requestUrl = new URL(route.request().url())
+    if (!requestUrl.pathname.startsWith('/api/')) {
+      await route.continue()
+      return
+    }
+    const response = await route.fetch({ url: `${API_BASE}${requestUrl.pathname}${requestUrl.search}` })
+    await route.fulfill({ response })
+  })
   const consoleErrors = []
-  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+  const responseErrors = []
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return
+    // Chromium 的 generic resource 訊息只回報目前 document URL，無法指出壞掉的請求；
+    // 實際 HTTP 錯誤由下方 response listener 記錄完整 URL。
+    if (message.text().startsWith('Failed to load resource:')) return
+    const location = message.location()
+    consoleErrors.push(`${message.text()}${location.url ? ` @ ${location.url}` : ''}`)
+  })
+  page.on('response', (response) => {
+    if (response.status() < 400) return
+    if (response.url().endsWith('/favicon.svg')) return
+    responseErrors.push(`${response.status()} ${response.url()}`)
+  })
 
   for (const target of PAGES) {
     await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' })
@@ -48,6 +75,7 @@ for (const vp of VIEWPORTS) {
       await page.evaluate(() => localStorage.clear())
     }
     consoleErrors.length = 0
+    responseErrors.length = 0
     await page.goto(`${BASE}${target.path}`, { waitUntil: 'networkidle' })
     await page.waitForTimeout(600)
 
@@ -108,7 +136,8 @@ for (const vp of VIEWPORTS) {
       problems.push(`[${vp.name}] ${target.name} 標題被吸頂導覽蓋住（h1 top ${covered.top} < 導覽底 ${covered.barBottom}）`)
     }
 
-    if (consoleErrors.length) problems.push(`[${vp.name}] ${target.name} console error：${consoleErrors[0].slice(0, 100)}`)
+    if (consoleErrors.length) problems.push(`[${vp.name}] ${target.name} console error：${consoleErrors[0].slice(0, 240)}`)
+    if (responseErrors.length) problems.push(`[${vp.name}] ${target.name} HTTP error：${responseErrors[0].slice(0, 240)}`)
 
     await page.screenshot({ path: `${OUT}/${vp.name}-${target.name}.png`, fullPage: true })
   }
@@ -116,4 +145,9 @@ for (const vp of VIEWPORTS) {
 }
 await browser.close()
 
-console.log(problems.length ? problems.join('\n') : '未發現溢出／觸控／console 問題')
+if (problems.length) {
+  console.error(problems.join('\n'))
+  process.exitCode = 1
+} else {
+  console.log('未發現溢出／觸控／console 問題')
+}
