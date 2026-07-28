@@ -38,7 +38,11 @@ from core.config import get_settings
 from core.inquiries import SqliteInquiryRepository
 from core.personalization import PersonalizationService, SqlitePersonalizationRepository
 from core.orders import SqliteOrderRepository
-from core.retail import RetailService, SqliteRetailRepository
+from core.retail import (
+    RetailService,
+    SqliteRetailRepository,
+    build_retail_connector,
+)
 from core.support import SupportService, SqliteSupportRepository
 from core.services import LifeServicesService
 from core.tools.catalog import build_registry
@@ -56,6 +60,10 @@ def build_default_registry(*, today: date | None = None) -> ToolRegistry:
     demo_now = lambda: datetime(  # noqa: E731
         resolved_today.year, resolved_today.month, resolved_today.day, tzinfo=timezone.utc
     )
+    retail_connector = build_retail_connector(
+        upstream_url=config.retail_upstream_url,
+        timeout_seconds=config.upstream_timeout_seconds,
+    )
     return build_registry(
         services=LifeServicesService(
             SqliteInquiryRepository(config.inquiry_db_path),
@@ -67,7 +75,7 @@ def build_default_registry(*, today: date | None = None) -> ToolRegistry:
         personalization=PersonalizationService(
             SqlitePersonalizationRepository(config.inquiry_db_path), today=resolved_today
         ),
-        retail=RetailService(SqliteRetailRepository(config.inquiry_db_path)),
+        retail=RetailService(SqliteRetailRepository(config.inquiry_db_path), connector=retail_connector),
         support=SupportService(
             SqliteSupportRepository(config.inquiry_db_path, now=demo_now),
             inquiries=SqliteInquiryRepository(config.inquiry_db_path),

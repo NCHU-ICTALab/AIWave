@@ -11,41 +11,8 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
-
-STORES = (
-    {
-        "id": "qingchuan",
-        "storeName": "7-ELEVEN 晴川門市",
-        "district": "大同區",
-        "address": "台北市大同區民權西路 100 號",
-        "capabilities": ["列印", "取貨", "寄件", "ATM", "CITY CAFE"],
-        "distanceMeters": 280,
-        "inventory": {"limited-cup": 0, "tissue-pack": 8},
-    },
-    {
-        "id": "zhongxing",
-        "storeName": "7-ELEVEN 中興門市",
-        "district": "中山區",
-        "address": "台北市中山區中山北路二段 88 號",
-        "capabilities": ["列印", "取貨", "寄件", "ATM", "CITY CAFE"],
-        "distanceMeters": 920,
-        "inventory": {"limited-cup": 12, "tissue-pack": 4},
-    },
-    {
-        "id": "minsheng",
-        "storeName": "7-ELEVEN 民生門市",
-        "district": "大同區",
-        "address": "台北市大同區民生西路 210 號",
-        "capabilities": ["取貨", "ATM", "CITY CAFE"],
-        "distanceMeters": 510,
-        "inventory": {"limited-cup": 3, "tissue-pack": 10},
-    },
-)
-
-PRODUCTS = {
-    "limited-cup": {"name": "吉伊卡哇限定杯", "keywords": ("吉伊卡哇", "限定杯", "聯名杯")},
-    "tissue-pack": {"name": "舒適衛生紙補貨組", "keywords": ("衛生紙", "補貨", "日用品")},
-}
+from .connectors import RetailConnector, SeedRetailConnector
+from .seed_data import PRODUCTS, STORES
 
 
 class SqliteRetailRepository:
@@ -115,59 +82,54 @@ class SqliteRetailRepository:
 
 
 class RetailService:
-    def __init__(self, repository: SqliteRetailRepository) -> None:
+    def __init__(self, repository: SqliteRetailRepository, *, connector: RetailConnector | None = None) -> None:
         self.repository = repository
-
-    @staticmethod
-    def _product(query: str) -> tuple[str, dict]:
-        normalized = query.strip().lower()
-        for product_id, product in PRODUCTS.items():
-            if product["name"].lower() in normalized or any(word.lower() in normalized for word in product["keywords"]):
-                return product_id, product
-        raise ValueError("目前找不到這項商品，請改用商品名稱或聯名關鍵字")
+        self.connector = connector or SeedRetailConnector()
 
     def search(self, *, query: str, district: str | None = None, capability: str | None = None) -> dict:
-        product_id, product = self._product(query)
+        snapshot = self.connector.lookup(query)
+        product_id, product = snapshot.product.id, {"name": snapshot.product.name}
 
-        def eligible(store: dict) -> bool:
-            return capability is None or capability in store["capabilities"]
+        def eligible(store) -> bool:
+            return capability is None or capability in store.capabilities
 
-        def view(store: dict) -> dict:
+        def view(store) -> dict:
             return {
-                "storeId": store["id"],
-                "storeName": store["storeName"],
-                "district": store["district"],
-                "address": store["address"],
-                "distanceMeters": store["distanceMeters"],
-                "capabilities": list(store["capabilities"]),
-                "stock": store["inventory"].get(product_id, 0),
+                "storeId": store.store_id, "storeName": store.store_name,
+                "district": store.district, "address": store.address,
+                "distanceMeters": store.distance_meters, "capabilities": list(store.capabilities),
+                "stock": store.stock,
                 "productId": product_id,
                 "productName": product["name"],
             }
 
-        exact = [view(store) for store in STORES if eligible(store) and store["district"] == district and store["inventory"].get(product_id, 0) > 0]
-        alternatives = [view(store) for store in STORES if eligible(store) and store["district"] != district and store["inventory"].get(product_id, 0) > 0]
+        stores = snapshot.stores
+        exact = [view(store) for store in stores if eligible(store) and store.district == district and store.stock > 0]
+        alternatives = [view(store) for store in stores if eligible(store) and store.district != district and store.stock > 0]
         exact.sort(key=lambda row: row["distanceMeters"])
         alternatives.sort(key=lambda row: row["distanceMeters"])
-        unavailable = [view(store) for store in STORES if eligible(store) and store["district"] == district and store["inventory"].get(product_id, 0) == 0]
-        return {
+        unavailable = [view(store) for store in stores if eligible(store) and store.district == district and store.stock == 0]
+        result = {
             "query": query,
             "product": {"id": product_id, "name": product["name"]},
             "criteria": {"district": district, "capability": capability},
             "exactMatches": exact,
             "alternatives": alternatives,
             "unavailableNearby": unavailable,
-            "dataSource": "competition_seed",
-            "asOf": "2026-07-25T09:00:00+08:00",
+            "dataSource": snapshot.data_source,
+            "asOf": snapshot.as_of,
+            "connectorMode": snapshot.connector_mode,
         }
+        if snapshot.degraded_reason:
+            result["degradedReason"] = snapshot.degraded_reason
+        return result
 
     def join_waitlist(self, account_id: str, *, product_id: str, store_id: str) -> dict:
-        if product_id not in PRODUCTS:
-            raise ValueError("查無商品")
-        store = next((item for item in STORES if item["id"] == store_id), None)
+        snapshot = self.connector.inventory(product_id)
+        store = next((item for item in snapshot.stores if item.store_id == store_id), None)
         if store is None:
             raise ValueError("查無門市")
-        if store["inventory"].get(product_id, 0) > 0:
+        if store.stock > 0:
             raise ValueError("這間門市目前有庫存，可直接前往，不需要加入候補")
         return self.repository.watch(account_id, product_id, store_id)
 

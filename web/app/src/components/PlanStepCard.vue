@@ -259,6 +259,9 @@ const currency = (value: unknown) => `NT$ ${Number(value ?? 0).toLocaleString('z
 
     <!-- 門市查詢：缺貨不是終點，同卡提供替代門市與候補。 -->
     <section v-else-if="retail" class="result-stack" data-testid="retail-result">
+      <p v-if="retail.connectorMode === 'offline_fallback'" class="result-notice" role="status">
+        即時庫存暫時無法連線，目前使用離線備援資料。{{ text(retail.degradedReason) }}
+      </p>
       <p v-if="!retail.exactMatches?.length" class="result-notice">指定區域目前沒有符合條件且有庫存的門市。</p>
       <div v-for="store in retail.exactMatches" :key="store.storeId" class="store-result">
         <div><strong>{{ store.storeName }}</strong><p>{{ store.district }}・距離約 {{ store.distanceMeters }} 公尺</p></div>
@@ -276,7 +279,9 @@ const currency = (value: unknown) => `NT$ ${Number(value ?? 0).toLocaleString('z
         <p>確認追蹤「{{ text(retail.product?.name) }}」在這間缺貨門市的到貨狀態？</p>
         <div class="button-row"><button class="button primary" type="button" @click="confirmPending">確認加入</button><button class="button" type="button" @click="pendingAction = null">取消</button></div>
       </div>
-      <p class="source-note muted">庫存截至 {{ text(retail.asOf) }}，來源：競賽建置資料，非正式即時門市 API。</p>
+      <p class="source-note muted">
+        庫存截至 {{ text(retail.asOf) }}，來源：{{ retail.connectorMode === 'offline_fallback' ? '離線備援資料' : retail.connectorMode === 'http' ? '競賽建置上游資料' : '競賽建置資料' }}，非正式即時門市 API。
+      </p>
     </section>
   </li>
 </template>

@@ -45,6 +45,8 @@ class Settings:
     demo_today: date
     inquiry_db_path: str
     group_buy_db_path: str
+    retail_upstream_url: str
+    upstream_timeout_seconds: float
 
     @property
     def has_llm(self) -> bool:
@@ -61,6 +63,8 @@ def get_settings() -> Settings:
         demo_today=_env_date("DEMO_TODAY", DEFAULT_DEMO_TODAY),
         inquiry_db_path=os.environ.get("INQUIRY_DB_PATH", str(data_dir / "life_ai_demo.sqlite3")),
         group_buy_db_path=os.environ.get("GROUP_BUY_DB_PATH", str(data_dir / "group_buys.sqlite3")),
+        retail_upstream_url=os.environ.get("RETAIL_UPSTREAM_URL", "").strip(),
+        upstream_timeout_seconds=float(os.environ.get("UPSTREAM_TIMEOUT_SECONDS", "2.0")),
     )
 
 

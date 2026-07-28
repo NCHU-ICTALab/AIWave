@@ -317,6 +317,24 @@ describe('assistant planning', () => {
     expect(wrapper.get('[data-testid="retail-result"]').text()).toContain('庫存 8')
   })
 
+  it('tells the user when live upstream failed and offline data is being used', async () => {
+    stubPlanner(plan({
+      understanding: '用離線資料找限定杯',
+      steps: [{ tool: 'search_store_inventory', arguments: { query: '吉伊卡哇限定杯' }, why: '查庫存', writes: false, status: 'done', error: null, result: {
+        product: { id: 'limited-cup', name: '吉伊卡哇限定杯' }, exactMatches: [],
+        alternatives: [{ storeId: 'zhongxing', storeName: '7-ELEVEN 中興門市', district: '中山區', stock: 12, distanceMeters: 920 }],
+        unavailableNearby: [], dataSource: 'competition_seed_offline_fallback', connectorMode: 'offline_fallback',
+        degradedReason: '品牌庫存服務維護中', asOf: '2026-07-25T09:00:00+08:00',
+      } }],
+    }))
+    const { wrapper } = await mountApp('/user/assistant?need=' + encodeURIComponent('哪裡有吉伊卡哇限定杯'))
+
+    const result = wrapper.get('[data-testid="retail-result"]')
+    expect(result.get('[role="status"]').text()).toContain('即時庫存暫時無法連線')
+    expect(result.get('[role="status"]').text()).toContain('品牌庫存服務維護中')
+    expect(result.text()).toContain('離線備援資料')
+  })
+
   it('turns an issue diagnosis into a confirmed, trackable support ticket', async () => {
     let created = 0
     stubPlanner(plan({

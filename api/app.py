@@ -35,7 +35,13 @@ from core.community import (
 from core.inquiries import InquiryRepository, InquiryTransitionError, SqliteInquiryRepository
 from core.personalization import PersonalizationService, SqlitePersonalizationRepository
 from core.orders import SqliteOrderRepository
-from core.retail import RetailService, SqliteRetailRepository
+from core.retail import (
+    RetailConnector,
+    RetailService,
+    SqliteRetailRepository,
+    build_retail_connector,
+)
+from core.config import get_settings
 from core.support import SupportError, SupportRepository, SupportService, SqliteSupportRepository
 from core.insights.today import build_briefing
 from core.services import CommunityService, InsightsService, LifeServicesService
@@ -234,6 +240,7 @@ def create_app(
     sessions: SessionStore | None = None,
     personalization_repository: SqlitePersonalizationRepository | None = None,
     retail_repository: SqliteRetailRepository | None = None,
+    retail_connector: RetailConnector | None = None,
     order_repository: SqliteOrderRepository | None = None,
     support_repository: SupportRepository | None = None,
     llm_factory: Callable[[], LlmClient] = get_llm,
@@ -255,7 +262,15 @@ def create_app(
         personalization_repository or SqlitePersonalizationRepository(demo_db, now=demo_now),
         today=DEMO_TODAY,
     )
-    retail = RetailService(retail_repository or SqliteRetailRepository(demo_db, now=demo_now))
+    config = get_settings()
+    configured_retail_connector = retail_connector or build_retail_connector(
+        upstream_url=config.retail_upstream_url,
+        timeout_seconds=config.upstream_timeout_seconds,
+    )
+    retail = RetailService(
+        retail_repository or SqliteRetailRepository(demo_db, now=demo_now),
+        connector=configured_retail_connector,
+    )
     support = SupportService(
         support_repository or SqliteSupportRepository(demo_db, now=demo_now),
         inquiries=inquiry_repository,
