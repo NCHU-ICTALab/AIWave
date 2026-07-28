@@ -32,7 +32,7 @@
 | Tool | 參數 | 回傳 |
 | --- | --- | --- |
 | `search_services` | query, district? | 服務列表（id, name, vendor, form_id） |
-| `list_services` | category?, integration_depth? | 9 項可操作服務與深度品牌服務狀態 |
+| `list_services` | category?, integration_depth? | 可操作服務與接入深度狀態；不以固定數量作為契約 |
 | `get_service_detail` | service_id | 服務詳情 |
 | `get_service_form` | service_id | 完整表單定義（題組/題目/選項/跳題/地區限制） |
 | `list_districts` | county? | 地區清單 |
@@ -116,18 +116,18 @@
 ### 競賽版展示覆蓋檢查
 | 展示線 | 用到的工具 |
 | --- | --- |
-| Hero・DUSKIN 聯合清洗 | `create_joint_service`→`get_service_form`→`join_joint_service`→`get_joint_service_summary`→`match_vendors`→`assign_joint_service_vendor`→`create_quote`→`confirm_quote`→`update_order_status` |
-| 今日生活中心 | `get_behavior_summary`→`get_recommendations`＋`get_consumption_dashboard`＋`calc_discount`＋`list_reminders`＋`list_my_orders` |
-| 服務廣度 | `list_services`／`search_services`→各服務 `get_service_form`→`submit_inquiry` 或 `create_order` |
+| Hero・跨服務生活任務 | `plan_life_task`→`get_service_form`→`match_vendors`＋`calc_discount`→預覽確認→`submit_inquiry`／`create_order`→`get_order_status` |
+| 會員資訊總覽 | `get_behavior_summary`→`get_recommendations`＋`get_consumption_dashboard`＋`list_reminders`＋`list_my_orders` |
+| 群組加碼 | `get_active_scope`→取得同意→`create_joint_service`→`get_joint_service_summary`→`match_vendors` |
 | 平台接入證明 | `list_vendor_connectors`→`test_vendor_connector`→`upsert_vendor_offering` |
 | 延伸情境 | `ask_uni_qa`／`query_store_inventory`／`find_alternate_store`／`list_my_groups`／`split_bill` |
 
 ### 工具開發順序（對齊 [SRS §6.1.1](06-system-requirements.md)）
-1. **Phase 1**：Server 1/2 共用服務/訂單閉環＋ Server 6 報價/狀態/接入器
-2. **Phase 2**：Server 3 聯合服務工具，完成 DUSKIN Hero
-3. **Phase 3**：Server 5，完成今日生活中心
-4. **Phase 4**：補齊 9 項服務的 Server 1/2 工具與五條品牌接入器
-5. **Phase 5**：Server 3 團購/家庭工具與 Server 4 超商生態
+1. **Phase 1**：服務、題組、媒合、點數、訂單與事件的 domain tools。
+2. **Phase 2**：Planner 以 capability registry 產生跨服務 task plan，完成 Hero。
+3. **Phase 3**：Vendor OpenAPI、fake server 與 Client seam，完成廠商狀態回流。
+4. **Phase 4**：群組 scope、同意、聯合服務與通知工具。
+5. **Phase 5**：依實際 Demo 需要擴增服務與 LINE／語音通路。
 
 ---
 
