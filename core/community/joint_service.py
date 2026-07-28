@@ -37,6 +37,7 @@ class JointServiceError(ValueError):
 
 class JointServiceRepository(Protocol):
     def list_campaigns(self) -> list[dict]: ...
+    def list_for_resident(self, *, account_id: str) -> list[dict]: ...
     def get_campaign(self, campaign_id: int) -> dict | None: ...
     def create_draft(self, *, title: str, service_id: str, created_by: str | None = None) -> dict: ...
     def publish(self, campaign_id: int, *, actor: str) -> dict: ...
@@ -72,8 +73,8 @@ def _hero_proposals(unit_count: int = 27) -> list[dict]:
     return [
         {
             "id": "proposal-care",
-            "vendorId": "vendor-cleanpro",
-            "vendorName": "潔沛家事服務",
+            "vendorId": "vendor-duskin",
+            "vendorName": "DUSKIN 樂清",
             "vendorSource": "core.matching.vendors",
             "badge": "整體推薦",
             "items": [
@@ -92,8 +93,8 @@ def _hero_proposals(unit_count: int = 27) -> list[dict]:
         },
         {
             "id": "proposal-value",
-            "vendorId": "vendor-homekeeper",
-            "vendorName": "安家管家",
+            "vendorId": "vendor-prince-property",
+            "vendorName": "太子物業",
             "vendorSource": "core.matching.vendors",
             "badge": "價格較低",
             "items": [
@@ -167,11 +168,20 @@ class SqliteJointServiceRepository:
                     preferred_slot TEXT NOT NULL,
                     special_requirement TEXT,
                     joined_at TEXT NOT NULL,
+                    consent_version TEXT NOT NULL DEFAULT 'joint-demand-v1',
+                    consented_at TEXT,
                     PRIMARY KEY (campaign_id, household_hash),
                     FOREIGN KEY (campaign_id) REFERENCES joint_service_campaigns(id)
                 );
                 """
             )
+            columns = {row["name"] for row in connection.execute("PRAGMA table_info(joint_service_signals)")}
+            if "consent_version" not in columns:
+                connection.execute(
+                    "ALTER TABLE joint_service_signals ADD COLUMN consent_version TEXT NOT NULL DEFAULT 'joint-demand-v1'"
+                )
+            if "consented_at" not in columns:
+                connection.execute("ALTER TABLE joint_service_signals ADD COLUMN consented_at TEXT")
 
     def _seed_hero(self) -> None:
         with self._connect() as connection:
@@ -179,6 +189,31 @@ class SqliteJointServiceRepository:
             if exists:
                 return
             now = self._timestamp()
+            collecting_draft = {
+                "title": "九月冷氣聯合清洗需求調查",
+                "closeTime": "2026-08-16T20:00:00+08:00",
+                "notification": "只在你明確同意後，匿名彙整設備數量、偏好時段與特殊需求。",
+                "questionnaire": ["冷氣型式與台數", "可服務時段", "不含姓名、電話與門牌"],
+                "generatedBy": "AI Copilot 草稿；已由社區管理者確認發布",
+                "serviceContext": "DUSKIN 公開服務情境；履約方案為競賽建置資料",
+            }
+            collecting_cursor = connection.execute(
+                """INSERT INTO joint_service_campaigns
+                (community_id,title,service_id,status,demand_json,draft_json,proposals_json,created_at,updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?)""",
+                ("community-sunshine-demo", collecting_draft["title"], "service-aircon", COLLECTING,
+                 json.dumps({
+                     "householdCount": 0, "unitCount": 0, "equipment": [], "timePreferences": [],
+                     "specialRequirements": [],
+                     "privacy": "以匿名住戶雜湊去重；不共享姓名、電話與門牌",
+                     "source": "resident_input", "sourceLabel": "住戶確認後的匿名需求",
+                 }, ensure_ascii=False), json.dumps(collecting_draft, ensure_ascii=False), "[]", now, now),
+            )
+            connection.execute(
+                "INSERT INTO joint_service_events (campaign_id,event_type,actor,detail,occurred_at) VALUES (?,?,?,?,?)",
+                (int(collecting_cursor.lastrowid), "joint_service.published", "社區管理者",
+                 "開始募集住戶明確同意的匿名需求", now),
+            )
             draft = {
                 "title": "八月冷氣聯合清洗",
                 "closeTime": "2026-08-02T20:00:00+08:00",
@@ -224,6 +259,28 @@ class SqliteJointServiceRepository:
         with self._connect() as connection:
             rows = connection.execute("SELECT * FROM joint_service_campaigns ORDER BY id DESC").fetchall()
             return [self._record(connection, row) for row in rows]
+
+    def list_for_resident(self, *, account_id: str) -> list[dict]:
+        household_hash = hashlib.sha256(f"joint-service:{account_id}".encode()).hexdigest()
+        with self._connect() as connection:
+            rows = connection.execute("SELECT * FROM joint_service_campaigns ORDER BY id DESC").fetchall()
+            records: list[dict] = []
+            for row in rows:
+                record = self._record(connection, row)
+                signal = connection.execute(
+                    """SELECT units,equipment,preferred_slot,special_requirement,consent_version,
+                              COALESCE(consented_at, joined_at) AS consented_at
+                       FROM joint_service_signals WHERE campaign_id=? AND household_hash=?""",
+                    (row["id"], household_hash),
+                ).fetchone()
+                record["myParticipation"] = None if signal is None else {
+                    "units": signal["units"], "equipment": signal["equipment"],
+                    "preferredSlot": signal["preferred_slot"],
+                    "specialRequirement": signal["special_requirement"],
+                    "consentVersion": signal["consent_version"], "consentedAt": signal["consented_at"],
+                }
+                records.append(record)
+            return records
 
     def get_campaign(self, campaign_id: int) -> dict | None:
         with self._connect() as connection:
@@ -291,12 +348,14 @@ class SqliteJointServiceRepository:
                 raise JointServiceError("這項聯合服務目前沒有募集需求")
             connection.execute(
                 """INSERT INTO joint_service_signals
-                (campaign_id,household_hash,units,equipment,preferred_slot,special_requirement,joined_at)
-                VALUES (?,?,?,?,?,?,?) ON CONFLICT(campaign_id,household_hash) DO UPDATE SET
+                (campaign_id,household_hash,units,equipment,preferred_slot,special_requirement,joined_at,
+                 consent_version,consented_at)
+                VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(campaign_id,household_hash) DO UPDATE SET
                 units=excluded.units,equipment=excluded.equipment,preferred_slot=excluded.preferred_slot,
-                special_requirement=excluded.special_requirement,joined_at=excluded.joined_at""",
+                special_requirement=excluded.special_requirement,joined_at=excluded.joined_at,
+                consent_version=excluded.consent_version,consented_at=excluded.consented_at""",
                 (campaign_id, household_hash, units, equipment.strip(), preferred_slot.strip(),
-                 (special_requirement or "").strip() or None, now),
+                 (special_requirement or "").strip() or None, now, "joint-demand-v1", now),
             )
             signals = connection.execute(
                 "SELECT units,equipment,preferred_slot,special_requirement FROM joint_service_signals WHERE campaign_id=?",

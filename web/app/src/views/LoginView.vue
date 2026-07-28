@@ -28,8 +28,9 @@ const accounts = ref<AccountOption[]>([])
 const accountsStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
 const staffEntries = [
   { role: 'manager' as const, accountId: null, label: '社區管理者工作台', name: '社區管理者' },
-  { role: 'partner' as const, accountId: 'vendor-cleanpro', label: '潔沛家事工作台', name: '潔沛家事服務' },
-  { role: 'partner' as const, accountId: 'vendor-homekeeper', label: '安家管家工作台', name: '安家管家' },
+  { role: 'partner' as const, accountId: 'vendor-prince-electric', label: '王子水電工作台', name: '王子水電' },
+  { role: 'partner' as const, accountId: 'vendor-duskin', label: 'DUSKIN 樂清工作台', name: 'DUSKIN 樂清' },
+  { role: 'partner' as const, accountId: 'vendor-prince-property', label: '太子物業工作台', name: '太子物業' },
 ]
 
 onMounted(async () => {

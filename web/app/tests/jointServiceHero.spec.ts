@@ -7,15 +7,15 @@ import { stubCatalogFetch } from './fixtures/catalogClient'
 import { mountApp } from './fixtures/mountApp'
 
 const MANAGER = { role: 'manager' as const, accountId: null, displayName: '社區管理者' }
-const PARTNER = { role: 'partner' as const, accountId: 'vendor-cleanpro', displayName: '潔沛家事服務' }
+const PARTNER = { role: 'partner' as const, accountId: 'vendor-duskin', displayName: 'DUSKIN 樂清' }
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
 
 const PROPOSALS = [
-  { id: 'proposal-care', vendorId: 'vendor-cleanpro', vendorName: '潔沛家事服務', badge: '整體推薦',
+  { id: 'proposal-care', vendorId: 'vendor-duskin', vendorName: 'DUSKIN 樂清', badge: '整體推薦',
     items: [{ name: '冷氣清洗 27 台', amount: 40500 }, { name: '公共區域防護與清潔', amount: 2400 }, { name: '社區分梯排程', amount: 1800 }],
     total: 44700, perUnit: 1656, availableSlots: ['8/8（六）09:00–17:00'], strengths: ['符合週末偏好'], concerns: ['高樓外機另估'], score: 92,
     source: 'competition_seed', sourceLabel: '競賽建置方案，非品牌即時報價' },
-  { id: 'proposal-value', vendorId: 'vendor-homekeeper', vendorName: '安家管家', badge: '價格較低',
+  { id: 'proposal-value', vendorId: 'vendor-prince-property', vendorName: '太子物業', badge: '價格較低',
     items: [{ name: '冷氣清洗 27 台', amount: 37800 }, { name: '耗材與室內防護', amount: 1800 }, { name: '社區統籌費', amount: 900 }],
     total: 40500, perUnit: 1500, availableSlots: ['8/12（三）09:00–17:00'], strengths: ['省 NT$4,200'], concerns: ['與週末偏好不符'], score: 78,
     source: 'competition_seed', sourceLabel: '競賽建置方案，非品牌即時報價' },
@@ -56,8 +56,8 @@ describe('community and vendor joint-service hero', () => {
     expect(hero.text()).toContain('18 戶')
     expect(hero.text()).toContain('27 台')
     expect(hero.text()).toContain('DUSKIN 公開服務情境')
-    expect(hero.text()).toContain('潔沛家事服務')
-    expect(hero.text()).toContain('安家管家')
+    expect(hero.text()).toContain('DUSKIN 樂清')
+    expect(hero.text()).toContain('太子物業')
     expect(hero.text()).toContain('非品牌即時報價')
     expect(hero.text()).toContain('高樓外機另估')
   })

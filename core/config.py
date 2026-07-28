@@ -47,6 +47,11 @@ class Settings:
     group_buy_db_path: str
     retail_upstream_url: str
     upstream_timeout_seconds: float
+    vendor_mode: str
+    vendor_fake_url: str
+    vendor_real_url: str
+    vendor_api_token: str
+    vendor_timeout_seconds: float
 
     @property
     def has_llm(self) -> bool:
@@ -65,6 +70,11 @@ def get_settings() -> Settings:
         group_buy_db_path=os.environ.get("GROUP_BUY_DB_PATH", str(data_dir / "group_buys.sqlite3")),
         retail_upstream_url=os.environ.get("RETAIL_UPSTREAM_URL", "").strip(),
         upstream_timeout_seconds=float(os.environ.get("UPSTREAM_TIMEOUT_SECONDS", "2.0")),
+        vendor_mode=os.environ.get("VENDOR_MODE", "fake").strip().lower(),
+        vendor_fake_url=os.environ.get("VENDOR_FAKE_URL", "http://127.0.0.1:8020").strip(),
+        vendor_real_url=os.environ.get("VENDOR_REAL_URL", "").strip(),
+        vendor_api_token=os.environ.get("VENDOR_API_TOKEN", "").strip(),
+        vendor_timeout_seconds=float(os.environ.get("VENDOR_TIMEOUT_SECONDS", "2.0")),
     )
 
 

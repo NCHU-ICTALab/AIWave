@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
 import { createInquiryLifecycleClient, type Inquiry, type PlatformOrder } from '@/api/inquiryLifecycleClient'
+import { createLifeTaskClient, type LifeTask } from '@/api/lifeTaskClient'
 import { createSupportClient, type SupportTicket } from '@/api/supportClient'
 import SupportIssuePanel from '@/components/SupportIssuePanel.vue'
 import { useDemoStore } from '@/stores/demo'
 import { useSessionStore } from '@/stores/session'
 
 const store = useDemoStore()
+const route = useRoute()
 const session = useSessionStore()
 const client = createInquiryLifecycleClient()
 const supportClient = createSupportClient()
+const lifeTaskClient = createLifeTaskClient()
 const inquiries = ref<Inquiry[]>([])
 const platformOrders = ref<PlatformOrder[]>([])
 const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
@@ -18,8 +22,9 @@ const acting = ref<string | null>(null)
 const error = ref('')
 const supportTickets = ref<SupportTicket[]>([])
 const supportStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
+const lifeTasks = ref<LifeTask[]>([])
 
-const hasAnything = computed(() => inquiries.value.length > 0 || platformOrders.value.length > 0 || store.orders.length > 0)
+const hasAnything = computed(() => lifeTasks.value.length > 0 || inquiries.value.length > 0 || platformOrders.value.length > 0 || store.orders.length > 0)
 const currency = (value: number) => `NT$ ${(value ?? 0).toLocaleString('zh-TW')}`
 
 /** 舊資料或部分回應可能沒有摘要，畫面不該因此崩掉。 */
@@ -32,10 +37,41 @@ async function load() {
     platformOrders.value = session.accountId
       ? await client.listOrders(session.accountId).catch(() => [])
       : []
+    lifeTasks.value = session.accountId
+      ? await lifeTaskClient.list({ accountId: session.accountId }).catch(() => [])
+      : []
     status.value = 'ready'
     void loadSupport()
   } catch {
     status.value = 'unavailable'
+  }
+}
+
+async function refreshLifeTask(task: LifeTask) {
+  if (!session.accountId) return
+  acting.value = task.id
+  error.value = ''
+  try {
+    const updated = await lifeTaskClient.get(task.id, { accountId: session.accountId })
+    lifeTasks.value = lifeTasks.value.map((item) => item.id === updated.id ? updated : item)
+  } catch (reason) {
+    error.value = reason instanceof Error ? reason.message : '生活任務進度無法更新。'
+  } finally {
+    acting.value = null
+  }
+}
+
+async function acceptLifeTask(task: LifeTask) {
+  if (!session.accountId) return
+  acting.value = task.id
+  error.value = ''
+  try {
+    const updated = await lifeTaskClient.acceptQuotes(task, { accountId: session.accountId })
+    lifeTasks.value = lifeTasks.value.map((item) => item.id === updated.id ? updated : item)
+  } catch (reason) {
+    error.value = reason instanceof Error ? reason.message : '報價沒有完整確認。'
+  } finally {
+    acting.value = null
   }
 }
 
@@ -114,7 +150,7 @@ onMounted(load)
   <header class="page-heading">
     <div><p class="eyebrow">訂單與進度</p><h1>你的委託</h1></div>
     <span class="page-status">
-      {{ status === 'ready' ? `${inquiries.length + platformOrders.length} 件` : status === 'loading' ? '載入中…' : '離線' }}
+      {{ status === 'ready' ? `${lifeTasks.length + inquiries.length + platformOrders.length} 件` : status === 'loading' ? '載入中…' : '離線' }}
     </span>
   </header>
 
@@ -128,6 +164,44 @@ onMounted(load)
         <p>訂單資料仍可查看；重新連線後再載入客服進度。</p>
         <button class="button" type="button" @click="loadSupport">重新載入客服</button>
       </div>
+
+      <details
+        v-for="(task, taskIndex) in lifeTasks"
+        :key="task.id"
+        class="inquiry-card order-disclosure life-task-disclosure"
+        data-testid="life-task-disclosure"
+        :data-life-task-id="task.id"
+        :open="route.query.task === task.id || taskIndex === 0"
+      >
+        <summary class="inquiry-head order-summary">
+          <span class="order-summary-copy"><strong>{{ task.items.map((item) => item.title).join('＋') }}</strong><span class="row-meta">{{ task.id }}・{{ task.items.length }} 件服務</span></span>
+          <span class="status" :data-status="task.status">{{ task.statusLabel }}</span>
+          <span class="disclosure-mark" aria-hidden="true"></span>
+        </summary>
+        <div class="order-disclosure-body">
+          <dl class="summary-list compact">
+            <div><dt>日期</dt><dd>{{ task.scheduledDate }}</dd></div>
+            <div><dt>地址</dt><dd>{{ task.address?.label }}</dd></div>
+            <div v-if="task.estimate"><dt>預估點數後</dt><dd><strong>{{ currency(task.estimate.finalAmount) }}</strong></dd></div>
+          </dl>
+          <ol class="timeline compact life-task-order-items">
+            <li v-for="item in task.items" :key="item.id">
+              <strong>{{ item.title }}・{{ item.vendorName }}</strong>
+              <span class="muted">{{ item.externalOrderId || item.externalInquiryId || '尚未送出' }}・{{ item.status }}</span>
+              <div v-for="quote in item.quotes" :key="quote.id" class="task-quote-row">
+                <span>正式報價 {{ quote.id }}</span><strong>{{ currency(quote.total) }}</strong>
+              </div>
+              <p v-if="item.syncError" class="result-notice">同步較慢：{{ item.syncError }}</p>
+            </li>
+          </ol>
+          <div class="button-row">
+            <button class="button" type="button" :disabled="acting === task.id" @click="refreshLifeTask(task)">重新整理進度</button>
+            <button v-if="task.status === 'quoted'" class="button primary" type="button" :disabled="acting === task.id" @click="acceptLifeTask(task)">確認全部報價並排程</button>
+            <RouterLink class="button inline" :to="`/user/assistant?need=${encodeURIComponent(task.utterance)}`">回 AI 查看</RouterLink>
+          </div>
+          <p class="source-note muted">案件、報價與履約事件來自獨立 Vendor API；點數為競賽展示帳本。</p>
+        </div>
+      </details>
 
       <details
         v-for="order in platformOrders"

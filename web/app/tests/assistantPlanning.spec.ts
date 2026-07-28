@@ -19,7 +19,7 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
-function plan(body: Partial<{ understanding: string; steps: unknown[]; rejectedReason: string | null }>) {
+function plan(body: Partial<{ understanding: string; steps: unknown[]; rejectedReason: string | null; lifeTask: unknown }>) {
   return {
     understanding: '',
     steps: [],
@@ -29,6 +29,44 @@ function plan(body: Partial<{ understanding: string; steps: unknown[]; rejectedR
   }
 }
 
+const HERO_NEED = '爸媽週六要來，浴室燈壞了、冷氣也很久沒洗，幫我安排一下，OPENPOINT 能省就省。'
+const TASK_ITEMS = [
+  { id: 'TASK-20260725-001-ITEM-1', serviceId: 'service-repair', title: '浴室燈修繕', needSummary: '檢查燈具與線路', vendorId: null, vendorName: null, basePrice: null, slot: null, candidates: [], externalInquiryId: null, externalOrderId: null, status: 'draft' },
+  { id: 'TASK-20260725-001-ITEM-2', serviceId: 'service-aircon', title: '冷氣清洗', needSummary: '清洗冷氣並檢查運轉', vendorId: null, vendorName: null, basePrice: null, slot: null, candidates: [], externalInquiryId: null, externalOrderId: null, status: 'draft' },
+]
+const TASK_DRAFT = {
+  id: 'TASK-20260725-001', accountId: 'member', displayName: '小圓', utterance: HERO_NEED,
+  status: 'needs_details', statusLabel: '需要補齊條件', scheduledDate: '2026-08-01', address: null, scope: null,
+  version: 1, lastError: null, items: TASK_ITEMS,
+  requirements: [
+    { id: 'scheduledDate', label: '服務日期', required: true, value: '2026-08-01', options: [{ value: '2026-08-01', label: '週六 2026-08-01' }] },
+    { id: 'address', label: '服務地址', required: true, value: null, options: [{ value: 'home', label: '使用會員中心住家地址', description: '臺北市大同區（競賽展示資料）' }] },
+    { id: 'scope', label: '分享範圍', required: true, value: null, options: [
+      { value: 'personal', label: '只處理我的住家' }, { value: 'family', label: '分享給家庭群組' }, { value: 'community', label: '詢問社區共同需求' },
+    ] },
+  ],
+  missingFields: ['address', 'scope'], readyForConfirmation: false,
+  dataUse: ['會員帳號：建立並追蹤你的生活任務'],
+}
+const VENDORS = {
+  repair: [
+    { vendorId: 'vendor-prince-electric', vendorName: '王子水電', intro: '水電修繕', rating: 4.8, reviewCount: 516, basePrice: 1200, score: 56, reasons: [{ code: 'coverage', label: '服務據點涵蓋你的地區', points: 20 }], concerns: [], connectorMode: 'mock_http' },
+    { vendorId: 'vendor-prince-property', vendorName: '太子物業', intro: '修繕協調', rating: 4.7, reviewCount: 862, basePrice: 1100, score: 54, reasons: [{ code: 'coverage', label: '服務據點涵蓋你的地區', points: 20 }], concerns: [], connectorMode: 'mock_http' },
+  ],
+  aircon: [{ vendorId: 'vendor-duskin', vendorName: 'DUSKIN 樂清', intro: '冷氣清洗', rating: 4.8, reviewCount: 1240, basePrice: 1900, score: 56, reasons: [{ code: 'coverage', label: '服務據點涵蓋你的地區', points: 20 }], concerns: [], connectorMode: 'mock_http' }],
+}
+const TASK_READY = {
+  ...TASK_DRAFT, status: 'ready', statusLabel: '等待一次確認', version: 2,
+  address: { choice: 'home', label: '會員中心住家（競賽展示資料）' }, scope: 'personal',
+  missingFields: [], readyForConfirmation: true,
+  items: [
+    { ...TASK_ITEMS[0], vendorId: 'vendor-prince-electric', vendorName: '王子水電', basePrice: 1200, slot: 'weekend', candidates: VENDORS.repair, status: 'ready' },
+    { ...TASK_ITEMS[1], vendorId: 'vendor-duskin', vendorName: 'DUSKIN 樂清', basePrice: 1900, slot: 'weekend', candidates: VENDORS.aircon, status: 'ready' },
+  ],
+  points: { balance: 180, baseAmount: 3100, pointsApplied: 180, finalAmount: 2920, rule: '競賽情境：1 點折 NT$1', dataSource: 'competition_seed_wallet', computedBy: 'deterministic_rules' },
+  estimate: { baseAmount: 3100, pointsApplied: 180, finalAmount: 2920, savedAmount: 180, source: 'deterministic_rules+competition_seed_wallet' },
+}
+
 const MATCH_RESULT = {
   serviceId: 'service-repair',
   region: { county_name: '台北市', district_name: '大同區' },
@@ -36,7 +74,7 @@ const MATCH_RESULT = {
   vendors: [
     {
       vendorId: 'vendor-fastfix',
-      vendorName: '速修水電',
+      vendorName: '王子水電',
       intro: '24 小時叫修。',
       rating: 4.4,
       reviewCount: 903,
@@ -52,7 +90,7 @@ const MATCH_RESULT = {
     },
     {
       vendorId: 'vendor-guanjia',
-      vendorName: '冠家水電工程行',
+      vendorName: '太子物業',
       intro: '重視施工品質。',
       rating: 4.7,
       reviewCount: 248,
@@ -92,6 +130,86 @@ function stubPlanner(
 
 describe('assistant planning', () => {
   beforeEach(() => stubCatalogFetch())
+
+  it('keeps the Hero multi-service flow in one scrollable chat with options above the bottom composer', async () => {
+    const calls: string[] = []
+    stubPlanner(plan({ understanding: '跨服務安排', lifeTask: TASK_DRAFT }), undefined, (url) => {
+      if (url.includes('/configuration')) { calls.push('configure'); return json({ data: TASK_READY }) }
+      if (url.includes('/confirm')) {
+        calls.push('confirm')
+        return json({ data: {
+          ...TASK_READY, status: 'submitted', statusLabel: '已送交廠商', version: 4,
+          items: TASK_READY.items.map((item, index) => ({ ...item, externalInquiryId: `vinq-${index + 1}`, status: 'submitted', quotes: [] })),
+        } })
+      }
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/assistant?need=' + encodeURIComponent(HERO_NEED))
+
+    expect(wrapper.get('.assistant-planning .message-list').text()).toContain('浴室燈修繕和冷氣清洗')
+    const composer = wrapper.get('.assistant-planning [data-testid="assistant-composer"]')
+    expect(composer.text()).toContain('服務日期')
+    expect(composer.element.compareDocumentPosition(wrapper.get('#assistant-plan-input').element) & Node.DOCUMENT_POSITION_CONTAINED_BY).toBeTruthy()
+
+    await composer.get('[data-task-option="2026-08-01"]').trigger('click')
+    await composer.get('[data-task-option="home"]').trigger('click')
+    await composer.get('[data-task-option="personal"]').trigger('click')
+    await flushPromises()
+
+    expect(calls).toEqual(['configure'])
+    expect(wrapper.get('[data-testid="life-task-card"]').text()).toContain('王子水電')
+    expect(wrapper.get('[data-testid="life-task-card"]').text()).toContain('DUSKIN 樂清')
+    expect(wrapper.get('[data-testid="life-task-card"]').text()).toContain('NT$ 2,920')
+    expect(calls).not.toContain('confirm')
+
+    await wrapper.get('[data-testid="life-task-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(calls).toEqual(['configure', 'confirm'])
+    expect(wrapper.text()).toContain('已建立 2 件廠商案件')
+    expect(wrapper.text()).toContain('vinq-1')
+  })
+
+  it('keeps a partial vendor outage visible and offers an idempotent retry', async () => {
+    let confirms = 0
+    const failed = { ...TASK_READY, status: 'partial_failure', statusLabel: '部分案件待重試', version: 4,
+      lastError: '廠商接案服務維護中', items: TASK_READY.items.map((item, index) => ({
+        ...item, externalInquiryId: index === 0 ? 'vinq-existing' : null,
+        status: index === 0 ? 'submitted' : 'ready', quotes: [],
+      })) }
+    const submitted = { ...failed, status: 'submitted', statusLabel: '已送交廠商', version: 6, lastError: null,
+      items: failed.items.map((item, index) => ({ ...item, externalInquiryId: item.externalInquiryId ?? `vinq-retry-${index}`,
+        status: 'submitted' })) }
+    stubPlanner(plan({ understanding: '跨服務安排', lifeTask: TASK_DRAFT }), undefined, (url) => {
+      if (url.includes('/configuration')) return json({ data: TASK_READY })
+      if (url.includes('/confirm')) {
+        confirms += 1
+        return confirms === 1
+          ? json({ detail: '廠商案件建立未完整完成，可安全重試：廠商接案服務維護中' }, 502)
+          : json({ data: submitted })
+      }
+      if (url.endsWith('/api/v1/life-tasks/TASK-20260725-001')) return json({ data: failed })
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/assistant?need=' + encodeURIComponent(HERO_NEED))
+    const composer = wrapper.get('.assistant-planning [data-testid="assistant-composer"]')
+    await composer.get('[data-task-option="2026-08-01"]').trigger('click')
+    await composer.get('[data-task-option="home"]').trigger('click')
+    await composer.get('[data-task-option="personal"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="life-task-confirm"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('廠商接案服務維護中')
+    expect(wrapper.get('[data-testid="life-task-retry"]').text()).toContain('安全重試')
+    expect(wrapper.text()).toContain('vinq-existing')
+
+    await wrapper.get('[data-testid="life-task-retry"]').trigger('click')
+    await flushPromises()
+    expect(confirms).toBe(2)
+    expect(wrapper.text()).toContain('已建立 2 件廠商案件')
+    expect(wrapper.text()).toContain('vinq-retry-1')
+  })
 
   it('shows what it understood so the user can tell whether it listened', async () => {
     stubPlanner(plan({

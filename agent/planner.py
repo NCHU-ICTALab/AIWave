@@ -86,10 +86,12 @@ class Plan:
     understanding: str = ""
     steps: list[PlanStep] = field(default_factory=list)
     rejected_reason: str | None = None
+    #: 跨服務 Hero 使用同一個 plan endpoint 回傳持久化 LifeTask；一般規劃為 None。
+    life_task: dict[str, Any] | None = None
 
     @property
     def is_empty(self) -> bool:
-        return not self.steps
+        return not self.steps and self.life_task is None
 
     @property
     def needs_confirmation(self) -> list[PlanStep]:
@@ -101,6 +103,7 @@ class Plan:
             "steps": [step.to_dict() for step in self.steps],
             "rejectedReason": self.rejected_reason,
             "needsConfirmation": [step.to_dict() for step in self.needs_confirmation],
+            "lifeTask": self.life_task,
         }
 
 

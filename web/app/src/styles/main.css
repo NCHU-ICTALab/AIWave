@@ -306,6 +306,10 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .choice-button:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
 .choice-button:disabled { opacity: .5; }
 .assistant-composer { display: grid; flex: 0 0 auto; gap: var(--space-3); padding: 1rem 1.25rem 1.25rem; border-top: 2px solid var(--ink); background: var(--surface); }
+.composer-context { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+.composer-context span { color: var(--muted); font-size: var(--text-sm); }
+.answer-choices .choice-button strong, .answer-choices .choice-button small { display: block; }
+.answer-choices .choice-button small { margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); font-weight: 600; }
 .assistant-form { display: flex; gap: .5rem; align-items: flex-end; padding: .4rem; border: 2px solid var(--ink); border-radius: 18px; background: var(--surface-2); box-shadow: 3px 3px 0 var(--ink); }
 .assistant-form:focus-within { outline: 3px solid var(--ink); outline-offset: 2px; }
 .assistant-form textarea { flex: 1; min-height: 48px; max-height: 160px; padding: .7rem .75rem; border: 0; border-radius: 12px; background: transparent; font: inherit; resize: none; overflow-y: hidden; }
@@ -383,8 +387,40 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .inline-confirm { padding: var(--space-3); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--accent-soft); }
 .inline-confirm p { margin: 0 0 var(--space-3); }
 
-/* 社區聯合服務 Hero：先呈現需求證據，再比較方案，最後才允許決策。 */
-.joint-hero, .vendor-joint-panel { display: grid; gap: var(--space-4); margin-bottom: var(--space-5); }
+/* LifeTask：跨服務方案是對話中的可操作 artifact，不是另一個儀表板頁。 */
+.life-task-card { display: grid; justify-self: stretch; gap: var(--space-4); min-width: 0; padding: var(--space-4); border: var(--border-chunky) solid var(--ink); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 4px 4px 0 var(--ink); }
+.life-task-head, .task-item-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); min-width: 0; }
+.life-task-head > *, .task-item-head > * { min-width: 0; }
+.life-task-head h2 { margin: var(--space-1) 0; font-size: var(--text-lg); }
+.task-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); margin: 0; }
+.task-facts div { min-width: 0; padding: var(--space-3); border-radius: var(--radius-sm); background: var(--surface-2); }
+.task-facts dt { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
+.task-facts dd { margin: var(--space-1) 0 0; overflow-wrap: anywhere; font-size: var(--text-sm); font-weight: 800; }
+.task-items { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.task-item { display: grid; gap: var(--space-3); min-width: 0; padding: var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--surface-2); }
+.task-item-head strong { font-size: var(--text-base); }
+.task-item-head p { margin: var(--space-1) 0 0; color: var(--muted); font-size: var(--text-sm); }
+.task-vendors { display: grid; gap: var(--space-2); }
+.task-vendor-option { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); width: 100%; min-height: 64px; padding: var(--space-3); border: 2px solid var(--ink); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); text-align: left; }
+.task-vendor-option > span:last-child { text-align: right; }
+.task-vendor-option strong, .task-vendor-option small { display: block; }
+.task-vendor-option small { margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); }
+.task-vendor-option:hover:not(:disabled) { background: var(--mint); }
+.task-vendor-option.selected { background: var(--primary-soft); box-shadow: 3px 3px 0 var(--ink); }
+.task-vendor-option:disabled { cursor: default; opacity: .75; }
+.task-selected-vendor { margin: 0; font-weight: 800; }
+.task-quotes { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-sm); background: var(--success-soft); }
+.task-quote-row { display: flex; justify-content: space-between; gap: var(--space-3); font-size: var(--text-sm); }
+.task-estimate { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-4); align-items: center; padding: var(--space-4); border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--mint); }
+.task-estimate > div strong { margin-right: var(--space-2); font-family: var(--font-mono); font-size: var(--text-xl); }
+.task-estimate > p { margin: 0; font-weight: 800; }
+.task-estimate > small { grid-column: 1 / -1; color: var(--muted); }
+
+/* 廠商 HTTP 案件與社區聯合服務：先呈現需求證據，再允許寫入。 */
+.vendor-api-panel, .joint-hero, .vendor-joint-panel { display: grid; gap: var(--space-4); margin-bottom: var(--space-5); }
+.vendor-api-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--space-4); }
+.vendor-order-list { display: grid; gap: var(--space-3); }
+.vendor-order-list h3 { margin: 0; }
 .joint-hero .section-heading p, .vendor-joint-panel .section-heading p { margin-bottom: 0; }
 .data-notice { margin: 0; padding: var(--space-3) var(--space-4); border-left: 4px solid var(--primary); background: var(--primary-soft); color: var(--ink); font-size: var(--text-sm); }
 .copilot-draft { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(12rem, .6fr); gap: var(--space-4); padding: var(--space-3) var(--space-4); border: 2px dashed var(--ink); border-radius: var(--radius-md); background: var(--surface-2); }
@@ -542,6 +578,10 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
   .assistant-form { align-items: stretch; }
   .service-result-grid { grid-template-columns: 1fr; }
   .result-highlight, .store-result { grid-template-columns: 1fr; }
+  .task-facts, .task-estimate { grid-template-columns: 1fr; }
+  .task-estimate > small { grid-column: auto; }
+  .task-vendor-option { grid-template-columns: 1fr; }
+  .task-vendor-option > span:last-child { text-align: left; }
   .support-queue-grid { grid-template-columns: 1fr; }
   .joint-metrics, .proposal-grid, .evidence-grid, .assigned-summary, .work-order-grid, .copilot-draft { grid-template-columns: 1fr; }
   .saving { justify-items: start; }
@@ -579,6 +619,10 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
 .onboarding-steps.compact { margin-top: var(--space-4); grid-template-columns: repeat(3, minmax(0, 1fr)); text-align: left; }
 .home-section { display: grid; gap: var(--space-3); }
 .shortcut-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.group-demand-panel { margin-block: var(--space-5); }
+.group-demand-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin-block: var(--space-4); }
+.consent-check { display: flex; align-items: flex-start; gap: var(--space-2); margin-block: var(--space-3); line-height: 1.5; }
+.consent-check input { width: 1.25rem; height: 1.25rem; flex: 0 0 auto; margin-block-start: .125rem; }
 .shortcut-card { display: grid; gap: var(--space-1); min-height: 8rem; color: var(--ink); text-decoration: none; transition: transform var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
 .shortcut-card:hover { transform: translate(2px, 2px); box-shadow: 4px 4px 0 var(--ink), var(--clay-inset); }
 .shortcut-card strong { font-size: var(--text-lg); }
@@ -658,7 +702,7 @@ main { width: min(100% - clamp(1.5rem, 5vw, 4rem), 1500px); margin: auto; paddin
   .member-page { gap: var(--space-5); }
   .home-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview-footer, .promotion-card { align-items: flex-start; flex-direction: column; }
-  .onboarding-steps.compact, .shortcut-grid, .member-action-grid, .points-grid { grid-template-columns: 1fr; }
+  .onboarding-steps.compact, .shortcut-grid, .member-action-grid, .points-grid, .group-demand-form { grid-template-columns: 1fr; }
   .wallet-card, .offer-card { grid-column: auto; }
   .shortcut-card { min-height: 0; }
   .member-action { min-height: 7rem; }

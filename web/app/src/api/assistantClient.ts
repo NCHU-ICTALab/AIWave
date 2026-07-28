@@ -26,6 +26,8 @@ export interface Plan {
   /** 計畫作廢的原因；有值時 `steps` 必為空。 */
   rejectedReason: string | null
   needsConfirmation: PlanStep[]
+  /** 多意圖目標會收斂成可補條件、一次確認的持久化生活任務。 */
+  lifeTask?: import('./lifeTaskClient').LifeTask | null
 }
 
 export interface PlanIdentity {

@@ -36,6 +36,7 @@ from core.community.group_buy import SqliteGroupBuyRepository
 from core.community.joint_service import SqliteJointServiceRepository
 from core.config import get_settings
 from core.inquiries import SqliteInquiryRepository
+from core.life_tasks import LifeTaskService, SqliteLifeTaskRepository
 from core.personalization import PersonalizationService, SqlitePersonalizationRepository
 from core.orders import SqliteOrderRepository
 from core.retail import (
@@ -47,6 +48,7 @@ from core.support import SupportService, SqliteSupportRepository
 from core.services import LifeServicesService
 from core.tools.catalog import build_registry
 from core.tools.registry import ToolContext, ToolError, ToolRegistry, validate_arguments
+from core.vendors import VendorService, build_vendor_client
 
 SERVER_NAME = "smart-living-butler"
 #: 外部 Agent 在握手時看到的版本。不指定的話會顯示 MCP SDK 的版本，那不是我們的東西。
@@ -64,6 +66,14 @@ def build_default_registry(*, today: date | None = None) -> ToolRegistry:
         upstream_url=config.retail_upstream_url,
         timeout_seconds=config.upstream_timeout_seconds,
     )
+    vendor_client = build_vendor_client(
+        mode=config.vendor_mode,
+        fake_url=config.vendor_fake_url,
+        real_url=config.vendor_real_url,
+        api_token=config.vendor_api_token,
+        timeout_seconds=config.vendor_timeout_seconds,
+    )
+    vendor_service = VendorService(vendor_client)
     return build_registry(
         services=LifeServicesService(
             SqliteInquiryRepository(config.inquiry_db_path),
@@ -81,6 +91,12 @@ def build_default_registry(*, today: date | None = None) -> ToolRegistry:
             inquiries=SqliteInquiryRepository(config.inquiry_db_path),
             orders=SqliteOrderRepository(config.inquiry_db_path),
             now=demo_now,
+        ),
+        vendors=vendor_service,
+        life_tasks=LifeTaskService(
+            SqliteLifeTaskRepository(config.inquiry_db_path, now=demo_now),
+            vendors=vendor_service,
+            today=resolved_today,
         ),
         today=resolved_today,
     )

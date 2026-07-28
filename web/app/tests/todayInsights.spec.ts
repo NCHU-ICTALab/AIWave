@@ -50,6 +50,27 @@ describe('resident home', () => {
     expect(wrapper.findAll('[data-testid="briefing-item"]')).toHaveLength(0)
   })
 
+  it('returns an active cross-service task to the home pending list', async () => {
+    stubCatalogFetch((url) => url.endsWith('/api/v1/life-tasks')
+      ? new Response(JSON.stringify({ data: [{
+        id: 'TASK-20260728-0001', accountId: 'resident-xiaoyuan', displayName: '小園',
+        utterance: '浴室燈不亮，冷氣也要清洗', status: 'quoted', statusLabel: '廠商已報價',
+        scheduledDate: '2026-08-01', address: null, scope: 'personal', version: 4,
+        lastError: null, requirements: [], missingFields: [], readyForConfirmation: false,
+        dataUse: [], items: [
+          { id: 'one', serviceId: 'service-repair', title: '浴室燈具修繕', needSummary: '', vendorId: 'vendor-prince-electric', vendorName: '王子水電', basePrice: 600, slot: null, candidates: [], externalInquiryId: 'inq-one', externalOrderId: null, status: 'quoted' },
+          { id: 'two', serviceId: 'service-aircon', title: '冷氣清洗', needSummary: '', vendorId: 'vendor-duskin', vendorName: 'DUSKIN 樂清', basePrice: 1800, slot: null, candidates: [], externalInquiryId: 'inq-two', externalOrderId: null, status: 'quoted' },
+        ],
+      }] }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      : undefined)
+    const { wrapper } = await mountApp('/user')
+
+    const item = wrapper.get('[data-testid="life-task-briefing-item"]')
+    expect(item.text()).toContain('浴室燈具修繕＋冷氣清洗')
+    expect(item.text()).toContain('廠商已報價')
+    expect(item.get('a').attributes('href')).toContain('/user/orders?task=TASK-20260728-0001')
+  })
+
   it('teaches a brand-new user what happens next instead of showing empty panels', async () => {
     const { wrapper } = await mountApp('/user', { identity: NEW_USER })
 

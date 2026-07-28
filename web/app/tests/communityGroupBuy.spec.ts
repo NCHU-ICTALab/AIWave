@@ -33,6 +33,15 @@ const CAMPAIGN = {
   ],
 }
 
+const JOINT_CAMPAIGN = {
+  id: 2, communityId: 'community-sunshine-demo', title: '九月冷氣聯合清洗需求調查',
+  serviceId: 'service-aircon', status: 'collecting' as const, statusLabel: '需求募集',
+  demand: { householdCount: 0, unitCount: 0, equipment: [], timePreferences: [], specialRequirements: [] },
+  draft: { notification: '只在你明確同意後匿名彙整需求。' }, proposals: [],
+  selectedProposalId: null, selectedProposal: null, events: [],
+  dataNotice: '競賽建置資料', myParticipation: null,
+}
+
 /** 社區是住戶共享的範圍，不是一種身分——所以住戶端本身就看得到。 */
 function stubCommunity(extra?: (url: string, init?: RequestInit) => Response | undefined) {
   return stubCatalogFetch((url, init) => {
@@ -77,6 +86,36 @@ describe('community group buy', () => {
     await flushPromises()
 
     expect(posted[0]).toMatchObject({ account_id: EXISTING_USER.accountId, quantity: 2 })
+  })
+
+  it('requires explicit consent before adding an anonymous shared-service demand', async () => {
+    const posted: Array<Record<string, unknown>> = []
+    stubCommunity((url, init) => {
+      if (url.endsWith('/api/v1/groups/joint-services')) return json({ data: [JOINT_CAMPAIGN] })
+      if (url.endsWith('/community/joint-services/2/join') && init?.method === 'POST') {
+        posted.push(JSON.parse(String(init.body)))
+        return json({ data: {
+          ...JOINT_CAMPAIGN,
+          myParticipation: {
+            units: 1, equipment: '分離式冷氣', preferredSlot: '週六上午', specialRequirement: null,
+            consentVersion: 'joint-demand-v1', consentedAt: '2026-07-28T09:00:00Z',
+          },
+        } })
+      }
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/community')
+
+    const submit = wrapper.get('[data-testid="join-joint-2"]')
+    expect(submit.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('不會分享姓名、電話或門牌')
+    await wrapper.get('[data-testid="joint-consent-2"]').setValue(true)
+    await submit.trigger('click')
+    await flushPromises()
+
+    expect(posted).toHaveLength(1)
+    expect(posted[0]).toMatchObject({ consent: true, units: 1, equipment: '分離式冷氣', preferred_slot: '週六上午' })
+    expect(wrapper.text()).toContain('已於')
   })
 
   it('tells a brand-new account why it cannot join yet', async () => {

@@ -38,6 +38,14 @@ export interface JointServiceCampaign {
   selectedProposal: JointProposal | null
   events: Array<{ type: string; actor: string; detail: string; occurredAt: string }>
   dataNotice: string
+  myParticipation?: {
+    units: number
+    equipment: string
+    preferredSlot: string
+    specialRequirement: string | null
+    consentVersion: string
+    consentedAt: string
+  } | null
 }
 
 export class JointServiceApiError extends Error {
@@ -51,7 +59,7 @@ interface ClientOptions { fetcher?: typeof fetch; baseUrl?: string; accountId?: 
 
 export function createJointServiceClient(options: ClientOptions = {}) {
   const baseUrl = options.baseUrl ?? '/api/v1'
-  async function request<T>(path: string, role: 'manager' | 'partner', init: RequestInit = {}): Promise<T> {
+  async function request<T>(path: string, role: 'user' | 'manager' | 'partner', init: RequestInit = {}): Promise<T> {
     const response = await (options.fetcher ?? globalThis.fetch)(`${baseUrl}${path}`, {
       ...init,
       credentials: 'same-origin',
@@ -68,6 +76,16 @@ export function createJointServiceClient(options: ClientOptions = {}) {
   }
 
   return {
+    residentList: () => request<JointServiceCampaign[]>('/groups/joint-services', 'user'),
+    join: (campaignId: number, input: {
+      units: number; equipment: string; preferredSlot: string; specialRequirement?: string
+    }) => request<JointServiceCampaign>(`/community/joint-services/${campaignId}/join`, 'user', {
+      method: 'POST',
+      body: JSON.stringify({
+        units: input.units, equipment: input.equipment, preferred_slot: input.preferredSlot,
+        special_requirement: input.specialRequirement || null, consent: true,
+      }),
+    }),
     managerList: () => request<JointServiceCampaign[]>('/community/joint-services', 'manager'),
     create: (title: string) => request<JointServiceCampaign>('/community/joint-services', 'manager', {
       method: 'POST', body: JSON.stringify({ title, service_id: 'service-aircon' }),

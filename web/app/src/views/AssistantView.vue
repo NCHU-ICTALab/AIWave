@@ -10,9 +10,11 @@ import {
   type AiTraceStep,
 } from '@/api/aiInquiryClient'
 import { createAssistantClient, type Plan, type PlanStep } from '@/api/assistantClient'
+import { createLifeTaskClient, type LifeTask, type LifeTaskRequirement } from '@/api/lifeTaskClient'
 import { createLifestyleClient } from '@/api/lifestyleClient'
 import { createSupportClient } from '@/api/supportClient'
 import PlanStepCard from '@/components/PlanStepCard.vue'
+import LifeTaskCard from '@/components/LifeTaskCard.vue'
 import { useDemoStore } from '@/stores/demo'
 import { useSessionStore } from '@/stores/session'
 
@@ -22,6 +24,7 @@ const store = useDemoStore()
 const session = useSessionStore()
 const client = createAiInquiryClient()
 const assistant = createAssistantClient()
+const lifeTaskClient = createLifeTaskClient()
 const lifestyle = createLifestyleClient()
 const support = createSupportClient()
 
@@ -77,9 +80,30 @@ const plan = ref<Plan | null>(null)
 const planError = ref('')
 const planNotice = ref('')
 const planBusy = ref(false)
+const lifeTask = ref<LifeTask | null>(null)
+const taskDateConfirmed = ref(false)
+const taskAddressChoice = ref<'home' | 'custom' | null>(null)
+const taskScope = ref<'personal' | 'family' | 'community' | null>(null)
+
+const activeTaskRequirement = computed<LifeTaskRequirement | null>(() => {
+  if (!lifeTask.value || lifeTask.value.status !== 'needs_details') return null
+  if (!taskDateConfirmed.value) return lifeTask.value.requirements.find((item) => item.id === 'scheduledDate') ?? null
+  if (!taskAddressChoice.value) return lifeTask.value.requirements.find((item) => item.id === 'address') ?? null
+  if (!taskScope.value) return lifeTask.value.requirements.find((item) => item.id === 'scope') ?? null
+  return null
+})
+const activeTaskOptions = computed(() => {
+  const requirement = activeTaskRequirement.value
+  if (!requirement) return []
+  // Hero 先使用已登入會員的住家地址；其他地址仍可由 API／未來會員中心提供完整欄位。
+  return requirement.id === 'address'
+    ? requirement.options.filter((option) => option.value === 'home')
+    : requirement.options
+})
 
 async function buildPlan() {
   plan.value = null
+  lifeTask.value = null
   planError.value = ''
   loading.value = true
   const outcome = await assistant.plan(need.value, {
@@ -93,6 +117,96 @@ async function buildPlan() {
     return
   }
   plan.value = outcome.plan
+  if (outcome.plan.lifeTask) {
+    lifeTask.value = outcome.plan.lifeTask
+    taskDateConfirmed.value = false
+    taskAddressChoice.value = (lifeTask.value.address?.choice as 'home' | 'custom' | undefined) ?? null
+    taskScope.value = (lifeTask.value.scope as 'personal' | 'family' | 'community' | null) ?? null
+  }
+}
+
+async function selectTaskOption(value: string) {
+  const requirement = activeTaskRequirement.value
+  if (!lifeTask.value || !requirement || planBusy.value) return
+  if (requirement.id === 'scheduledDate') taskDateConfirmed.value = true
+  if (requirement.id === 'address') taskAddressChoice.value = value as 'home'
+  if (requirement.id === 'scope') taskScope.value = value as 'personal' | 'family' | 'community'
+  if (taskDateConfirmed.value && taskAddressChoice.value && taskScope.value) await configureLifeTask()
+}
+
+async function configureLifeTask(selectedVendors: Record<string, string> = {}) {
+  const task = lifeTask.value
+  if (!task || !session.accountId || !task.scheduledDate || !taskAddressChoice.value || !taskScope.value) return
+  planBusy.value = true
+  planError.value = ''
+  try {
+    lifeTask.value = await lifeTaskClient.configure(task, {
+      scheduledDate: task.scheduledDate,
+      addressChoice: taskAddressChoice.value,
+      scope: taskScope.value,
+      selectedVendors,
+    }, { accountId: session.accountId })
+  } catch (reason) {
+    planError.value = reason instanceof Error ? reason.message : '目前無法完成方案比較，請稍後再試。'
+  } finally {
+    planBusy.value = false
+    void scrollToEnd()
+  }
+}
+
+async function chooseTaskVendor(itemId: string, vendorId: string) {
+  if (!lifeTask.value) return
+  const selected = Object.fromEntries(lifeTask.value.items
+    .filter((item) => item.vendorId)
+    .map((item) => [item.id, item.vendorId as string]))
+  selected[itemId] = vendorId
+  await configureLifeTask(selected)
+}
+
+async function confirmLifeTask() {
+  if (!lifeTask.value || !session.accountId || planBusy.value) return
+  planBusy.value = true
+  planError.value = ''
+  try {
+    lifeTask.value = await lifeTaskClient.confirm(lifeTask.value, { accountId: session.accountId })
+    planNotice.value = `已建立 ${lifeTask.value.items.length} 件廠商案件；可在這裡或訂單頁追蹤。`
+  } catch (reason) {
+    planError.value = reason instanceof Error ? reason.message : '廠商案件沒有完整建立，請稍後安全重試。'
+    try {
+      lifeTask.value = await lifeTaskClient.get(lifeTask.value.id, { accountId: session.accountId })
+    } catch { /* 保留目前預覽，讓使用者仍看得到發生什麼 */ }
+  } finally {
+    planBusy.value = false
+    void scrollToEnd()
+  }
+}
+
+async function refreshLifeTask() {
+  if (!lifeTask.value || !session.accountId || planBusy.value) return
+  planBusy.value = true
+  planError.value = ''
+  try {
+    lifeTask.value = await lifeTaskClient.get(lifeTask.value.id, { accountId: session.accountId })
+    planNotice.value = `已更新：${lifeTask.value.statusLabel}`
+  } catch (reason) {
+    planError.value = reason instanceof Error ? reason.message : '目前無法更新進度。'
+  } finally {
+    planBusy.value = false
+  }
+}
+
+async function acceptLifeTaskQuotes() {
+  if (!lifeTask.value || !session.accountId || planBusy.value) return
+  planBusy.value = true
+  planError.value = ''
+  try {
+    lifeTask.value = await lifeTaskClient.acceptQuotes(lifeTask.value, { accountId: session.accountId })
+    planNotice.value = '已確認全部報價並建立履約訂單。'
+  } catch (reason) {
+    planError.value = reason instanceof Error ? reason.message : '報價尚未完整確認。'
+  } finally {
+    planBusy.value = false
+  }
 }
 
 /** 確認某一步之後再送回後端執行；後端會重新驗證，前端送什麼都不算數。 */
@@ -359,44 +473,107 @@ watch(() => route.fullPath, enter)
       </div>
     </header>
 
-    <!-- 規劃模式：步驟卡片本身就是內容容器，不再外包一層 panel（會變成雙層邊框） -->
-    <div v-if="planning" class="assistant-plan">
-      <p v-if="loading" class="panel muted" role="status" data-testid="plan-loading">正在理解你的需求…</p>
+    <!-- 規劃也留在同一個 ChatGPT/Claude 式聊天殼：中間捲動、composer 固定。 -->
+    <div v-if="planning" class="assistant-body assistant-planning">
+      <section ref="messageList" class="message-list" aria-live="polite" aria-label="對話與生活任務方案">
+        <div class="message from-user"><span>你</span><p>{{ need }}</p></div>
 
-      <div v-else-if="planError" class="error-state" role="alert">
-        <strong>目前無法繼續</strong>
-        <p>{{ planError }}</p>
-        <button class="button" type="button" @click="buildPlan">重試</button>
-      </div>
+        <div v-if="loading" class="assistant-activity" data-testid="plan-loading" role="status">
+          <span class="activity-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>正在辨識跨服務目標與可用能力</span>
+        </div>
 
-      <template v-else-if="plan">
-        <p v-if="planNotice" class="recommendation-feedback" role="status">{{ planNotice }}</p>
-        <ol v-if="plan.steps.length" class="plan-steps" data-testid="plan-steps">
-          <PlanStepCard
-            v-for="(step, index) in plan.steps"
-            :key="`${step.tool}-${index}`"
-            :step="step"
-            :busy="planBusy"
-            @approve="approve(index)"
-            @open-form="openForm"
-            @choose="chooseVendor($event, stepArgumentsOf(step))"
-            @feedback="(id, action) => changeFeedback(step, id, action)"
-            @reminder="createRestockReminder"
-            @watch="(productId, storeId) => joinWatch(productId, storeId)"
-            @support="(subjectId, issueText, diagnosisToken) => createSupportTicket(step, subjectId, issueText, diagnosisToken)"
-          />
-        </ol>
+        <div v-if="planError" class="error-state" role="alert">
+          <strong>目前無法繼續</strong><p>{{ planError }}</p>
+          <button class="button" type="button" @click="lifeTask ? refreshLifeTask() : buildPlan()">重試</button>
+        </div>
 
-        <!-- 沒有可執行的步驟：說清楚為什麼，並給下一步 -->
-        <section v-else class="panel empty-state" data-testid="plan-rejected">
-          <h2>這件事我還幫不上忙</h2>
-          <p class="muted">{{ plan.rejectedReason || '目前沒有對應的能力可以處理這個需求。' }}</p>
-          <div class="button-row">
-            <RouterLink class="button primary inline" to="/user/services">瀏覽所有服務</RouterLink>
-            <RouterLink class="button inline" to="/user">回首頁</RouterLink>
+        <template v-if="!loading && plan">
+          <div class="message from-assistant">
+            <span>生活管家</span>
+            <p v-if="lifeTask">我辨識到兩件要在爸媽來訪前完成的事：浴室燈修繕和冷氣清洗。我先確認必要條件，再一次整理廠商、時段和點數方案給你。</p>
+            <p v-else>{{ plan.understanding || '我已整理可執行的下一步。' }}</p>
           </div>
-        </section>
-      </template>
+
+          <p v-if="planNotice" class="recommendation-feedback" role="status">{{ planNotice }}</p>
+
+          <LifeTaskCard
+            v-if="lifeTask"
+            :task="lifeTask"
+            :busy="planBusy"
+            @choose="chooseTaskVendor"
+          />
+
+          <ol v-else-if="plan.steps.length" class="plan-steps" data-testid="plan-steps">
+            <PlanStepCard
+              v-for="(step, index) in plan.steps"
+              :key="`${step.tool}-${index}`"
+              :step="step"
+              :busy="planBusy"
+              @approve="approve(index)"
+              @open-form="openForm"
+              @choose="chooseVendor($event, stepArgumentsOf(step))"
+              @feedback="(id, action) => changeFeedback(step, id, action)"
+              @reminder="createRestockReminder"
+              @watch="(productId, storeId) => joinWatch(productId, storeId)"
+              @support="(subjectId, issueText, diagnosisToken) => createSupportTicket(step, subjectId, issueText, diagnosisToken)"
+            />
+          </ol>
+
+          <section v-else-if="!lifeTask" class="panel empty-state" data-testid="plan-rejected">
+            <h2>這件事我還幫不上忙</h2>
+            <p class="muted">{{ plan.rejectedReason || '目前沒有對應的能力可以處理這個需求。' }}</p>
+            <RouterLink class="button primary inline" to="/user/services">瀏覽所有服務</RouterLink>
+          </section>
+        </template>
+      </section>
+
+      <section class="assistant-answer assistant-composer" data-testid="assistant-composer">
+        <div v-if="activeTaskRequirement" class="composer-context" role="status">
+          <strong>{{ activeTaskRequirement.label }}</strong>
+          <span>只問完成這份安排還缺少的資料</span>
+        </div>
+        <div v-if="activeTaskOptions.length" class="answer-choices" :aria-label="activeTaskRequirement?.label">
+          <button
+            v-for="option in activeTaskOptions"
+            :key="option.value"
+            class="choice-button"
+            type="button"
+            :disabled="planBusy"
+            :data-task-option="option.value"
+            @click="selectTaskOption(option.value)"
+          ><strong>{{ option.label }}</strong><small v-if="option.description">{{ option.description }}</small></button>
+        </div>
+        <div v-else-if="lifeTask?.status === 'ready'" class="answer-choices">
+          <button class="button primary" type="button" data-testid="life-task-confirm" :disabled="planBusy" @click="confirmLifeTask">
+            {{ planBusy ? '正在建立案件…' : `確認整份安排（${lifeTask.items.length} 件）` }}
+          </button>
+        </div>
+        <div v-else-if="lifeTask && ['submitted', 'partial_failure', 'quoted', 'ordered', 'in_progress'].includes(lifeTask.status)" class="answer-choices">
+          <button v-if="lifeTask.status === 'partial_failure'" class="button primary" type="button" data-testid="life-task-retry" :disabled="planBusy" @click="confirmLifeTask">安全重試未完成案件</button>
+          <button v-if="lifeTask.status === 'quoted'" class="button primary" type="button" data-testid="life-task-accept-quotes" :disabled="planBusy" @click="acceptLifeTaskQuotes">確認全部報價並排程</button>
+          <button class="button" type="button" :disabled="planBusy" @click="refreshLifeTask">重新整理進度</button>
+          <RouterLink class="button inline" :to="`/user/orders?task=${lifeTask.id}`">到訂單頁查看</RouterLink>
+        </div>
+        <div v-else-if="lifeTask?.status === 'completed'" class="answer-choices">
+          <RouterLink class="button primary inline" :to="`/user/orders?task=${lifeTask.id}`">查看完成紀錄</RouterLink>
+        </div>
+
+        <form class="assistant-form" @submit.prevent="submitGeneralNeed(prompt)">
+          <label class="visually-hidden" for="assistant-plan-input">輸入新的生活需求</label>
+          <textarea
+            id="assistant-plan-input"
+            ref="input"
+            v-model="prompt"
+            rows="1"
+            data-autogrow="true"
+            placeholder="也可以直接補充或輸入新的需求"
+            @input="resizeInput"
+            @keydown="onGeneralKeydown"
+          />
+          <button class="button primary" type="submit" :disabled="!prompt.trim()">送出</button>
+        </form>
+      </section>
     </div>
 
     <div v-else-if="landing" class="assistant-body assistant-welcome" data-testid="assistant-welcome">

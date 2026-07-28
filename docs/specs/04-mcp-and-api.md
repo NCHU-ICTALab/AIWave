@@ -12,6 +12,21 @@
 
 **MCP＝任何 Agent（含 Lumine one）都能重用的「能力呼叫」。** 回傳結構化 JSON＋人類可讀 `summary`；identity 用 `resident_id`（內部換 `member_hash`，不經手個資原文）；金額 TWD 整數。
 
+### 競賽 P0 已實作工具（2026-07-28）
+
+實作以 `core.tools.catalog.build_registry()` 為單一來源；Web 內部 Planner 與
+`mcp_server.server` 不各自維護工具。跨服務 Hero 已實作：
+
+| 角色 | Tools |
+| --- | --- |
+| 會員 | `create_life_task_draft`、`configure_life_task`、`confirm_life_task`、`list_my_life_tasks`、`get_life_task`、`accept_life_task_quotes` |
+| 廠商 | `list_external_vendor_inquiries`、`submit_external_vendor_quote`、`list_external_vendor_orders`、`update_external_vendor_order` |
+
+所有寫入 tools 第一次呼叫只回傳預覽與 payload-bound 確認 token；同一身分、同一 tool、同一參數
+在五分鐘內帶回 token 才執行，token 使用一次即失效。外部 Agent 的 account／role 由 server
+啟動環境決定，不接受工具參數自行宣稱身分。完整跨角色 transport 測試見
+`tests/test_vendor_platform_integration.py`。
+
 ### 留在內部、不做 MCP（我們 Agent 的腦與基礎設施）
 | 內部元件 | 為何不是 MCP |
 | --- | --- |

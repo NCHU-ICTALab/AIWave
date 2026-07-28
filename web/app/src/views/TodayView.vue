@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { createInsightsClient, type BehaviorSummary, type BriefingItem } from '@/api/insightsClient'
+import { createLifeTaskClient, type LifeTask } from '@/api/lifeTaskClient'
 import { createLifestyleClient } from '@/api/lifestyleClient'
 import { useDemoStore } from '@/stores/demo'
 import { useSessionStore } from '@/stores/session'
@@ -11,9 +12,11 @@ const store = useDemoStore()
 const session = useSessionStore()
 const router = useRouter()
 const lifestyle = createLifestyleClient()
+const lifeTasksClient = createLifeTaskClient()
 
 const summary = ref<BehaviorSummary | null>(null)
 const briefing = ref<BriefingItem[]>([])
+const lifeTasks = ref<LifeTask[]>([])
 const status = ref<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
 const need = ref('')
 const feedbackStatus = ref('')
@@ -35,6 +38,7 @@ const visibleBriefing = computed(() =>
   briefing.value.filter((item) => !store.dismissedRecommendationIds.includes(item.id)),
 )
 const pendingBriefing = computed(() => visibleBriefing.value.filter((item) => item.kind !== 'suggestion'))
+const activeLifeTasks = computed(() => lifeTasks.value.filter((task) => !['completed', 'cancelled'].includes(task.status)))
 const suggestedBriefing = computed(() => visibleBriefing.value.filter((item) => item.kind === 'suggestion'))
 const lastDismissedRecommendation = computed(() =>
   briefing.value.find((item) => item.id === store.lastDismissedRecommendationId) ?? null,
@@ -80,15 +84,17 @@ async function load() {
   if (!session.accountId) {
     summary.value = null
     briefing.value = []
+    lifeTasks.value = []
     status.value = 'ready'
     return
   }
   status.value = 'loading'
   const client = createInsightsClient()
   try {
-    const [loadedSummary, loadedBriefing] = await Promise.all([
+    const [loadedSummary, loadedBriefing, loadedLifeTasks] = await Promise.all([
       client.summary(session.accountId),
       client.today(session.accountId),
+      lifeTasksClient.list({ accountId: session.accountId }).catch(() => []),
     ])
     if (!isSummary(loadedSummary)) {
       status.value = 'unavailable'
@@ -96,6 +102,7 @@ async function load() {
     }
     summary.value = loadedSummary
     briefing.value = Array.isArray(loadedBriefing) ? loadedBriefing : []
+    lifeTasks.value = Array.isArray(loadedLifeTasks) ? loadedLifeTasks : []
     status.value = 'ready'
   } catch {
     status.value = 'unavailable'
@@ -166,8 +173,23 @@ async function submitNeed(text: string) {
         </div>
         <RouterLink class="text-link" to="/user/orders">查看全部訂單</RouterLink>
       </div>
-      <p v-if="!pendingBriefing.length" class="muted">目前沒有等你處理的案件。</p>
-      <ul v-else class="briefing-list">
+      <p v-if="!pendingBriefing.length && !activeLifeTasks.length" class="muted">目前沒有等你處理的案件。</p>
+      <ul v-if="activeLifeTasks.length" class="briefing-list" data-testid="life-task-briefing-list">
+        <li v-for="task in activeLifeTasks" :key="task.id" class="briefing-item in_progress" data-testid="life-task-briefing-item">
+          <div class="briefing-body">
+            <span class="briefing-tag" data-kind="in_progress">跨服務任務</span>
+            <strong>{{ task.items.map((item) => item.title).join('＋') }}</strong>
+            <p class="muted">{{ task.statusLabel }}<span v-if="task.scheduledDate">・{{ task.scheduledDate }}</span></p>
+          </div>
+          <RouterLink
+            class="button inline"
+            :to="task.status === 'draft' || task.status === 'partial_failure'
+              ? { name: 'assistant', query: { task: task.id } }
+              : { name: 'orders', query: { task: task.id } }"
+          >{{ task.status === 'draft' || task.status === 'partial_failure' ? '繼續安排' : '查看進度' }}</RouterLink>
+        </li>
+      </ul>
+      <ul v-if="pendingBriefing.length" class="briefing-list">
         <li v-for="item in pendingBriefing" :key="item.id" class="briefing-item" :class="item.kind" data-testid="briefing-item">
           <div class="briefing-body">
             <span class="briefing-tag" :data-kind="item.kind">{{ KIND_LABELS[item.kind] }}</span>

@@ -104,7 +104,7 @@ async def test_matching_is_callable_over_mcp(registry):
 async def test_joint_service_summary_is_callable_over_mcp_for_manager(registry):
     """聯合服務不是 Web 私有端點；外部管理 Agent 看到同一份需求與方案證據。"""
     server = create_server(registry, ToolContext(role="manager", display_name="社區管理者"))
-    payload = await _call_tool(server, "get_joint_service_summary", {"campaign_id": 1})
+    payload = await _call_tool(server, "get_joint_service_summary", {"campaign_id": 2})
 
     assert payload["ok"] is True
     assert payload["result"]["demand"]["householdCount"] == 18

@@ -7,13 +7,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Body, Depends, FastAPI, Header, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agent.form_agent import FormAgent
 from agent.intent_agent import IntentAgent
@@ -24,6 +24,7 @@ from core.forms.dto import topic_to_field
 from core.forms.service_catalog import get_service as catalog_service
 from core.forms.service_catalog import get_service_form as catalog_service_form
 from core.forms.service_catalog import list_services as list_catalog_services
+from core.data.personas import get_persona
 from core.community import (
     GroupBuyError,
     GroupBuyRepository,
@@ -44,10 +45,18 @@ from core.retail import (
 from core.config import get_settings
 from core.support import SupportError, SupportRepository, SupportService, SqliteSupportRepository
 from core.insights.today import build_briefing
+from core.life_tasks import (
+    LifeTaskError,
+    LifeTaskNotApplicable,
+    LifeTaskService,
+    LifeTaskUpstreamError,
+    SqliteLifeTaskRepository,
+)
 from core.services import CommunityService, InsightsService, LifeServicesService
 from core.sessions import ConversationState, InMemorySessionStore, SessionStore
 from core.tools.catalog import build_registry
 from core.tools.registry import ToolContext
+from core.vendors import VendorClient, VendorClientError, VendorService, build_vendor_client
 
 DEMO_TODAY = date(2026, 7, 25)
 _CONFIRM_WORDS = {"對", "好", "沒問題", "確認", "確認送出", "送出", "可以", "ok", "yes", "是", "嗯"}
@@ -150,6 +159,7 @@ class JointServiceJoinReq(BaseModel):
     equipment: str
     preferred_slot: str
     special_requirement: str | None = None
+    consent: Literal[True]
 
 
 class PlanReq(BaseModel):
@@ -177,6 +187,27 @@ class ReminderReq(BaseModel):
     item_name: str
     cadence_days: int
     next_due_on: str
+
+
+class LifeTaskDraftReq(BaseModel):
+    message: str
+
+
+class LifeTaskConfigureReq(BaseModel):
+    expected_version: int
+    scheduled_date: str
+    address_choice: str
+    scope: str
+    selected_vendors: dict[str, str] = Field(default_factory=dict)
+    custom_address: dict[str, Any] | None = None
+
+
+class LifeTaskConfirmReq(BaseModel):
+    expected_version: int
+
+
+class LifeTaskAcceptQuotesReq(LifeTaskConfirmReq):
+    selected_quotes: dict[str, str] = Field(default_factory=dict)
 
 
 class StockWatchReq(BaseModel):
@@ -241,6 +272,8 @@ def create_app(
     personalization_repository: SqlitePersonalizationRepository | None = None,
     retail_repository: SqliteRetailRepository | None = None,
     retail_connector: RetailConnector | None = None,
+    vendor_client: VendorClient | None = None,
+    life_task_repository: SqliteLifeTaskRepository | None = None,
     order_repository: SqliteOrderRepository | None = None,
     support_repository: SupportRepository | None = None,
     llm_factory: Callable[[], LlmClient] = get_llm,
@@ -271,6 +304,19 @@ def create_app(
         retail_repository or SqliteRetailRepository(demo_db, now=demo_now),
         connector=configured_retail_connector,
     )
+    configured_vendor_client = vendor_client or build_vendor_client(
+        mode=config.vendor_mode,
+        fake_url=config.vendor_fake_url,
+        real_url=config.vendor_real_url,
+        api_token=config.vendor_api_token,
+        timeout_seconds=config.vendor_timeout_seconds,
+    )
+    vendor_service = VendorService(configured_vendor_client)
+    life_tasks = LifeTaskService(
+        life_task_repository or SqliteLifeTaskRepository(demo_db, now=demo_now),
+        vendors=vendor_service,
+        today=DEMO_TODAY,
+    )
     support = SupportService(
         support_repository or SqliteSupportRepository(demo_db, now=demo_now),
         inquiries=inquiry_repository,
@@ -286,9 +332,212 @@ def create_app(
         personalization=personalization,
         retail=retail,
         support=support,
+        vendors=vendor_service,
+        life_tasks=life_tasks,
         today=DEMO_TODAY,
     )
     application = FastAPI(title="智慧生活管家 AI API")
+
+    # 跨服務生活任務：草稿可補條件；只有 confirm 才向廠商 upstream 寫入。
+    @application.post("/api/v1/life-tasks/draft")
+    def create_life_task_draft(
+        req: LifeTaskDraftReq, context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        account_id = _require_support_role(context, "user")
+        persona = get_persona(account_id)
+        try:
+            return {"data": life_tasks.create_draft(
+                message=req.message, account_id=account_id,
+                display_name=persona.name if persona is not None else context.display_name,
+            )}
+        except LifeTaskNotApplicable as exc:
+            raise HTTPException(422, {"code": "NOT_APPLICABLE", "message": str(exc)}) from exc
+        except LifeTaskError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+    @application.put("/api/v1/life-tasks/{task_id}/configuration")
+    def configure_life_task(
+        task_id: str, req: LifeTaskConfigureReq,
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        account_id = _require_support_role(context, "user")
+        try:
+            return {"data": life_tasks.configure(
+                task_id, account_id=account_id, expected_version=req.expected_version,
+                scheduled_date=req.scheduled_date, address_choice=req.address_choice,
+                scope=req.scope, selected_vendors=req.selected_vendors,
+                custom_address=req.custom_address,
+            )}
+        except LifeTaskError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/life-tasks/{task_id}/confirm")
+    def confirm_life_task(
+        task_id: str, req: LifeTaskConfirmReq,
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        account_id = _require_support_role(context, "user")
+        try:
+            return {"data": life_tasks.confirm(
+                task_id, account_id=account_id, expected_version=req.expected_version,
+            )}
+        except LifeTaskUpstreamError as exc:
+            raise HTTPException(502, str(exc)) from exc
+        except LifeTaskError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.post("/api/v1/life-tasks/{task_id}/accept-quotes")
+    def accept_life_task_quotes(
+        task_id: str, req: LifeTaskAcceptQuotesReq,
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        account_id = _require_support_role(context, "user")
+        try:
+            return {"data": life_tasks.accept_quotes(
+                task_id, account_id=account_id, expected_version=req.expected_version,
+                selected_quotes=req.selected_quotes,
+            )}
+        except (LifeTaskError, VendorClientError) as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @application.get("/api/v1/life-tasks/{task_id}")
+    def get_life_task(task_id: str, context: ToolContext = Depends(_support_http_context)) -> dict:
+        account_id = _require_support_role(context, "user")
+        try:
+            return {"data": life_tasks.get(task_id, account_id=account_id)}
+        except LifeTaskError as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @application.get("/api/v1/life-tasks")
+    def list_life_tasks(context: ToolContext = Depends(_support_http_context)) -> dict:
+        account_id = _require_support_role(context, "user")
+        return {"data": life_tasks.list_for_account(account_id)}
+
+    # 廠商 API 一律由平台轉接。Vue、Agent 與 MCP 都不直接碰 fake/real 上游。
+    @application.get("/api/v1/vendor-api/availability")
+    def vendor_availability(vendor_id: str, service_id: str, date: str | None = None) -> dict:
+        try:
+            return vendor_service.get_availability(vendor_id=vendor_id, service_id=service_id, date=date)
+        except VendorClientError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @application.post("/api/v1/vendor-api/inquiries")
+    def vendor_create_inquiry(
+        payload: dict = Body(...), idempotency_key: str = Header(alias="Idempotency-Key"),
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        account_id = _require_support_role(context, "user")
+        if payload.get("accountId") != account_id:
+            raise HTTPException(403, "不能替其他會員建立廠商諮詢單")
+        try:
+            return vendor_service.create_inquiry(payload, idempotency_key=idempotency_key)
+        except VendorClientError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @application.get("/api/v1/vendor-api/inquiries")
+    def vendor_list_inquiries(
+        vendor_id: str | None = None, status: str | None = None, account_id: str | None = None,
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        assigned_vendor = _require_support_role(context, "partner")
+        if vendor_id and vendor_id != assigned_vendor:
+            raise HTTPException(403, "不能查看其他廠商的諮詢單")
+        try:
+            return vendor_service.list_inquiries(vendorId=assigned_vendor, status=status, accountId=account_id)
+        except VendorClientError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @application.get("/api/v1/vendor-api/inquiries/{inquiry_id}")
+    def vendor_get_inquiry(
+        inquiry_id: str, context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        vendor_id = _require_support_role(context, "partner")
+        try:
+            result = vendor_service.get_inquiry(inquiry_id)
+            if result["data"].get("vendorId") != vendor_id:
+                raise HTTPException(404, "查無諮詢單")
+            return result
+        except VendorClientError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @application.get("/api/v1/vendor-api/inquiries/{inquiry_id}/quotes")
+    def vendor_list_quotes(
+        inquiry_id: str, context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        vendor_id = _require_support_role(context, "partner")
+        try:
+            if vendor_service.get_inquiry(inquiry_id)["data"].get("vendorId") != vendor_id:
+                raise HTTPException(404, "查無諮詢單")
+            return vendor_service.list_quotes(inquiry_id)
+        except VendorClientError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @application.post("/api/v1/vendor-api/inquiries/{inquiry_id}/quotes")
+    def vendor_create_quote(
+        inquiry_id: str, payload: dict = Body(...),
+        idempotency_key: str = Header(alias="Idempotency-Key"),
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        vendor_id = _require_support_role(context, "partner")
+        if payload.get("vendorId") != vendor_id:
+            raise HTTPException(403, "不能替其他廠商報價")
+        try:
+            if vendor_service.get_inquiry(inquiry_id)["data"].get("vendorId") != vendor_id:
+                raise HTTPException(404, "查無諮詢單")
+            return vendor_service.create_quote(inquiry_id, payload, idempotency_key=idempotency_key)
+        except VendorClientError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @application.post("/api/v1/vendor-api/orders")
+    def vendor_create_order(
+        payload: dict = Body(...), idempotency_key: str = Header(alias="Idempotency-Key"),
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        account_id = _require_support_role(context, "user")
+        if payload.get("accountId") != account_id:
+            raise HTTPException(403, "不能替其他會員建立廠商訂單")
+        try:
+            return vendor_service.create_order(payload, idempotency_key=idempotency_key)
+        except VendorClientError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @application.get("/api/v1/vendor-api/orders")
+    def vendor_list_orders(
+        vendor_id: str | None = None, status: str | None = None, account_id: str | None = None,
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        assigned_vendor = _require_support_role(context, "partner")
+        if vendor_id and vendor_id != assigned_vendor:
+            raise HTTPException(403, "不能查看其他廠商的訂單")
+        try:
+            return vendor_service.list_orders(vendorId=assigned_vendor, status=status, accountId=account_id)
+        except VendorClientError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @application.get("/api/v1/vendor-api/orders/{order_id}")
+    def vendor_get_order(order_id: str, context: ToolContext = Depends(_support_http_context)) -> dict:
+        vendor_id = _require_support_role(context, "partner")
+        try:
+            result = vendor_service.get_order(order_id)
+            if result["data"].get("vendorId") != vendor_id:
+                raise HTTPException(404, "查無訂單")
+            return result
+        except VendorClientError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @application.post("/api/v1/vendor-api/orders/{order_id}/events")
+    def vendor_append_order_event(
+        order_id: str, payload: dict = Body(...),
+        idempotency_key: str = Header(alias="Idempotency-Key"),
+        context: ToolContext = Depends(_support_http_context),
+    ) -> dict:
+        vendor_id = _require_support_role(context, "partner")
+        try:
+            if vendor_service.get_order(order_id)["data"].get("vendorId") != vendor_id:
+                raise HTTPException(404, "查無訂單")
+            return vendor_service.append_order_event(order_id, payload, idempotency_key=idempotency_key)
+        except VendorClientError as exc:
+            raise HTTPException(502, str(exc)) from exc
 
     @application.get("/api/forms")
     def list_forms() -> list[dict]:
@@ -577,6 +826,20 @@ def create_app(
     @application.post("/api/v1/assistant/plan")
     def create_plan(req: PlanReq, context: ToolContext = Depends(_support_http_context)) -> dict:
         """把一句話拆成計畫並執行唯讀步驟；寫入步驟留著等使用者確認。"""
+        # 多意圖 Hero 先進入持久化 LifeTask；單一服務與其他需求仍走通用 Planner。
+        if context.role == "user" and context.account_id:
+            persona = get_persona(context.account_id)
+            try:
+                task = life_tasks.create_draft(
+                    message=req.message, account_id=context.account_id,
+                    display_name=persona.name if persona is not None else context.display_name,
+                )
+                return {"data": Plan(
+                    understanding="我把目標整理成一份跨服務安排",
+                    life_task=task,
+                ).to_dict()}
+            except LifeTaskNotApplicable:
+                pass
         planner = Planner(llm_factory(), tool_registry)
         plan = planner.execute(planner.plan(req.message, context), context)
         return {"data": plan.to_dict()}
@@ -837,6 +1100,11 @@ def create_app(
     def list_joint_services(context: ToolContext = Depends(_support_http_context)) -> dict:
         _require_support_role(context, "manager")
         return {"data": joint_service_repository.list_campaigns()}
+
+    @application.get("/api/v1/groups/joint-services")
+    def list_resident_joint_services(context: ToolContext = Depends(_support_http_context)) -> dict:
+        account_id = _require_support_role(context, "user")
+        return {"data": joint_service_repository.list_for_resident(account_id=account_id)}
 
     @application.post("/api/v1/community/joint-services")
     def create_joint_service(req: JointServiceDraftReq, context: ToolContext = Depends(_support_http_context)) -> dict:

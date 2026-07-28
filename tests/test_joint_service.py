@@ -49,11 +49,11 @@ def test_assignment_and_fulfilment_share_one_persistent_timeline(repository: Sql
     campaign = repository.list_campaigns()[0]
     assigned = repository.assign(campaign["id"], proposal_id="proposal-care", actor="社區管理者")
     assert assigned["status"] == ASSIGNED
-    assert assigned["selectedProposal"]["vendorId"] == "vendor-cleanpro"
+    assert assigned["selectedProposal"]["vendorId"] == "vendor-duskin"
 
-    started = repository.start(campaign["id"], vendor_id="vendor-cleanpro", actor="合作廠商")
+    started = repository.start(campaign["id"], vendor_id="vendor-duskin", actor="合作廠商")
     assert started["status"] == IN_PROGRESS
-    completed = repository.complete(campaign["id"], vendor_id="vendor-cleanpro", actor="合作廠商", note="27 台已完成，3 台外機另附檢查紀錄")
+    completed = repository.complete(campaign["id"], vendor_id="vendor-duskin", actor="合作廠商", note="27 台已完成，3 台外機另附檢查紀錄")
     assert completed["status"] == COMPLETED
     assert [event["type"] for event in completed["events"]][-3:] == [
         "joint_service.assigned", "joint_service.started", "joint_service.completed",
@@ -64,7 +64,7 @@ def test_assignment_and_fulfilment_share_one_persistent_timeline(repository: Sql
 def test_state_machine_rejects_skips_and_second_assignment(repository: SqliteJointServiceRepository):
     campaign = repository.list_campaigns()[0]
     with pytest.raises(JointServiceError):
-        repository.start(campaign["id"], vendor_id="vendor-cleanpro", actor="合作廠商")
+        repository.start(campaign["id"], vendor_id="vendor-duskin", actor="合作廠商")
     repository.assign(campaign["id"], proposal_id="proposal-care", actor="社區管理者")
     with pytest.raises(JointServiceError):
         repository.assign(campaign["id"], proposal_id="proposal-value", actor="社區管理者")
@@ -102,7 +102,7 @@ def client(tmp_path: Path, repository: SqliteJointServiceRepository) -> TestClie
 
 def test_http_roles_and_cross_role_state(client: TestClient):
     manager = {"X-Role": "manager"}
-    partner = {"X-Role": "partner", "X-Account-Id": "vendor-cleanpro"}
+    partner = {"X-Role": "partner", "X-Account-Id": "vendor-duskin"}
     resident = {"X-Role": "user", "X-Account-Id": "A001"}
     campaign = client.get("/api/v1/community/joint-services", headers=manager).json()["data"][0]
 
@@ -128,6 +128,30 @@ def test_http_roles_and_cross_role_state(client: TestClient):
     assert manager_view["status"] == IN_PROGRESS
 
 
+def test_resident_explicitly_consents_and_only_sees_own_signal(client: TestClient):
+    resident = {"X-Role": "user", "X-Account-Id": "A001"}
+    campaigns = client.get("/api/v1/groups/joint-services", headers=resident).json()["data"]
+    collecting = next(item for item in campaigns if item["status"] == "collecting")
+    assert collecting["myParticipation"] is None
+
+    rejected = client.post(
+        f"/api/v1/community/joint-services/{collecting['id']}/join", headers=resident,
+        json={"units": 2, "equipment": "分離式冷氣", "preferred_slot": "週六上午", "consent": False},
+    )
+    assert rejected.status_code == 422
+
+    joined = client.post(
+        f"/api/v1/community/joint-services/{collecting['id']}/join", headers=resident,
+        json={"units": 2, "equipment": "分離式冷氣", "preferred_slot": "週六上午", "consent": True},
+    )
+    assert joined.status_code == 200
+    mine = client.get("/api/v1/groups/joint-services", headers=resident).json()["data"]
+    participation = next(item for item in mine if item["id"] == collecting["id"])["myParticipation"]
+    assert participation["units"] == 2
+    assert participation["consentVersion"] == "joint-demand-v1"
+    assert "household_hash" not in str(mine)
+
+
 def test_tools_enforce_roles_and_expose_same_record(tmp_path: Path, repository: SqliteJointServiceRepository):
     inquiries = SqliteInquiryRepository(tmp_path / "tool-inquiries.sqlite3")
     registry = build_registry(
@@ -137,7 +161,7 @@ def test_tools_enforce_roles_and_expose_same_record(tmp_path: Path, repository: 
         today=datetime(2026, 7, 28).date(),
     )
     manager = ToolContext(role="manager", display_name="社區管理者")
-    partner = ToolContext(account_id="vendor-cleanpro", role="partner", display_name="合作廠商")
+    partner = ToolContext(account_id="vendor-duskin", role="partner", display_name="合作廠商")
     resident = ToolContext(account_id="A001", role="user", display_name="住戶")
     campaign_id = repository.list_campaigns()[0]["id"]
     campaign = registry.call("get_joint_service_summary", {"campaign_id": campaign_id}, manager)

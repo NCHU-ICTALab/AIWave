@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import date
 from typing import Any
 
@@ -18,6 +20,7 @@ from core.community.joint_service import JointServiceRepository
 from core.data.regions import resolve as resolve_region
 from core.forms.service_catalog import list_services as list_catalog_services
 from core.insights.behavior import build_trail, summarize
+from core.life_tasks import LifeTaskService
 from core.insights.recommendations import recommend
 from core.matching import match as match_vendors_by_rules
 from core.personalization import PersonalizationService
@@ -25,6 +28,7 @@ from core.retail import RetailService
 from core.support import SupportService
 from core.services.life_services import LifeServicesService
 from core.tools.registry import Tool, ToolContext, ToolError, ToolRegistry
+from core.vendors import VendorService
 
 RESIDENT = frozenset({"user"})
 MANAGER = frozenset({"manager"})
@@ -63,6 +67,8 @@ def build_registry(
     personalization: PersonalizationService | None = None,
     retail: RetailService | None = None,
     support: SupportService | None = None,
+    vendors: VendorService | None = None,
+    life_tasks: LifeTaskService | None = None,
     today: date,
 ) -> ToolRegistry:
     """組出這個部署可用的全部能力。"""
@@ -155,19 +161,37 @@ def build_registry(
         region = resolve_region(district, county) if district else None
         if district and region is None:
             raise ToolError(f"無法辨識的地區：{county or ''}{district}")
-        matches = match_vendors_by_rules(
-            service_id,
-            county_code=region["county_code"] if region else None,
-            district_code=region["district_code"] if region else None,
-            budget=budget,
-            slot=slot,
-            urgent=bool(urgent),
-        )
+        if vendors is not None:
+            result = vendors.match(
+                service_id,
+                county_code=region["county_code"] if region else None,
+                district_code=region["district_code"] if region else None,
+                budget=budget,
+                slot=slot,
+                urgent=bool(urgent),
+            )
+            matched_rows = result["vendors"]
+            connector_meta = result["meta"]
+        else:
+            matches = match_vendors_by_rules(
+                service_id,
+                county_code=region["county_code"] if region else None,
+                district_code=region["district_code"] if region else None,
+                budget=budget,
+                slot=slot,
+                urgent=bool(urgent),
+            )
+            matched_rows = [item.to_dict() for item in matches]
+            connector_meta = {
+                "dataSource": "competition_seed", "connectorMode": "seed",
+                "degradedReason": None,
+            }
         return {
             "serviceId": service_id,
             "region": region,
             "criteria": {"budget": budget, "slot": slot, "urgent": bool(urgent)},
-            "vendors": [item.to_dict() for item in matches],
+            "vendors": matched_rows,
+            "meta": connector_meta,
         }
 
     registry.register(
@@ -290,6 +314,105 @@ def build_registry(
             roles=RESIDENT,
         )
     )
+
+    # ---- 跨服務生活任務（Web／AI／MCP 共用同一聚合） -----------------
+
+    if life_tasks is not None:
+        registry.register(
+            Tool(
+                name="create_life_task_draft",
+                description="把一句包含兩項以上生活服務的需求整理成同一筆生活任務草稿；只建立草稿，尚未送給廠商。",
+                parameters={
+                    "type": "object", "properties": {"message": {"type": "string"}}, "required": ["message"],
+                },
+                handler=lambda context, message: life_tasks.create_draft(
+                    message=message, account_id=_require_account(context), display_name=context.display_name,
+                ),
+                writes=True,
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="list_my_life_tasks",
+                description="列出目前會員的跨服務生活任務，包括待補資料、待確認、廠商報價、履約與失敗重試狀態。",
+                parameters=_empty_schema(),
+                handler=lambda context: life_tasks.list_for_account(_require_account(context)),
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="get_life_task",
+                description="取得一筆跨服務生活任務的完整狀態，並同步 fake／real vendor API 的報價與履約事件。",
+                parameters={
+                    "type": "object", "properties": {"task_id": {"type": "string"}}, "required": ["task_id"],
+                },
+                handler=lambda context, task_id: life_tasks.get(task_id, account_id=_require_account(context)),
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="configure_life_task",
+                description="設定生活任務的日期、地址、個人／家庭／社區範圍與所選廠商；只更新預覽，不送單。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "task_id": {"type": "string"}, "expected_version": {"type": "integer"},
+                        "scheduled_date": {"type": "string", "description": "YYYY-MM-DD"},
+                        "address_choice": {"type": "string", "enum": ["home", "custom"]},
+                        "scope": {"type": "string", "enum": ["personal", "family", "community"]},
+                        "selected_vendors": {"type": "object"}, "custom_address": {"type": "object"},
+                    },
+                    "required": ["task_id", "expected_version", "scheduled_date", "address_choice", "scope"],
+                },
+                handler=lambda context, task_id, expected_version, scheduled_date, address_choice, scope,
+                               selected_vendors=None, custom_address=None: life_tasks.configure(
+                    task_id, account_id=_require_account(context), expected_version=expected_version,
+                    scheduled_date=scheduled_date, address_choice=address_choice, scope=scope,
+                    selected_vendors=selected_vendors, custom_address=custom_address,
+                ),
+                writes=True,
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="confirm_life_task",
+                description="以一次確認把生活任務內所有服務送到所選廠商；支援冪等重試，部分失敗不會重複建立成功項目。",
+                parameters={
+                    "type": "object",
+                    "properties": {"task_id": {"type": "string"}, "expected_version": {"type": "integer"}},
+                    "required": ["task_id", "expected_version"],
+                },
+                handler=lambda context, task_id, expected_version: life_tasks.confirm(
+                    task_id, account_id=_require_account(context), expected_version=expected_version,
+                ),
+                writes=True,
+                roles=RESIDENT,
+            )
+        )
+        registry.register(
+            Tool(
+                name="accept_life_task_quotes",
+                description="確認生活任務內各廠商報價並建立訂單；執行前必須呈現所有金額與取得使用者確認。",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "task_id": {"type": "string"}, "expected_version": {"type": "integer"},
+                        "selected_quotes": {"type": "object"},
+                    },
+                    "required": ["task_id", "expected_version"],
+                },
+                handler=lambda context, task_id, expected_version, selected_quotes=None: life_tasks.accept_quotes(
+                    task_id, account_id=_require_account(context), expected_version=expected_version,
+                    selected_quotes=selected_quotes,
+                ),
+                writes=True,
+                roles=RESIDENT,
+            )
+        )
 
     # ---- 個人化補貨、回饋與提醒 --------------------------------------
 
@@ -881,5 +1004,86 @@ def build_registry(
             roles=PARTNER,
         )
     )
+
+    if vendors is not None:
+        def _vendor_key(prefix: str, payload: dict[str, Any]) -> str:
+            encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            return f"mcp:{prefix}:{hashlib.sha256(encoded.encode()).hexdigest()[:20]}"
+
+        def list_external_vendor_inquiries(context: ToolContext, status: str | None = None) -> Any:
+            return vendors.list_inquiries(vendorId=_require_account(context), status=status)["data"]
+
+        def submit_external_vendor_quote(
+            context: ToolContext, *, inquiry_id: str, items: list, valid_until: str,
+        ) -> Any:
+            vendor_id = _require_account(context)
+            inquiry = vendors.get_inquiry(inquiry_id)["data"]
+            if inquiry.get("vendorId") != vendor_id:
+                raise ToolError("查無指派給目前廠商的諮詢單")
+            payload = {"vendorId": vendor_id, "items": items, "validUntil": valid_until}
+            return vendors.create_quote(
+                inquiry_id, payload, idempotency_key=_vendor_key(f"quote:{inquiry_id}", payload),
+            )["data"]
+
+        def list_external_vendor_orders(context: ToolContext, status: str | None = None) -> Any:
+            return vendors.list_orders(vendorId=_require_account(context), status=status)["data"]
+
+        def update_external_vendor_order(
+            context: ToolContext, *, order_id: str, status: str, note: str | None = None,
+        ) -> Any:
+            vendor_id = _require_account(context)
+            order = vendors.get_order(order_id)["data"]
+            if order.get("vendorId") != vendor_id:
+                raise ToolError("查無屬於目前廠商的訂單")
+            payload = {
+                "type": {"confirmed": "confirmed", "in_service": "service_started", "completed": "completed"}[status],
+                "status": status, "note": note,
+            }
+            return vendors.append_order_event(
+                order_id, payload, idempotency_key=_vendor_key(f"order-event:{order_id}", payload),
+            )["data"]
+
+        registry.register(Tool(
+            name="list_external_vendor_inquiries",
+            description="列出 fake／real vendor API 中指派給目前登入廠商的跨服務諮詢單。",
+            parameters={"type": "object", "properties": {"status": {"type": "string"}}},
+            handler=list_external_vendor_inquiries,
+            roles=PARTNER,
+        ))
+        registry.register(Tool(
+            name="submit_external_vendor_quote",
+            description="對指派給目前廠商的外部諮詢單提出 TWD 報價，金額由品項數量乘單價確定性計算。",
+            parameters={
+                "type": "object", "properties": {
+                    "inquiry_id": {"type": "string"},
+                    "items": {"type": "array", "items": {"type": "object"}},
+                    "valid_until": {"type": "string"},
+                }, "required": ["inquiry_id", "items", "valid_until"],
+            },
+            handler=submit_external_vendor_quote,
+            writes=True,
+            roles=PARTNER,
+        ))
+        registry.register(Tool(
+            name="list_external_vendor_orders",
+            description="列出 fake／real vendor API 中屬於目前登入廠商的訂單與履約事件。",
+            parameters={"type": "object", "properties": {"status": {"type": "string"}}},
+            handler=list_external_vendor_orders,
+            roles=PARTNER,
+        ))
+        registry.register(Tool(
+            name="update_external_vendor_order",
+            description="更新目前廠商訂單為已確認、服務中或已完成；會寫入可稽核事件，執行前必須確認。",
+            parameters={
+                "type": "object", "properties": {
+                    "order_id": {"type": "string"},
+                    "status": {"type": "string", "enum": ["confirmed", "in_service", "completed"]},
+                    "note": {"type": "string"},
+                }, "required": ["order_id", "status"],
+            },
+            handler=update_external_vendor_order,
+            writes=True,
+            roles=PARTNER,
+        ))
 
     return registry

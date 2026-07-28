@@ -1,7 +1,7 @@
 # 14・Vendor OpenAPI、獨立 Fake Server 與 Client Adapter
 
-> 狀態：目標規格，尚待依本文完成實作  
-> 更新日期：2026-07-28  
+> 狀態：已實作並通過契約、生命週期與故障測試
+> 更新日期：2026-07-28
 > 決策依據：[ADR-0021](../adr/0021-vendor-api-contract-and-fake-server.md)
 
 ## 1. 目的
@@ -164,11 +164,11 @@ MCP Server ── 共用 VendorService，不重寫媒合與訂單規則
 
 ## 9. 驗收條件
 
-- [ ] OpenAPI lint／schema 驗證通過，fake server 回應符合契約。
-- [ ] fake server 可不啟動平台而獨立執行及查詢。
-- [ ] 固定 seed 每次 reset 產生相同識別碼與統計。
-- [ ] `VENDOR_MODE=fake|real` 只改環境變數，不改 Vue 或 domain service。
-- [ ] 正常、慢速成功、503、逾時、格式錯誤及恢復皆有 integration test。
-- [ ] reset 後故障、資料變更及請求計數歸零。
-- [ ] Web、Agent、MCP 對同一案件讀到相同狀態。
-- [ ] README 能讓未參與開發者依步驟啟動並理解如何換接正式 API。
+- [x] OpenAPI lint／schema 驗證通過，fake server 回應符合契約。
+- [x] fake server 可不啟動平台而獨立執行及查詢。
+- [x] 固定 seed 每次 reset 產生相同識別碼與統計。
+- [x] `VENDOR_MODE=fake|real` 只改環境變數，不改 Vue 或 domain service。
+- [x] 正常、慢速成功、503、逾時、格式錯誤及恢復皆有 integration test。
+- [x] reset 後故障、資料變更及請求計數歸零。
+- [x] Web、Agent、MCP 對同一案件讀到相同狀態。
+- [x] README 能讓未參與開發者依步驟啟動並理解如何換接正式 API。

@@ -7,11 +7,13 @@ import {
   type VendorWorkload,
 } from '@/api/inquiryLifecycleClient'
 import { createJointServiceClient, type JointServiceCampaign } from '@/api/jointServiceClient'
+import { createVendorApiClient, type VendorApiInquiry, type VendorApiOrder } from '@/api/vendorApiClient'
 import { useSessionStore } from '@/stores/session'
 
 const client = createInquiryLifecycleClient()
 const session = useSessionStore()
 const jointClient = createJointServiceClient({ accountId: session.accountId })
+const vendorApi = createVendorApiClient({ accountId: session.accountId })
 const workload = ref<VendorWorkload>({ pendingQuote: [], awaitingResident: [], scheduled: [] })
 const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
 const acting = ref<string | null>(null)
@@ -20,6 +22,10 @@ const jointCampaigns = ref<JointServiceCampaign[]>([])
 const jointStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
 const confirmingJoint = ref<{ id: number; action: 'start' | 'complete' } | null>(null)
 const jointNotes = reactive<Record<number, string>>({})
+const externalInquiries = ref<VendorApiInquiry[]>([])
+const externalOrders = ref<VendorApiOrder[]>([])
+const externalStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
+const externalDrafts = reactive<Record<string, number>>({})
 
 /** 每筆待報價各自的報價草稿（材料費＋施工費，對齊官方 order_items 的分項慣例）。 */
 const drafts = reactive<Record<string, { material: number; labour: number }>>({})
@@ -38,8 +44,63 @@ async function load() {
     workload.value = await client.vendorWorkload()
     status.value = 'ready'
     void loadJointServices()
+    void loadVendorApi()
   } catch {
     status.value = 'unavailable'
+  }
+}
+
+async function loadVendorApi() {
+  if (!session.accountId) {
+    externalStatus.value = 'ready'
+    return
+  }
+  externalStatus.value = 'loading'
+  try {
+    const [inquiries, orders] = await Promise.all([
+      vendorApi.listInquiries(session.accountId), vendorApi.listOrders(session.accountId),
+    ])
+    externalInquiries.value = inquiries
+    externalOrders.value = orders
+    for (const inquiry of inquiries) {
+      if (!(inquiry.id in externalDrafts)) externalDrafts[inquiry.id] = Math.max(0, inquiry.budget ?? 1200)
+    }
+    externalStatus.value = 'ready'
+  } catch (reason) {
+    externalStatus.value = 'unavailable'
+    error.value = reason instanceof Error ? reason.message : '無法取得 Vendor API 案件。'
+  }
+}
+
+async function sendExternalQuote(inquiry: VendorApiInquiry) {
+  if (!session.accountId) return
+  acting.value = `external-${inquiry.id}`
+  error.value = ''
+  try {
+    await vendorApi.createQuote(
+      inquiry.id, session.accountId, inquiry.summary,
+      Math.max(0, Number(externalDrafts[inquiry.id]) || 0),
+    )
+    await loadVendorApi()
+  } catch (reason) {
+    error.value = reason instanceof Error ? reason.message : 'Vendor API 報價未送出。'
+  } finally {
+    acting.value = null
+  }
+}
+
+async function advanceExternalOrder(order: VendorApiOrder, next: 'in_service' | 'completed') {
+  acting.value = `external-${order.id}`
+  error.value = ''
+  try {
+    await vendorApi.appendOrderEvent(
+      order.id, next, next === 'completed' ? '已完工並完成現場確認' : '技師已開始服務',
+    )
+    await loadVendorApi()
+  } catch (reason) {
+    error.value = reason instanceof Error ? reason.message : '履約狀態未更新。'
+  } finally {
+    acting.value = null
   }
 }
 
@@ -91,7 +152,7 @@ async function sendQuote(inquiry: Inquiry) {
     await client.quote(inquiry.id, [
       { name: '材料費', amount: Number(draft.material) || 0 },
       { name: '施工費', amount: Number(draft.labour) || 0 },
-    ], '安心修繕')
+    ], session.displayName)
     await load()
   } catch (reason) {
     error.value = reason instanceof Error ? reason.message : '報價未送出，請稍後再試。'
@@ -126,6 +187,57 @@ onMounted(load)
   <p v-if="status === 'unavailable'" class="panel muted" role="status">
     無法取得待處理需求，請確認後端服務是否啟動。
   </p>
+
+  <section class="panel vendor-api-panel" aria-labelledby="vendor-api-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Vendor API・同一份上游狀態</p>
+        <h2 id="vendor-api-title">AI 跨服務案件</h2>
+      </div>
+      <button class="button" type="button" :disabled="externalStatus === 'loading'" @click="loadVendorApi">重新整理</button>
+    </div>
+    <p class="data-notice">只顯示指派給 {{ session.displayName }} 的案件；聯絡資料來自會員送出前同意的生活任務。</p>
+    <p v-if="externalStatus === 'loading'" class="muted" role="status">正在從獨立廠商 API 取得案件…</p>
+    <p v-else-if="externalStatus === 'unavailable'" class="result-notice" role="status">Vendor API 暫時無法連線，可稍後重試。</p>
+    <p v-else-if="!externalInquiries.length && !externalOrders.length" class="muted">目前沒有 AI 跨服務案件。</p>
+
+    <div v-if="externalInquiries.length" class="vendor-api-grid">
+      <article v-for="inquiry in externalInquiries" :key="inquiry.id" class="inquiry-card" :data-external-inquiry="inquiry.id">
+        <div class="inquiry-head">
+          <div><strong>{{ inquiry.summary }}</strong><p class="row-meta">{{ inquiry.id }}・{{ inquiry.externalReference }}</p></div>
+          <span class="status" :data-status="inquiry.status">{{ inquiry.status === 'submitted' ? '待報價' : inquiry.status === 'quoted' ? '已報價' : inquiry.status }}</span>
+        </div>
+        <dl class="summary-list compact">
+          <div><dt>服務日期</dt><dd>{{ inquiry.answers.scheduledDate }}</dd></div>
+          <div><dt>地址</dt><dd>{{ inquiry.location.address }}</dd></div>
+          <div><dt>聯絡人</dt><dd>{{ inquiry.consumer.name }}・{{ inquiry.consumer.phone }}</dd></div>
+          <div><dt>需求</dt><dd>{{ inquiry.answers.description }}</dd></div>
+        </dl>
+        <form v-if="inquiry.status === 'submitted'" class="quote-form" @submit.prevent="sendExternalQuote(inquiry)">
+          <label class="field">正式報價（新台幣）
+            <input v-model.number="externalDrafts[inquiry.id]" type="number" min="0" :data-external-quote="inquiry.id" />
+          </label>
+          <div class="quote-total">合計 <strong>{{ currency(externalDrafts[inquiry.id] ?? 0) }}</strong></div>
+          <button class="button primary" type="submit" :disabled="acting === `external-${inquiry.id}`">
+            {{ acting === `external-${inquiry.id}` ? '送出中…' : '送出正式報價' }}
+          </button>
+        </form>
+        <p v-else class="muted">正式報價已回到會員的 AI 與訂單頁，等待會員確認。</p>
+      </article>
+    </div>
+
+    <div v-if="externalOrders.length" class="vendor-order-list">
+      <h3>履約訂單</h3>
+      <article v-for="order in externalOrders" :key="order.id" class="queue-row" :data-external-order="order.id">
+        <div><strong>{{ order.id }}</strong><p class="row-meta">{{ order.externalReference }}・{{ order.status }}</p></div>
+        <div class="button-row">
+          <button v-if="order.status === 'confirmed'" class="button" type="button" :disabled="acting === `external-${order.id}`" @click="advanceExternalOrder(order, 'in_service')">回報開始服務</button>
+          <button v-if="order.status === 'in_service'" class="button primary" type="button" :disabled="acting === `external-${order.id}`" @click="advanceExternalOrder(order, 'completed')">回報完工</button>
+          <span v-if="order.status === 'completed'" class="status" data-status="completed">已完成</span>
+        </div>
+      </article>
+    </div>
+  </section>
 
   <section v-if="jointStatus !== 'unavailable'" class="panel vendor-joint-panel" aria-labelledby="vendor-joint-title">
     <div class="section-heading">

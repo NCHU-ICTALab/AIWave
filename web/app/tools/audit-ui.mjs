@@ -15,7 +15,7 @@ const VIEWPORTS = [
 const IDENTITIES = {
   resident: { role: 'user', accountId: '019a52d3-7f6b-7da3-b48d-9c9e2522d616', displayName: '小圓' },
   manager: { role: 'manager', accountId: null, displayName: '社區管理者' },
-  partner: { role: 'partner', accountId: 'vendor-cleanpro', displayName: '潔沛家事服務' },
+  partner: { role: 'partner', accountId: 'vendor-duskin', displayName: 'DUSKIN 樂清' },
 }
 
 const PAGES = [

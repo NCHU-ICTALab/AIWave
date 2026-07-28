@@ -10,6 +10,7 @@
 4. [07 競賽 Demo 垂直切片](specs/07-demo-vertical-slice.md)
 5. [08 會員產品體驗與 AI 互動](specs/08-product-experience.md)
 6. [14 Vendor API、fake server 與 Client](specs/14-vendor-api-contract.md)
+7. [Demo 與測試手冊](testing/demo-runbook.md)
 
 ## 現行規格
 
@@ -61,6 +62,7 @@
 - [2025 優勝作品與智生活研究](research/2025-winners-and-smartdaily.md)
 - [品牌與視覺](brand-spec.md)
 - [工作管理](work-management/)
+- [競賽證據與測試](testing/demo-runbook.md)
 - [封存索引](archive/README.md)
 
 ## 現行決策速查

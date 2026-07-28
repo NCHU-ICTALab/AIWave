@@ -188,7 +188,9 @@ def test_matches_vendors_with_explainable_reasons(make_client):
     assert data["region"]["district_name"] == "大同區"
     for vendor in data["vendors"]:
         assert vendor["reasons"]
-        assert vendor["dataSource"] == "competition_seed"
+        assert vendor["dataSource"] == "competition_seed_offline_fallback"
+        assert vendor["connectorMode"] == "offline_fallback"
+        assert vendor["degradedReason"]
 
 
 def test_rejects_an_unknown_service(make_client):

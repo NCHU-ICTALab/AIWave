@@ -5,6 +5,7 @@ description = "智慧生活管家 — 2026 雲湧智生黑客松（統一資訊�
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "faker>=37.4.0",
     "fastapi>=0.139.2",
     "mcp>=1.28.1",
     "openai>=2.48.0",
@@ -16,6 +17,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "anyio>=4.14.2",
+    "openapi-spec-validator>=0.7.2",
+    "pyyaml>=6.0.2",
     "pytest>=8",
     "pytest-asyncio>=1.4.0",
 ]
