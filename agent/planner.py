@@ -34,6 +34,21 @@ from core.tools.registry import ToolContext, ToolError, ToolRegistry, validate_a
 #: 一句話最多拆成幾件事——超過通常是模型在發散，不是使用者真的要做八件事
 MAX_STEPS = 4
 
+# 這裡只攔截明確、第一人稱且指向傷害他人的語句，避免把新聞查詢或一般情緒字眼
+# 誤判成危機。它發生在 LLM 與工具之前，因此不可能又產生一般服務的「成功」方案。
+_DIRECT_VIOLENCE = re.compile(
+    r"(?:我(?:想|要|準備|打算)|幫我)(?:去)?(?:殺|傷害|砍|捅|毒死|弄死)(?:人|他|她|他們|她們|別人)?"
+)
+_SAFETY_RESPONSE = (
+    "我不能協助傷害他人。如果有人正面臨立即危險，請先放下可能造成傷害的物品、"
+    "與對方保持距離，並聯絡 110；若有人受傷請撥 119。"
+)
+
+
+def safety_response_for(text: str) -> str | None:
+    """Return crisis guidance for an explicit first-person violent intent."""
+    return _SAFETY_RESPONSE if _DIRECT_VIOLENCE.search((text or "").replace(" ", "")) else None
+
 _SYSTEM = (
     "你是智慧社區生活管家的規劃器。使用者會用日常口語說出需求，"
     "你要判斷「要完成這件事需要依序呼叫哪些能力」，輸出一份計畫。\n"
@@ -119,6 +134,8 @@ class Planner:
         text = (utterance or "").strip()
         if not text:
             return Plan(rejected_reason="沒有收到需求內容")
+        if safety := safety_response_for(text):
+            return Plan(rejected_reason=safety)
 
         try:
             raw = self.llm.json([
@@ -269,7 +286,7 @@ class Planner:
                 seen.add(step.tool)
                 unique.append(step)
         if not unique:
-            return Plan(rejected_reason=reason)
+            return Plan(rejected_reason="目前沒有找到能安全完成這項需求的服務。你可以換個說法，或從服務目錄選擇。")
         return Plan(understanding="我會用可驗證的資料幫你處理", steps=unique[:MAX_STEPS])
 
     # ---- 執行 ----------------------------------------------------------

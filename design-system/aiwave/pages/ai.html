@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 工作區(M8 預告) — AIWave(原型)</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .chat-skeleton { border: var(--border); border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-card); display: flex; flex-direction: column; min-height: 380px; margin-bottom: 24px; }
+  .chat-msgs { flex: 1; padding: 20px 24px; display: grid; gap: 12px; align-content: start; }
+  .bubble { max-width: 46ch; border: 2px solid var(--ink); border-radius: 16px; padding: 10px 14px; font-weight: 600; }
+  .bubble.ai { background: var(--lavender); justify-self: start; }
+  .bubble.me { background: var(--mint); justify-self: end; }
+  .bubble .who { display: block; font-size: .78rem; color: var(--muted); font-weight: 800; }
+  .chat-input { border-top: var(--border); padding: 14px 20px; display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .chat-input textarea { flex: 1 1 220px; margin-top: 0; }
+  .principle-list { margin: 0; padding-left: 1.2em; }
+  .principle-list li { margin-bottom: .4em; }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 A・AI 工作區(M8 里程碑預告)・<a href="index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<header class="site-header">
+  <a class="brand" href="dashboard.html"><span class="brand-mark" aria-hidden="true">AW</span>AIWave</a>
+  <span class="workspace-chip">林小圓・個人</span>
+  <nav class="main-nav" aria-label="主導覽">
+    <ul>
+      <li><a href="dashboard.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>首頁</a></li>
+      <li><a href="points.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5h5M9.5 13.5h5"/></svg>點數兌換</a></li>
+      <li><a href="ai.html" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg>AI</a></li>
+      <li><a href="services.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>服務</a></li>
+      <li><a href="member.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>會員中心</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+  <h1>AI 工作區</h1>
+  <p class="page-lead">AI 管家屬 <strong>M8 里程碑</strong>,本次 M4 原型不含對話功能。以下為未來版面的靜態骨架,用來審閱版面位置與互動原則。</p>
+
+  <section aria-labelledby="skeleton-title">
+    <h2 id="skeleton-title">未來版面示意(靜態)</h2>
+    <div class="chat-skeleton">
+      <div class="chat-msgs">
+        <p class="bubble me"><span class="who">你(示意)</span>這週末幫我找一間信義區四人餐廳,順便看冷氣清洗什麼時候有空檔。</p>
+        <p class="bubble ai"><span class="who">AI 管家(示意)</span>我把需求拆成兩個任務:1)EZTABLE 訂位(信義區・4 人・週末),2)DUSKIN 冷氣清洗詢價。每一步都會先給你確認才執行。</p>
+        <p class="bubble ai"><span class="who">狀態(示意)</span>理解需求 → 查詢服務 → 準備方案(streaming 會顯示可驗證狀態)</p>
+      </div>
+      <div class="chat-input">
+        <label for="ai-input" style="flex-basis:100%">訊息輸入(M8 開放)</label>
+        <textarea id="ai-input" disabled placeholder="M8 里程碑開放對話,此原型僅示意輸入框位置"></textarea>
+        <button class="btn btn-primary" type="button" disabled>送出(M8 開放)</button>
+      </div>
+    </div>
+    <p class="demo-note">對話內容為靜態示意文案,並非實際 AI 回覆;輸入框與送出鈕在本原型為停用狀態。</p>
+  </section>
+
+  <section class="card" aria-labelledby="principle-title">
+    <h2 id="principle-title">設計原則:AI 與手動共用同一份資料</h2>
+    <ul class="principle-list">
+      <li>AI 建立的需求與你手動填的表單,寫入<strong>同一份 TaskDraft</strong>:AI 起頭、你手動接手改,不會有兩套草稿。</li>
+      <li>AI 代辦產生的訂單與手動預約走<strong>同一條訂單流程</strong>:同樣的時間軸、通知與行事曆同步。</li>
+      <li>交易類動作(下單、兌換、取消)一律需要你明確確認,AI 不會代替你按下確認。</li>
+    </ul>
+  </section>
+
+  <section class="card" aria-labelledby="cta-title" style="background:var(--mint)">
+    <h2 id="cta-title">現在就想預約?</h2>
+    <p>手動流程已完整可用,和未來 AI 用的是同一份表單與訂單。</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="services.html">前往服務探索(手動流程)</a>
+      <a class="btn btn-quiet" href="dashboard.html">回首頁</a>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="assets/aiwave.js"></script>
+</body>
+</html>

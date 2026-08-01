@@ -10,6 +10,7 @@ from core.inquiries import SqliteInquiryRepository
 from core.life_tasks import LifeTaskService, SqliteLifeTaskRepository
 from core.vendors import MockVendorClient, VendorService
 from fake_upstreams.vendor_app import create_fake_vendor_app
+from tests.auth import MEMBER_HEADERS
 
 ACCOUNT = "019a52d3-7f6b-7da3-b48d-9c9e2522d616"
 HERO = "爸媽週六要來，浴室燈壞了、冷氣也很久沒洗，幫我安排一下，OPENPOINT 能省就省。"
@@ -143,7 +144,7 @@ def test_platform_routes_try_hero_without_stealing_single_service_requests(tmp_p
         life_task_repository=SqliteLifeTaskRepository(db, now=NOW),
         vendor_client=adapter, llm_factory=BrokenLlm,
     ))
-    headers = {"X-Account-Id": ACCOUNT, "X-Role": "user"}
+    headers = MEMBER_HEADERS
 
     draft = platform.post("/api/v1/life-tasks/draft", headers=headers, json={"message": HERO})
     assert draft.status_code == 200
@@ -152,4 +153,4 @@ def test_platform_routes_try_hero_without_stealing_single_service_requests(tmp_p
         "/api/v1/life-tasks/draft", headers=headers, json={"message": "想找人來打掃"},
     ).status_code == 422
     assert platform.get("/api/v1/life-tasks", headers=headers).json()["data"][0]["id"] == draft.json()["data"]["id"]
-    assert platform.get("/api/v1/life-tasks", headers={"X-Role": "user"}).status_code == 401
+    assert platform.get("/api/v1/life-tasks").status_code == 401

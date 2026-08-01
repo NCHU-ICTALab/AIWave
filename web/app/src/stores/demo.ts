@@ -4,41 +4,16 @@ import { computed, ref } from 'vue'
 import { createServiceCatalogClient, type CatalogService, type ServiceCatalogClient } from '@/api/serviceCatalogClient'
 import {
   emptyQuote,
-  summarizeServiceAnswers,
   validateServiceAnswers,
   type ServiceAnswers,
+  type ServiceAnswer,
   type ServiceFormDefinition,
   type ServiceQuote,
 } from '@/domain/serviceIntake'
 
 export type DemoService = CatalogService
 
-export interface DemoOrder {
-  id: string
-  service: DemoService
-  amount: number
-  status: '已成立' | '待確認' | '已排程'
-  action?: 'inquiry' | 'order' | 'reservation' | 'shipment'
-  answerSummary?: Array<{ label: string; value: string }>
-}
-
-export type CampaignStatus = 'draft' | 'published' | 'quoted' | 'scheduled'
 export type CatalogStatus = 'idle' | 'loading' | 'ready' | 'unavailable'
-
-const SEED_SHIPPING: DemoService = {
-  id: 'service-shipping', name: '寄件服務', category: '生活支援',
-  summary: '黑貓宅急便到店寄件', partner: '黑貓宅急便', glyph: '寄',
-}
-
-/** 服務目錄尚未載入（或離線）時，AI 諮詢單仍要顯示得出來。 */
-const FALLBACK_REPAIR: DemoService = {
-  id: 'service-repair', name: '水電修繕', category: '生活支援',
-  summary: '初步判斷並安排到府', partner: '安心修繕', glyph: '修',
-}
-
-function seedOrders(): DemoOrder[] {
-  return [{ id: 'TCAT-8842', service: SEED_SHIPPING, amount: 130, status: '已排程' }]
-}
 
 export const useDemoStore = defineStore('demo', () => {
   // 服務目錄與題組定義一律來自後端（單一事實來源，ADR-0002）
@@ -50,11 +25,9 @@ export const useDemoStore = defineStore('demo', () => {
   const selectedServiceId = ref<string | null>(null)
   const serviceAnswers = ref<Record<string, ServiceAnswers>>({})
   const pricing = ref<ServiceQuote>(emptyQuote)
-  const orders = ref<DemoOrder[]>(seedOrders())
   const dismissedRecommendationIds = ref<string[]>([])
   const lastDismissedRecommendationId = ref<string | null>(null)
   const recommendationDismissed = computed(() => dismissedRecommendationIds.value.length > 0)
-  const campaignStatus = ref<CampaignStatus>('draft')
 
   const selectedService = computed(() => services.value.find(({ id }) => id === selectedServiceId.value) ?? null)
   const selectedForm = computed(() => (selectedServiceId.value ? forms.value[selectedServiceId.value] : undefined))
@@ -115,42 +88,17 @@ export const useDemoStore = defineStore('demo', () => {
     }
   }
 
-  async function setServiceAnswer(fieldId: string, value: string | number) {
+  async function setServiceAnswer(fieldId: string, value: ServiceAnswer) {
     if (!selectedServiceId.value) return
     serviceAnswers.value[selectedServiceId.value] = { ...selectedAnswers.value, [fieldId]: value }
     await refreshQuote()
   }
 
-  function createTypedSubmission(expectedAction: NonNullable<DemoOrder['action']>, prefix: string) {
+  async function submitSelectedService() {
     if (!selectedService.value) return null
     const form = selectedForm.value
-    if (!form || form.action !== expectedAction || Object.keys(validateServiceAnswers(form, selectedAnswers.value)).length) return null
-    const idStem = `${prefix}-0725-`
-    const sequence = orders.value.filter(({ id }) => id.startsWith(idStem)).length + 1
-    const order: DemoOrder = {
-      id: `${idStem}${String(sequence).padStart(3, '0')}`,
-      service: selectedService.value,
-      amount: pricing.value.finalAmount,
-      status: form.action === 'inquiry' ? '待確認' : '已成立',
-      action: form.action,
-      answerSummary: summarizeServiceAnswers(form, selectedAnswers.value),
-    }
-    orders.value.unshift(order)
-    return order
-  }
-
-  const createOrder = () => createTypedSubmission('order', 'OP')
-  const createInquiry = () => createTypedSubmission('inquiry', 'INQ')
-  const createReservation = () => createTypedSubmission('reservation', 'RSV')
-  const createShipment = () => createTypedSubmission('shipment', 'SHP')
-
-  function submitSelectedService() {
-    const action = selectedForm.value?.action
-    if (action === 'inquiry') return createInquiry()
-    if (action === 'reservation') return createReservation()
-    if (action === 'shipment') return createShipment()
-    if (action === 'order') return createOrder()
-    return null
+    if (!form || Object.keys(validateServiceAnswers(form, selectedAnswers.value)).length) return null
+    return useClient().submit(selectedService.value.id, selectedAnswers.value)
   }
 
   function dismissRecommendation(id: string) {
@@ -166,49 +114,16 @@ export const useDemoStore = defineStore('demo', () => {
     if (lastDismissedRecommendationId.value === id) lastDismissedRecommendationId.value = null
   }
 
-  function publishCampaign() {
-    if (campaignStatus.value === 'draft') campaignStatus.value = 'published'
-  }
-
-  function submitQuote() {
-    if (campaignStatus.value === 'published') campaignStatus.value = 'quoted'
-  }
-
-  function assignVendor() {
-    if (campaignStatus.value === 'quoted') campaignStatus.value = 'scheduled'
-  }
-
   function resetDemo() {
     selectedServiceId.value = null
     serviceAnswers.value = {}
     pricing.value = emptyQuote
-    orders.value = seedOrders()
     dismissedRecommendationIds.value = []
     lastDismissedRecommendationId.value = null
-    campaignStatus.value = 'draft'
-  }
-
-  function recordAiInquiry(inquiryId: string) {
-    if (orders.value.some(({ id }) => id === inquiryId)) return
-    const repairService = services.value.find(({ id }) => id === 'service-repair') ?? FALLBACK_REPAIR
-    orders.value.unshift({
-      id: inquiryId,
-      service: repairService,
-      amount: 0,
-      status: '待確認',
-      action: 'inquiry',
-      answerSummary: [{ label: '建立來源', value: 'AI 生活管家＋後端題組引擎' }],
-    })
   }
 
   return {
-    assignVendor,
-    campaignStatus,
     catalogStatus,
-    createInquiry,
-    createOrder,
-    createReservation,
-    createShipment,
     dismissRecommendation,
     dismissedRecommendationIds,
     forms,
@@ -216,11 +131,8 @@ export const useDemoStore = defineStore('demo', () => {
     lastDismissedRecommendationId,
     loadCatalog,
     loadServiceForm,
-    orders,
     pricing,
-    publishCampaign,
     recommendationDismissed,
-    recordAiInquiry,
     refreshQuote,
     resetDemo,
     selectService,
@@ -231,7 +143,6 @@ export const useDemoStore = defineStore('demo', () => {
     serviceAnswers,
     services,
     setServiceAnswer,
-    submitQuote,
     submitSelectedService,
     undoDismissRecommendation,
   }

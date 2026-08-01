@@ -12,11 +12,13 @@ describe('entry points and identity', () => {
     stubCatalogFetch()
   })
 
-  it('sends a first-time visitor to the sign-in page instead of someone else’s dashboard', async () => {
+  it('shows a first-time visitor the public homepage, never someone else’s dashboard', async () => {
+    // spec 15 §9.1(方向 A 核准):公開首頁先講產品價值,右上角才是登入入口
     const { wrapper, router } = await mountApp('/', { identity: null })
 
-    expect(router.currentRoute.value.name).toBe('login')
-    expect(wrapper.text()).toContain('說一句話，生活的事就有人接手')
+    expect(router.currentRoute.value.name).toBe('home-public')
+    expect(wrapper.text()).toContain('六大生活場景')
+    expect(wrapper.find('[data-testid="public-sign-in"]').exists()).toBe(true)
     // 未登入時不該出現任何個人數字
     expect(wrapper.find('[data-testid="metric-spend"]').exists()).toBe(false)
   })
@@ -34,7 +36,8 @@ describe('entry points and identity', () => {
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/user'))
     await flushPromises()
 
-    expect(session.accountId).toBeNull()
+    expect(session.accountId).toBe('demo-new-member')
+    expect(session.accessToken).toBe('aiwave-new')
     expect(session.isNewUser).toBe(true)
     expect(wrapper.find('[data-testid="onboarding-steps"]').exists()).toBe(true)
   })

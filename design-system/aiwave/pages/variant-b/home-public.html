@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIWave — 生活服務作業系統(方向 B 原型)</title>
+<link rel="stylesheet" href="assets/variant-b.css">
+<style>
+  .hero { display: grid; gap: 20px; grid-template-columns: 1.2fr 1fr; align-items: start; padding: 20px 0 4px; }
+  .hero h1 { font-size: clamp(1.5rem, 3.4vw, 2.2rem); }
+  .flow-steps { list-style: none; counter-reset: step; margin: 10px 0 0; padding: 0; }
+  .flow-steps li {
+    counter-increment: step; display: flex; gap: 10px; align-items: baseline;
+    padding: 8px 0; border-bottom: 1px solid var(--hairline); font-size: .9rem;
+  }
+  .flow-steps li:last-child { border-bottom: none; }
+  .flow-steps li::before {
+    content: counter(step, decimal-leading-zero);
+    font-family: var(--font-mono); font-weight: 700; color: var(--green);
+  }
+  .flow-steps .tag { margin-left: auto; }
+  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 B(高密度對照)・<a href="../home-public.html">回方向 A</a>・<a href="../index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<header class="site-header">
+  <a class="brand" href="home-public.html">AIWAVE</a>
+  <span class="brand-sub">生活服務作業系統・原型 B</span>
+  <nav class="main-nav" aria-label="公開導覽">
+    <ul>
+      <li><a href="#scenes"><span class="nav-no" aria-hidden="true">①</span>生活場景</a></li>
+      <li><a href="#how"><span class="nav-no" aria-hidden="true">②</span>運作方式</a></li>
+      <li><a class="btn btn-primary" href="../login.html">登入</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+  <p class="meta-line">資料時間 2026-07-30(UTC+8)・展示資料:partner-demo-v2 seed</p>
+
+  <section class="hero">
+    <div>
+      <h1>一個地方,搞定生活裡每一件要辦的事</h1>
+      <p class="page-lead">AIWave 把訂位、清潔修繕、寄件、購物與社區服務放進同一條可追蹤的任務流程。你可以完全手動操作,也可以之後交給 AI 管家協助——兩邊看到的是同一份訂單、點數與行事曆。</p>
+      <div class="btn-row">
+        <a class="btn btn-primary" href="../login.html">立即登入體驗</a>
+        <a class="btn" href="#scenes">看看能做什麼</a>
+      </div>
+      <p class="demo-note">競賽展示版本。畫面中的商家、價格與訂單皆為展示資料,來源:partner-demo-v2 seed。</p>
+    </div>
+    <aside class="panel" aria-label="一筆修繕任務的進度示意">
+      <h2>冷氣不冷?從需求到完工只要一條流程</h2>
+      <ol class="flow-steps">
+        <li>選擇服務與商家 <span class="tag tag-green">已完成</span></li>
+        <li>挑真實可預約時段 <span class="tag tag-green">已完成</span></li>
+        <li>確認價格與點數折抵 <span class="tag tag-amber">進行中</span></li>
+        <li>廠商接單、到府服務、完工回報 <span class="tag tag-ink">待啟動</span></li>
+      </ol>
+      <p class="demo-note">展示資料:王子水電・信義區服務站</p>
+    </aside>
+  </section>
+
+  <section id="scenes" class="sec" aria-labelledby="scenes-title">
+    <div class="sec-head">
+      <span class="sec-no" aria-hidden="true">01</span>
+      <h2 id="scenes-title">六大生活場景</h2>
+      <span class="sec-note">6 / 6 場景具完整手動流程</span>
+    </div>
+    <p class="page-lead">每個場景都有完整的手動流程:探索、選擇商家與時段、確認、追蹤到完成。</p>
+    <div class="table-wrap" style="margin-top:12px">
+      <table class="data">
+        <caption class="demo-note" style="caption-side:bottom; text-align:left; padding:8px 12px">展示資料:partner-demo-v2 seed。</caption>
+        <thead>
+          <tr><th class="num" scope="col">NO</th><th scope="col">場景</th><th scope="col">合作內容(展示)</th><th scope="col">狀態</th><th scope="col">進入</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">01</td><th scope="row">食・餐廳訂位</th><td>EZTABLE 合作餐廳線上訂位</td><td><span class="tag tag-green">可體驗</span></td><td><a href="../login.html">登入後開始</a></td></tr>
+          <tr><td class="num">02</td><th scope="row">醫・處方箋領藥</th><td>處方箋辨識與藥局連結(辨識展示,非醫療建議)</td><td><span class="tag tag-green">可體驗</span></td><td><a href="../login.html">登入後開始</a></td></tr>
+          <tr><td class="num">03</td><th scope="row">住・清潔修繕</th><td>DUSKIN 樂清、王子水電到府服務</td><td><span class="tag tag-green">可體驗</span></td><td><a href="../login.html">登入後開始</a></td></tr>
+          <tr><td class="num">04</td><th scope="row">行・宅配寄件</th><td>黑貓宅急便、7-ELEVEN 交貨便</td><td><span class="tag tag-green">可體驗</span></td><td><a href="../login.html">登入後開始</a></td></tr>
+          <tr><td class="num">05</td><th scope="row">預・預購購物</th><td>7-ELEVEN 線上購物、康是美</td><td><span class="tag tag-green">可體驗</span></td><td><a href="../login.html">登入後開始</a></td></tr>
+          <tr><td class="num">06</td><th scope="row">樂・影音娛樂</th><td>合作品牌洽談中(展示佔位)</td><td><span class="tag tag-amber">佔位</span></td><td><a href="../login.html">登入後開始</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="how" class="sec" aria-labelledby="how-title">
+    <div class="sec-head">
+      <span class="sec-no" aria-hidden="true">02</span>
+      <h2 id="how-title">為什麼不是又一個服務型錄</h2>
+    </div>
+    <div class="grid cols-3">
+      <div class="panel">
+        <h3><span class="num" style="color:var(--green)">2.1</span> 同一份資料,三種操作方式</h3>
+        <p>手動網頁、AI 管家與廠商後台操作的是同一筆訂單與狀態;不會有兩套帳。</p>
+      </div>
+      <div class="panel">
+        <h3><span class="num" style="color:var(--green)">2.2</span> 真實時段,不是隨機媒合</h3>
+        <p>你從廠商實際提供的據點、方案與空檔中選擇,價格與點數折抵在下單前算清楚。</p>
+      </div>
+      <div class="panel">
+        <h3><span class="num" style="color:var(--green)">2.3</span> 全程可追蹤、可恢復</h3>
+        <p>每筆訂單有進度時間軸、通知與行事曆同步;取消、退款與失敗重試都有明確路徑。</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p class="demo-note">2026 雲湧智生黑客松競賽作品。所有品牌名稱僅用於競賽展示情境,詳見資料來源標示。</p>
+</footer>
+
+<div class="ticker" aria-hidden="true">
+  <span class="ticker-label">DEMO LIVE</span>
+  <div class="ticker-track">
+    <span>訂位 EZTABLE 今日可訂 <span class="up">+12 席</span></span>
+    <span>清潔修繕 平均回覆 <span class="up">42 分鐘</span></span>
+    <span>寄件 黑貓當日收件 截止 17:00</span>
+    <span>OPENPOINT 兌換熱度 <span class="up">+8%</span></span>
+    <span>展示資料 partner-demo-v2 seed</span>
+    <span>訂位 EZTABLE 今日可訂 <span class="up">+12 席</span></span>
+    <span>清潔修繕 平均回覆 <span class="up">42 分鐘</span></span>
+    <span>寄件 黑貓當日收件 截止 17:00</span>
+    <span>OPENPOINT 兌換熱度 <span class="up">+8%</span></span>
+    <span>展示資料 partner-demo-v2 seed</span>
+  </div>
+</div>
+</body>
+</html>

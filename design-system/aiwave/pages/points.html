@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>點數兌換 — AIWave(原型)</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .offer-card { display: flex; flex-direction: column; gap: 6px; border: 2px solid var(--ink); border-radius: 16px; padding: 14px 16px; background: var(--surface); }
+  .offer-card h3 { margin: 0; }
+  .offer-cost { font-weight: 900; }
+  .offer-card .btn-row { margin-top: auto; padding-top: 8px; }
+  .ledger-amount-plus { color: var(--link); font-weight: 800; }
+  .ledger-amount-minus { font-weight: 800; }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 A・點數兌換(Demo ledger)・<a href="index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<header class="site-header">
+  <a class="brand" href="dashboard.html"><span class="brand-mark" aria-hidden="true">AW</span>AIWave</a>
+  <span class="workspace-chip">林小圓・個人</span>
+  <nav class="main-nav" aria-label="主導覽">
+    <ul>
+      <li><a href="dashboard.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>首頁</a></li>
+      <li><a href="points.html" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5h5M9.5 13.5h5"/></svg>點數兌換</a></li>
+      <li><a href="ai.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg>AI</a></li>
+      <li><a href="services.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>服務</a></li>
+      <li><a href="member.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>會員中心</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+  <h1>點數兌換</h1>
+  <p class="page-lead">Demo points ledger:展示用可重置帳本,非真實 OPENPOINT 餘額。</p>
+
+  <section class="card" aria-labelledby="balance-title">
+    <h2 id="balance-title">可用點數</h2>
+    <div class="grid cols-2">
+      <div class="kpi">
+        <span class="kpi-value" id="balance-value">1,240 點</span>
+        <span class="kpi-label">可用點數(Demo 帳本)</span>
+        <span class="kpi-note">其中 180 點將於 8/15 到期,建議優先使用</span>
+      </div>
+      <div style="align-self:center">
+        <p style="margin:0">折抵比率:100 點 = NT$10,預約付款時可直接折抵。</p>
+      </div>
+    </div>
+    <p class="demo-note">資料來源:Demo points ledger(可於會員中心重置,非真實 OPENPOINT)。</p>
+  </section>
+
+  <section class="card" aria-labelledby="redeem-title">
+    <h2 id="redeem-title">兌換優惠</h2>
+    <div class="grid cols-3">
+      <div class="offer-card">
+        <h3>康是美 折價券</h3>
+        <p>NT$5 折價券,單筆消費滿 NT$100 可用。</p>
+        <p class="offer-cost">50 點</p>
+        <div class="btn-row"><button class="btn btn-primary" type="button" data-redeem="康是美 NT$5 折價券" data-cost="50">兌換</button></div>
+      </div>
+      <div class="offer-card">
+        <h3>foodomo 外送費折抵券</h3>
+        <p>NT$29 外送費折抵一次,平日限定。</p>
+        <p class="offer-cost">200 點</p>
+        <div class="btn-row"><button class="btn btn-primary" type="button" data-redeem="foodomo 外送費折抵券" data-cost="200">兌換</button></div>
+      </div>
+      <div class="offer-card">
+        <h3>7-ELEVEN 線上購物中心 購物金</h3>
+        <p>NT$50 購物金,結帳自動折抵。</p>
+        <p class="offer-cost">500 點</p>
+        <div class="btn-row"><button class="btn btn-primary" type="button" data-redeem="7-ELEVEN 線上購物中心 NT$50 購物金" data-cost="500">兌換</button></div>
+      </div>
+    </div>
+    <p class="demo-note">優惠內容為展示資料(partner-demo-v2 seed);兌換只扣 Demo 帳本點數。</p>
+  </section>
+
+  <section class="card" aria-labelledby="ledger-title">
+    <h2 id="ledger-title">點數明細</h2>
+    <div class="table-wrap">
+      <table class="data">
+        <caption>依時間新到舊排序(Demo points ledger)</caption>
+        <thead>
+          <tr><th scope="col">日期</th><th scope="col">類型</th><th scope="col">說明</th><th scope="col">點數</th></tr>
+        </thead>
+        <tbody id="ledger-rows">
+          <tr><td>7/30</td><td><span class="badge badge-lavender">折抵</span></td><td>水電修繕預約 BK-20260730-0031(未使用點數)</td><td class="ledger-amount-minus">0</td></tr>
+          <tr><td>7/28</td><td><span class="badge badge-mint">取得</span></td><td>DUSKIN 全室清潔訂單回饋</td><td class="ledger-amount-plus">+96</td></tr>
+          <tr><td>7/20</td><td><span class="badge badge-lavender">折抵</span></td><td>foodomo 訂餐折抵</td><td class="ledger-amount-minus">−300</td></tr>
+          <tr><td>7/18</td><td><span class="badge badge-blue">退款</span></td><td>EZTABLE 訂位取消,點數沖回</td><td class="ledger-amount-plus">+150</td></tr>
+          <tr><td>7/12</td><td><span class="badge badge-mint">取得</span></td><td>康是美 消費回饋</td><td class="ledger-amount-plus">+64</td></tr>
+          <tr><td>7/2</td><td><span class="badge badge-mint">取得</span></td><td>7 月會員禮(8/15 到期,剩 180 點)</td><td class="ledger-amount-plus">+180</td></tr>
+          <tr><td>6/30</td><td><span class="badge badge-warn">到期</span></td><td>2025 年度點數到期回收</td><td class="ledger-amount-minus">−45</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 兌換確認 dialog -->
+  <dialog id="dlg-redeem" aria-labelledby="dlg-redeem-title">
+    <h2 id="dlg-redeem-title">確認兌換?</h2>
+    <p id="redeem-desc">—</p>
+    <p class="demo-note">兌換後立即扣點並寫入明細;此為 Demo 帳本,可在會員中心重置。</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="button" id="confirm-redeem">確認兌換</button>
+      <button class="btn btn-quiet" type="button" data-close-dialog>取消</button>
+    </div>
+  </dialog>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="assets/aiwave.js"></script>
+<script>
+(function () {
+  var balance = 1240;
+  var pending = null;
+
+  function renderBalance() {
+    document.getElementById("balance-value").textContent = balance.toLocaleString() + " 點";
+  }
+
+  document.querySelectorAll("[data-redeem]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var cost = Number(btn.getAttribute("data-cost"));
+      var name = btn.getAttribute("data-redeem");
+      if (cost > balance) {
+        AIWave.toast("點數不足,無法兌換「" + name + "」。");
+        return;
+      }
+      pending = { name: name, cost: cost };
+      document.getElementById("redeem-desc").textContent =
+        "將以 " + cost + " 點兌換「" + name + "」,兌換後剩餘 " + (balance - cost).toLocaleString() + " 點。";
+      document.getElementById("dlg-redeem").showModal();
+    });
+  });
+
+  document.getElementById("confirm-redeem").addEventListener("click", function () {
+    if (!pending) return;
+    balance -= pending.cost;
+    renderBalance();
+    var tr = document.createElement("tr");
+    tr.innerHTML = '<td>7/30</td><td><span class="badge badge-lavender">折抵</span></td><td></td><td class="ledger-amount-minus">−' + pending.cost + "</td>";
+    tr.children[2].textContent = "兌換「" + pending.name + "」";
+    var rows = document.getElementById("ledger-rows");
+    rows.insertBefore(tr, rows.firstChild);
+    document.getElementById("dlg-redeem").close();
+    AIWave.toast("兌換完成,已扣 " + pending.cost + " 點(Demo 帳本)。");
+    pending = null;
+  });
+})();
+</script>
+</body>
+</html>

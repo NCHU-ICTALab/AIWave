@@ -38,7 +38,10 @@ export function createLifestyleClient(options: LifestyleClientOptions = {}) {
     const response = await fetcher(`${baseUrl}${path}`, {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/json', 'Content-Type': 'application/json',
+        ...currentAuthorizationHeaders(),
+      },
       body: JSON.stringify(body),
     })
     if (!response.ok) throw new Error(`操作失敗（${response.status}）`)
@@ -49,7 +52,7 @@ export function createLifestyleClient(options: LifestyleClientOptions = {}) {
     const response = await fetcher(`${baseUrl}${path}`, {
       method: 'GET',
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...currentAuthorizationHeaders() },
     })
     if (!response.ok) throw new Error(`讀取失敗（${response.status}）`)
     return ((await response.json()) as { data: T }).data
@@ -81,3 +84,4 @@ export function createLifestyleClient(options: LifestyleClientOptions = {}) {
     },
   }
 }
+import { currentAuthorizationHeaders } from '@/stores/session'

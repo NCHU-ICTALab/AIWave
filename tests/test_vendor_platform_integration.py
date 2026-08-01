@@ -16,6 +16,7 @@ from core.tools.registry import ToolContext
 from core.vendors import MockVendorClient, VendorService
 from fake_upstreams.vendor_app import create_fake_vendor_app
 from mcp_server.server import create_server
+from tests.auth import MEMBER_HEADERS, MEMBER_ID, PARTNER_HEADERS
 
 CONTROL_KEY = "platform-vendor-test"
 NOW = lambda: datetime(2026, 7, 28, 9, 0, tzinfo=timezone.utc)  # noqa: E731
@@ -49,7 +50,7 @@ async def _confirm_mcp(server, name: str, arguments: dict) -> dict:
 
 def _inquiry_payload() -> dict:
     return {
-        "accountId": "A001", "serviceId": "service-repair", "vendorId": "vendor-prince-electric",
+        "accountId": MEMBER_ID, "serviceId": "service-repair", "vendorId": "vendor-prince-electric",
         "consumer": {"name": "林小美", "phone": "0912-000-111", "email": "lin@example.com"},
         "location": {"countyCode": "01", "countyName": "臺北市", "districtCode": "002",
                      "districtName": "大同區", "postalCode": "103", "address": "103臺北市大同區民生西路1號"},
@@ -91,7 +92,7 @@ async def test_web_proxy_and_mcp_registry_share_vendor_contract_and_source(tmp_p
 
     created = platform.post(
         "/api/v1/vendor-api/inquiries", headers={
-            "Idempotency-Key": "web-create-once", "X-Role": "user", "X-Account-Id": "A001",
+            **MEMBER_HEADERS, "Idempotency-Key": "web-create-once",
         },
         json=_inquiry_payload(),
     )
@@ -101,12 +102,12 @@ async def test_web_proxy_and_mcp_registry_share_vendor_contract_and_source(tmp_p
 
     own = platform.get(
         "/api/v1/vendor-api/inquiries", params={"vendor_id": "vendor-prince-electric"},
-        headers={"X-Role": "partner", "X-Account-Id": "vendor-prince-electric"},
+        headers=PARTNER_HEADERS,
     )
     assert own.status_code == 200
     denied = platform.get(
         "/api/v1/vendor-api/inquiries", params={"vendor_id": "vendor-duskin"},
-        headers={"X-Role": "partner", "X-Account-Id": "vendor-prince-electric"},
+        headers=PARTNER_HEADERS,
     )
     assert denied.status_code == 403
 

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>社區管理後台 — AIWave(原型)</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .role-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .notice-admin-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .notice-admin-list li { border: 2px solid var(--ink); border-radius: 14px; padding: 10px 14px; background: var(--surface); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .notice-admin-list .grow { flex: 1 1 220px; font-weight: 700; }
+  .notice-admin-list .when { display: block; font-size: .85rem; color: var(--muted); font-weight: 600; }
+  @media (max-width: 720px) {
+    .role-actions { margin-left: 0; }
+    main { padding-bottom: 48px; }
+  }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 A・社區管理者後台・<a href="index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<!-- 角色隔離:管理者 workspace 不顯示會員五項導覽 -->
+<header class="site-header">
+  <a class="brand" href="community-manage.html"><span class="brand-mark" aria-hidden="true">AW</span>AIWave</a>
+  <span class="workspace-chip">陳主委・幸福社區管委會</span>
+  <div class="role-actions">
+    <a class="btn btn-quiet" href="login.html">切換身分</a>
+    <a class="btn" href="home-public.html">登出</a>
+  </div>
+</header>
+
+<main id="main">
+  <h1>幸福社區管理後台</h1>
+  <p class="page-lead">今天是 2026 年 7 月 30 日。你有 2 件加入申請待審核。</p>
+
+  <!-- (a) 加入申請待審 -->
+  <section class="card" aria-labelledby="apply-title">
+    <h2 id="apply-title">加入申請待審</h2>
+    <div class="table-wrap">
+      <table class="data">
+        <caption>待審核的住戶加入申請(partner-demo-v2 seed 展示資料)</caption>
+        <thead>
+          <tr><th scope="col">申請人</th><th scope="col">戶別</th><th scope="col">申請時間</th><th scope="col">狀態</th><th scope="col">動作</th></tr>
+        </thead>
+        <tbody id="apply-tbody">
+          <tr data-applicant="張小姐">
+            <td>張小姐</td><td>A 棟 3 樓之 1</td><td>7/29 14:20</td>
+            <td class="cell-status"><span class="badge badge-warn">待審核</span></td>
+            <td class="cell-action">
+              <div class="btn-row">
+                <button class="btn btn-primary" type="button" data-decide="approve">核准</button>
+                <button class="btn" type="button" data-decide="reject">婉拒</button>
+              </div>
+            </td>
+          </tr>
+          <tr data-applicant="李先生">
+            <td>李先生</td><td>C 棟 12 樓之 3</td><td>7/30 09:05</td>
+            <td class="cell-status"><span class="badge badge-warn">待審核</span></td>
+            <td class="cell-action">
+              <div class="btn-row">
+                <button class="btn btn-primary" type="button" data-decide="approve">核准</button>
+                <button class="btn" type="button" data-decide="reject">婉拒</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="demo-note">核准後住戶即可看到社區公告與服務;婉拒會通知申請人,兩者都可在誤按時立即復原。</p>
+  </section>
+
+  <!-- (b) 社區事件管理 -->
+  <section class="card" aria-labelledby="event-title">
+    <h2 id="event-title">社區事件管理</h2>
+    <ul class="notice-admin-list" id="notice-list">
+      <li>
+        <span class="grow">公共設施年度保養,部分設施暫停開放<span class="when">活動日 8/2・已發布 7/25</span></span>
+        <span class="badge badge-mint">已發布</span>
+      </li>
+      <li>
+        <span class="grow">中元普渡登記開始,8/10 截止<span class="when">活動日 8/28・已發布 7/28</span></span>
+        <span class="badge badge-mint">已發布</span>
+      </li>
+    </ul>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-primary" type="button" data-open-dialog="dlg-publish">發布公告</button>
+    </div>
+    <p class="demo-note">公告發布後會同步到住戶的「我的社區」頁與行事曆(社區來源)。</p>
+  </section>
+
+  <!-- (c) 住戶概況 -->
+  <section class="card" aria-labelledby="kpi-title">
+    <h2 id="kpi-title">住戶概況</h2>
+    <div class="grid cols-3">
+      <div class="kpi">
+        <span class="kpi-value">128 戶</span>
+        <span class="kpi-label">社區總戶數</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-value">86 人</span>
+        <span class="kpi-label">已加入 AIWave 的住戶</span>
+        <span class="kpi-note">涵蓋 74 戶</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-value">2 件</span>
+        <span class="kpi-label">待審核申請</span>
+      </div>
+    </div>
+    <p class="demo-note">以上數字為 partner-demo-v2 seed 展示資料,非真實社區統計。</p>
+  </section>
+
+  <!-- (d) 權限說明 -->
+  <section class="card" aria-labelledby="perm-title" style="background:var(--lavender)">
+    <h2 id="perm-title">管理者權限說明</h2>
+    <ul>
+      <li>社區管理者身分需經<strong>平台人工審核</strong>後才會開通,不能自行宣告。</li>
+      <li>你只能管理本社區的<strong>加入申請與公告</strong>;<strong>看不到住戶的個人訂單、點數與對話</strong>(授權隔離)。</li>
+      <li>住戶個資僅顯示審核所需的最小欄位(姓名、戶別、申請時間)。</li>
+    </ul>
+  </section>
+</main>
+
+<!-- 發布公告 -->
+<dialog id="dlg-publish" aria-labelledby="dlg-publish-title">
+  <h2 id="dlg-publish-title">發布公告</h2>
+  <form id="publish-form" method="dialog">
+    <div class="field">
+      <label for="f-title">標題<span aria-hidden="true"> *</span></label>
+      <input id="f-title" name="title" type="text" required>
+      <p class="error" id="err-title" hidden>請輸入公告標題。</p>
+    </div>
+    <div class="field">
+      <label for="f-body">內容<span aria-hidden="true"> *</span></label>
+      <textarea id="f-body" name="body" required></textarea>
+      <p class="error" id="err-body" hidden>請輸入公告內容。</p>
+    </div>
+    <div class="field">
+      <label for="f-date">活動/生效日期<span aria-hidden="true"> *</span></label>
+      <input id="f-date" name="date" type="date" value="2026-08-05" required>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">發布</button>
+      <button class="btn btn-quiet" type="button" data-close-dialog>取消</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="assets/aiwave.js"></script>
+<script>
+(function () {
+  /* (a) 核准/婉拒:更新該列狀態 badge,並提供復原按鈕 */
+  document.getElementById("apply-tbody").addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-decide], button[data-undo]");
+    if (!btn) return;
+    var row = btn.closest("tr");
+    var name = row.getAttribute("data-applicant");
+    var statusCell = row.querySelector(".cell-status");
+    var actionCell = row.querySelector(".cell-action");
+
+    if (btn.hasAttribute("data-undo")) {
+      statusCell.innerHTML = '<span class="badge badge-warn">待審核</span>';
+      actionCell.innerHTML =
+        '<div class="btn-row">' +
+        '<button class="btn btn-primary" type="button" data-decide="approve">核准</button>' +
+        '<button class="btn" type="button" data-decide="reject">婉拒</button></div>';
+      actionCell.querySelector("button").focus();
+      AIWave.toast("已復原,「" + name + "」回到待審核。");
+      return;
+    }
+
+    var decision = btn.getAttribute("data-decide");
+    if (decision === "approve") {
+      statusCell.innerHTML = '<span class="badge badge-mint">已核准</span>';
+      AIWave.toast("已核准「" + name + "」加入幸福社區。");
+    } else {
+      statusCell.innerHTML = '<span class="badge badge-danger">已婉拒</span>';
+      AIWave.toast("已婉拒「" + name + "」的申請,系統會通知對方。");
+    }
+    actionCell.innerHTML = '<button class="btn btn-quiet" type="button" data-undo>復原</button>';
+    actionCell.querySelector("button").focus();
+  });
+
+  /* (b) 發布公告 → 插入清單 */
+  document.getElementById("publish-form").addEventListener("submit", function (e) {
+    var title = document.getElementById("f-title");
+    var body = document.getElementById("f-body");
+    var ok = true;
+    if (!title.value.trim()) { document.getElementById("err-title").hidden = false; title.setAttribute("aria-invalid", "true"); ok = false; }
+    else { document.getElementById("err-title").hidden = true; title.removeAttribute("aria-invalid"); }
+    if (!body.value.trim()) { document.getElementById("err-body").hidden = false; body.setAttribute("aria-invalid", "true"); ok = false; }
+    else { document.getElementById("err-body").hidden = true; body.removeAttribute("aria-invalid"); }
+    if (!ok) { e.preventDefault(); return; }
+
+    var dateVal = document.getElementById("f-date").value || "2026-08-05";
+    var parts = dateVal.split("-");
+    var dateText = Number(parts[1]) + "/" + Number(parts[2]);
+
+    var li = document.createElement("li");
+    var span = document.createElement("span");
+    span.className = "grow";
+    span.textContent = title.value.trim();
+    var when = document.createElement("span");
+    when.className = "when";
+    when.textContent = "活動日 " + dateText + "・已發布 7/30";
+    span.appendChild(when);
+    var badge = document.createElement("span");
+    badge.className = "badge badge-mint";
+    badge.textContent = "已發布";
+    li.appendChild(span);
+    li.appendChild(badge);
+    document.getElementById("notice-list").prepend(li);
+
+    AIWave.toast("公告「" + title.value.trim() + "」已發布並同步給住戶。");
+    title.value = "";
+    body.value = "";
+  });
+})();
+</script>
+</body>
+</html>

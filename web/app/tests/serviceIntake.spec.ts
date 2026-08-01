@@ -26,6 +26,9 @@ describe('service intake validation', () => {
         if (field.type === 3) answers[field.id] = field.options?.[0]?.value ?? ''
         else if (field.type === 1 && field.numberOnly) answers[field.id] = field.min ?? 1
         else if (field.type === 9) answers[field.id] = field.minDate ?? '2026-07-27'
+        else if (field.type === 5) answers[field.id] = { county_name: '臺北市', district_name: '大同區' }
+        else if (field.type === 8) answers[field.id] = { name: '王小明', mobile: '0912345678', address: '臺北市大同區民生西路 1 號' }
+        else if (field.type === 10) answers[field.id] = { name: '王小明', mobile: '0912345678' }
         else answers[field.id] = '展示用需求說明'
       }
       expect(validateServiceAnswers(form, answers), form.serviceId).toEqual({})
@@ -35,9 +38,16 @@ describe('service intake validation', () => {
   it('validates visible required fields and conditional fields', () => {
     const form = catalogForms['service-repair']!
 
-    expect(validateServiceAnswers(form, {})).toMatchObject({ repairType: expect.any(String), urgency: expect.any(String) })
-    expect(validateServiceAnswers(form, { repairType: 'plumbing', urgency: 'normal' })).toEqual({})
-    expect(validateServiceAnswers(form, { repairType: 'other', urgency: 'normal' })).toMatchObject({ detail: expect.any(String) })
+    expect(validateServiceAnswers(form, {})).toMatchObject({ repairType: expect.any(String), urgency: expect.any(String), region: expect.any(String), contact: expect.any(String) })
+    const required = {
+      urgency: 'normal',
+      region: { county_name: '臺北市', district_name: '大同區' },
+      date: form.fields.find((field) => field.id === 'date')!.minDate!,
+      slot: 'morning',
+      contact: { name: '王小明', mobile: '0912345678', address: '臺北市大同區民生西路 1 號' },
+    }
+    expect(validateServiceAnswers(form, { repairType: 'plumbing', ...required })).toEqual({})
+    expect(validateServiceAnswers(form, { repairType: 'other', ...required })).toMatchObject({ detail: expect.any(String) })
   })
 
   it('rejects unknown options, whitespace-only text, and dates outside the booking window', () => {

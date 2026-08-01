@@ -21,6 +21,9 @@ COPY agent/ ./agent/
 COPY api/ ./api/
 COPY core/ ./core/
 COPY mcp_server/ ./mcp_server/
+# fake upstreams 也進 image：ECS task 內以 sidecar container 執行（同 task 共用 localhost），
+# 拓撲與本機 run.sh 一致（partner:8020、legacy vendor:8021）
+COPY fake_upstreams/ ./fake_upstreams/
 COPY raw_data/ ./raw_data/
 COPY main.py ./
 

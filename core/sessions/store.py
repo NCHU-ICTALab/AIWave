@@ -26,6 +26,8 @@ class ConversationState:
 
     session_id: str
     service_id: str
+    #: Authenticated owner; a session may never be resumed by another principal.
+    account_id: str | None = None
     #: topic_id → 已驗證的答案值
     answers: dict[int, object] = field(default_factory=dict)
     #: 使用者明確略過的選填題
@@ -37,6 +39,7 @@ class ConversationState:
         return {
             "sessionId": self.session_id,
             "serviceId": self.service_id,
+            "accountId": self.account_id,
             # JSON 的物件鍵一律是字串，先轉好，避免不同實作各自處理而不一致
             "answers": {str(key): value for key, value in self.answers.items()},
             "skipped": list(self.skipped),
@@ -49,6 +52,7 @@ class ConversationState:
         return cls(
             session_id=str(payload["sessionId"]),
             service_id=str(payload["serviceId"]),
+            account_id=payload.get("accountId"),
             answers={int(key): value for key, value in (payload.get("answers") or {}).items()},
             skipped=[int(value) for value in (payload.get("skipped") or [])],
             awaiting_confirm=bool(payload.get("awaitingConfirm")),
@@ -60,6 +64,7 @@ class SessionStore(Protocol):
     def get(self, session_id: str) -> ConversationState | None: ...
     def save(self, state: ConversationState) -> None: ...
     def delete(self, session_id: str) -> None: ...
+    def clear(self, account_id: str | None = None) -> None: ...
 
 
 class InMemorySessionStore:
@@ -76,3 +81,13 @@ class InMemorySessionStore:
 
     def delete(self, session_id: str) -> None:
         self._states.pop(session_id, None)
+
+    def clear(self, account_id: str | None = None) -> None:
+        if account_id is None:
+            self._states.clear()
+            return
+        self._states = {
+            session_id: state
+            for session_id, state in self._states.items()
+            if state.account_id != account_id
+        }

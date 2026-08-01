@@ -27,6 +27,7 @@ export interface Inquiry {
   id: string
   form_id: number
   service_id: string | null
+  title?: string
   status: InquiryStatus
   status_label: string
   official_status: string | null
@@ -64,6 +65,8 @@ export class InquiryApiError extends Error {
 interface ClientOptions {
   fetcher?: typeof fetch
   baseUrl?: string
+  accountId?: string | null
+  role?: 'user' | 'partner'
 }
 
 export function createInquiryLifecycleClient(options: ClientOptions = {}) {
@@ -74,7 +77,12 @@ export function createInquiryLifecycleClient(options: ClientOptions = {}) {
     const response = await fetcher(`${baseUrl}${path}`, {
       ...init,
       credentials: 'same-origin',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init.headers },
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...currentAuthorizationHeaders(),
+        ...init.headers,
+      },
     })
     if (!response.ok) {
       const payload = await response.json().catch(() => ({})) as { detail?: string }
@@ -109,3 +117,4 @@ export function createInquiryLifecycleClient(options: ClientOptions = {}) {
       }),
   }
 }
+import { currentAuthorizationHeaders } from '@/stores/session'

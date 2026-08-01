@@ -20,6 +20,7 @@ def service_to_dict(service: ServiceInfo) -> dict:
         "summary": service.summary,
         "partner": service.partner,
         "glyph": service.glyph,
+        "keywords": list(service.search_terms),
     }
 
 
@@ -94,7 +95,10 @@ def summarize_feedback(form: Form, feedback_content: dict) -> list[dict]:
             elif answer.get("imgUrl"):
                 values.append(f"{len(answer['imgUrl'])} 張照片")
             elif answer.get("name"):
-                values.append(f"{answer.get('name')} {answer.get('mobile', '')}".strip())
+                contact = f"{answer.get('name')} {answer.get('mobile', '')}".strip()
+                if answer.get("address"):
+                    contact += f"・{answer['address']}"
+                values.append(contact)
         if values:
             summary.append({"label": topic.title, "value": "、".join(values)})
     return summary

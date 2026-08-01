@@ -14,9 +14,10 @@ from fastapi.testclient import TestClient
 from api.app import create_app
 from core.community import CLOSED, OPEN, GroupBuyError, SqliteGroupBuyRepository
 from core.inquiries import SqliteInquiryRepository
+from tests.auth import MANAGER_HEADERS, MEMBER_HEADERS, MEMBER_ID, SECOND_MEMBER_ID
 
-RESIDENT_A = "019a52d3-7f6b-7da3-b48d-9c9e2522d616"
-RESIDENT_B = "019eee3f-841e-7048-ae67-0955b144f4f8"
+RESIDENT_A = MEMBER_ID
+RESIDENT_B = SECOND_MEMBER_ID
 
 
 @pytest.fixture
@@ -113,21 +114,25 @@ def client(tmp_path: Path, repository: SqliteGroupBuyRepository) -> TestClient:
 def test_resident_sees_open_campaigns_and_can_join(client: TestClient, repository: SqliteGroupBuyRepository):
     campaign_id = _campaign(repository)["id"]
 
-    listed = client.get("/api/v1/community/campaigns?only_open=true").json()["data"]
+    listed = client.get(
+        "/api/v1/community/campaigns?only_open=true", headers=MEMBER_HEADERS,
+    ).json()["data"]
     assert [item["id"] for item in listed] == [campaign_id]
 
-    joined = client.post(f"/api/v1/community/campaigns/{campaign_id}/join",
+    joined = client.post(f"/api/v1/community/campaigns/{campaign_id}/join", headers=MEMBER_HEADERS,
                          json={"account_id": RESIDENT_A, "display_name": "小圓", "quantity": 2}).json()["data"]
     assert joined["totalQuantity"] == 2
     assert joined["householdCount"] == 1
 
 
 def test_manager_creates_a_campaign_that_residents_immediately_see(client: TestClient):
-    created = client.post("/api/v1/community/campaigns", json={
+    created = client.post("/api/v1/community/campaigns", headers=MANAGER_HEADERS, json={
         "title": "八月團購", "item_name": "文旦 10 斤", "unit_price": 400, "min_quantity": 5,
     }).json()["data"]
 
-    listed = client.get("/api/v1/community/campaigns?only_open=true").json()["data"]
+    listed = client.get(
+        "/api/v1/community/campaigns?only_open=true", headers=MEMBER_HEADERS,
+    ).json()["data"]
     assert created["id"] in [item["id"] for item in listed]
 
 
@@ -136,7 +141,9 @@ def test_closing_produces_a_purchase_order_for_the_vendor(client: TestClient, re
     repository.join(campaign_id, account_id=RESIDENT_A, display_name="A 戶", quantity=2)
     repository.join(campaign_id, account_id=RESIDENT_B, display_name="B 戶", quantity=3)
 
-    payload = client.post(f"/api/v1/community/campaigns/{campaign_id}/close").json()["data"]
+    payload = client.post(
+        f"/api/v1/community/campaigns/{campaign_id}/close", headers=MANAGER_HEADERS,
+    ).json()["data"]
 
     assert payload["campaign"]["status"] == CLOSED
     order = payload["purchaseOrder"]
@@ -149,7 +156,7 @@ def test_joining_a_closed_campaign_is_rejected_with_a_reason(client: TestClient,
     campaign_id = _campaign(repository)["id"]
     repository.close_campaign(campaign_id)
 
-    response = client.post(f"/api/v1/community/campaigns/{campaign_id}/join",
+    response = client.post(f"/api/v1/community/campaigns/{campaign_id}/join", headers=MEMBER_HEADERS,
                            json={"account_id": RESIDENT_A, "quantity": 1})
     assert response.status_code == 409
     assert "已結單" in response.json()["detail"]
@@ -159,8 +166,12 @@ def test_resident_can_see_what_they_joined(client: TestClient, repository: Sqlit
     campaign_id = _campaign(repository)["id"]
     repository.join(campaign_id, account_id=RESIDENT_A, display_name="小圓", quantity=2)
 
-    mine = client.get(f"/api/v1/community/my-participation?account_id={RESIDENT_A}").json()["data"]
+    mine = client.get(
+        f"/api/v1/community/my-participation?account_id={RESIDENT_A}", headers=MEMBER_HEADERS,
+    ).json()["data"]
     assert len(mine) == 1
     assert mine[0]["myQuantity"] == 2
 
-    assert client.get(f"/api/v1/community/my-participation?account_id={RESIDENT_B}").json()["data"] == []
+    assert client.get(
+        f"/api/v1/community/my-participation?account_id={RESIDENT_B}", headers=MEMBER_HEADERS,
+    ).status_code == 404

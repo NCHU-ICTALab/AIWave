@@ -3,6 +3,8 @@ import { vi } from 'vitest'
 import type { ServiceCatalogClient } from '@/api/serviceCatalogClient'
 import type { ServiceAnswers, ServiceQuote } from '@/domain/serviceIntake'
 
+import { createPlatformStub } from './platformStub'
+
 import {
   catalogForms,
   catalogServices,
@@ -61,6 +63,10 @@ export function createFakeCatalogClient(): ServiceCatalogClient {
       return form
     },
     quote: async (serviceId, answers) => fakeQuote(serviceId, answers),
+    submit: async (serviceId) => ({
+      kind: catalogForms[serviceId]?.action === 'order' ? 'order' : 'service_request',
+      resource: { id: `persisted-${serviceId}` },
+    }),
   }
 }
 
@@ -68,11 +74,19 @@ function json(body: unknown) {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
 }
 
+const emptyInsightSummary = {
+  accountId: 'demo-new-member', totalOrders: 0, completedOrders: 0, openOrders: 0,
+  cancelledOrders: 0, distinctServices: 0, totalSpend: 0, earnedPoints: 0,
+  firstActivity: null, lastActivity: null, services: [], source: 'official_order_record',
+}
+
 /**
  * 為掛載元件的測試安裝 fetch 契約（涵蓋服務目錄／題組／試算／諮詢單）。
  * `extra` 可補上該測試專屬的路由。
  */
 export function stubCatalogFetch(extra?: (url: string, init?: RequestInit) => Response | undefined) {
+  // M4 platform API 的有狀態替身;每次安裝 stub 都是乾淨狀態
+  const platformStub = createPlatformStub()
   const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     const custom = extra?.(url, init)
@@ -92,8 +106,18 @@ export function stubCatalogFetch(extra?: (url: string, init?: RequestInit) => Re
       return json({ data: fakeQuote(quoteMatch[1]!, answers) })
     }
 
+    const submissionMatch = url.match(/\/api\/v1\/services\/([^/]+)\/submissions$/)
+    if (submissionMatch) {
+      const serviceId = submissionMatch[1]!
+      return json({ data: {
+        kind: catalogForms[serviceId]?.action === 'order' ? 'order' : 'service_request',
+        resource: { id: `persisted-${serviceId}`, idempotentReplay: false },
+      } })
+    }
+
     if (url.endsWith('/api/v1/inquiries')) return json({ data: [] })
     if (url.endsWith('/api/v1/life-tasks')) return json({ data: [] })
+    if (url.endsWith('/api/v1/groups')) return json({ data: [] })
     if (url.endsWith('/api/v1/groups/joint-services')) return json({ data: [] })
     if (url.endsWith('/api/v1/support/tickets')) return json({ data: [] })
     // 廠商工作台預設為空；需要內容的測試自行以 extra 覆寫
@@ -103,15 +127,24 @@ export function stubCatalogFetch(extra?: (url: string, init?: RequestInit) => Re
 
     // 今日摘要（首頁「我現在該做什麼」）
     if (url.includes('/api/v1/today/')) {
-      return json({ data: url.includes('/today/none') ? [] : todayBriefing })
+      return json({ data: url.includes('/today/none') || url.includes('/today/demo-new-member') ? [] : todayBriefing })
     }
 
     // 個人洞察（今日生活中心的數字與推薦）
     if (url.includes('/api/v1/insights/')) {
       if (url.endsWith('/accounts')) return json({ data: insightAccounts })
-      if (url.includes('/summary')) return json({ data: insightSummary })
+      if (url.includes('/summary')) return json({ data: url.includes('/demo-new-member/') ? emptyInsightSummary : insightSummary })
       if (url.includes('/recommendations')) return json({ data: insightRecommendations })
       if (url.includes('/trail')) return json({ data: insightTrail })
+    }
+
+    if (url.endsWith('/api/v1/platform/points')) {
+      const identity = JSON.parse(globalThis.localStorage?.getItem('life-ai.identity') ?? 'null') as { accountId?: string } | null
+      const balance = identity?.accountId === 'demo-new-member' ? 0 : 180
+      return json({ data: {
+        label: 'Demo OPENPOINT 情境帳本（非正式即時帳戶）', balance,
+        entries: balance ? [{ id: 'seed-points', type: 'earn', amount: balance, description: 'Demo 初始點數' }] : [],
+      } })
     }
 
     if (url.includes('/api/v1/personalization/') && url.endsWith('/restock-plan')) {
@@ -140,6 +173,9 @@ export function stubCatalogFetch(extra?: (url: string, init?: RequestInit) => Re
         source: 'official_orders+competition_seed_wallet',
       } })
     }
+
+    const platform = platformStub(url, init)
+    if (platform) return platform
 
     return new Response('{}', { status: 404 })
   })

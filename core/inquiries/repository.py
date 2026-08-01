@@ -18,6 +18,7 @@ SQLite 是地端實作；介面刻意維持精簡，日後換 RDS/Postgres 不�
 from __future__ import annotations
 
 import json
+import hashlib
 import sqlite3
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -70,12 +71,15 @@ class InquiryRepository(Protocol):
         feedback_content: dict,
         service_id: str | None = ...,
         account_id: str | None = ...,
+        vendor_id: str | None = ...,
         summary: list | None = ...,
+        idempotency_key: str | None = ...,
     ) -> dict: ...
     def get(self, inquiry_id: str) -> dict | None: ...
     def list_all(self) -> list[dict]: ...
     def list_for_account(self, account_id: str) -> list[dict]: ...
     def list_by_status(self, status: str) -> list[dict]: ...
+    def list_for_vendor_by_status(self, vendor_id: str, status: str) -> list[dict]: ...
     def add_quote(self, inquiry_id: str, *, items: list[dict], vendor_name: str) -> dict: ...
     def confirm_quote(self, inquiry_id: str) -> dict: ...
     def request_revision(self, inquiry_id: str, *, note: str) -> dict: ...
@@ -125,6 +129,7 @@ class SqliteInquiryRepository:
             for column, ddl in (
                 ("service_id", "TEXT"),
                 ("account_id", "TEXT"),
+                ("vendor_id", "TEXT"),
                 ("summary", "TEXT"),
                 ("quote_items", "TEXT"),
                 ("quote_amount", "INTEGER"),
@@ -132,9 +137,14 @@ class SqliteInquiryRepository:
                 ("quoted_at", "TEXT"),
                 ("confirmed_at", "TEXT"),
                 ("completed_at", "TEXT"),
+                ("idempotency_key", "TEXT"),
+                ("idempotency_fingerprint", "TEXT"),
             ):
                 if column not in existing:
                     connection.execute(f"ALTER TABLE inquiries ADD COLUMN {column} {ddl}")
+            connection.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_inquiry_idempotency ON inquiries(idempotency_key) WHERE idempotency_key IS NOT NULL"
+            )
             if "detail" not in {row["name"] for row in connection.execute("PRAGMA table_info(inquiry_events)")}:
                 connection.execute("ALTER TABLE inquiry_events ADD COLUMN detail TEXT")
 
@@ -171,26 +181,51 @@ class SqliteInquiryRepository:
         feedback_content: dict,
         service_id: str | None = None,
         account_id: str | None = None,
+        vendor_id: str | None = None,
         summary: list | None = None,
+        idempotency_key: str | None = None,
     ) -> dict:
         created_at = self._now()
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=timezone.utc)
         timestamp = created_at.isoformat()
+        normalized_key = (idempotency_key or "").strip() or None
+        fingerprint = hashlib.sha256(json.dumps({
+            "formId": form_id, "feedback": feedback_content, "serviceId": service_id,
+            "accountId": account_id, "vendorId": vendor_id, "summary": summary or [],
+        }, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         with self._connect() as connection:
+            if normalized_key:
+                existing = connection.execute(
+                    "SELECT id,idempotency_fingerprint FROM inquiries WHERE idempotency_key=?",
+                    (normalized_key,),
+                ).fetchone()
+                if existing:
+                    if existing["idempotency_fingerprint"] != fingerprint:
+                        raise InquiryTransitionError("相同 Idempotency-Key 不可用於不同諮詢內容")
+                    record = self._row_to_record(connection, connection.execute(
+                        "SELECT * FROM inquiries WHERE id=?", (existing["id"],),
+                    ).fetchone())
+                    record["idempotentReplay"] = True
+                    return record
             cursor = connection.execute(
                 """
-                INSERT INTO inquiries (id, form_id, service_id, account_id, status, feedback_content, summary, created_at)
-                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO inquiries
+                  (id, form_id, service_id, account_id, vendor_id, status, feedback_content,
+                   summary, created_at, idempotency_key, idempotency_fingerprint)
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     form_id,
                     service_id,
                     account_id,
+                    vendor_id,
                     PENDING_QUOTE,
                     json.dumps(feedback_content, ensure_ascii=False),
                     json.dumps(summary or [], ensure_ascii=False),
                     timestamp,
+                    normalized_key,
+                    fingerprint if normalized_key else None,
                 ),
             )
             inquiry_id = f"INQ-{created_at:%Y%m%d}-{cursor.lastrowid:03d}"
@@ -211,6 +246,7 @@ class SqliteInquiryRepository:
             "form_id": row["form_id"],
             "service_id": row["service_id"] if "service_id" in keys else None,
             "account_id": row["account_id"] if "account_id" in keys else None,
+            "vendor_id": row["vendor_id"] if "vendor_id" in keys else None,
             "status": row["status"],
             "status_label": STATUS_LABEL.get(row["status"], row["status"]),
             "official_status": OFFICIAL_STATUS.get(row["status"]),
@@ -257,6 +293,15 @@ class SqliteInquiryRepository:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM inquiries WHERE status = ? ORDER BY seq DESC", (status,)
+            ).fetchall()
+            return [self._row_to_record(connection, row) for row in rows]
+
+    def list_for_vendor_by_status(self, vendor_id: str, status: str) -> list[dict]:
+        """廠商只能取得明確指派給自己的案件；舊資料不會自動暴露給所有廠商。"""
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM inquiries WHERE vendor_id = ? AND status = ? ORDER BY seq DESC",
+                (vendor_id, status),
             ).fetchall()
             return [self._row_to_record(connection, row) for row in rows]
 

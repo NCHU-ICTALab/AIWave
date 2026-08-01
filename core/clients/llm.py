@@ -67,13 +67,22 @@ def _extract_json(text: str) -> object:
     raise ValueError(f"無法從回覆解析 JSON：{text[:200]!r}")
 
 
-_singleton: OpenAICompatLlm | None = None
+_singleton: LlmClient | None = None
 
 
 def get_llm() -> LlmClient:
-    """取得預設 LLM 用戶端（依 .env 設定）。"""
+    """取得預設 LLM 用戶端（依 .env／環境變數設定）。
+
+    `LLM_PROVIDER=bedrock` 時改用 Bedrock（正式競賽環境；憑證走 IAM task role），
+    否則維持 OpenAI 相容端點。呼叫端不感知差異（[ADR-0004]）。
+    """
     global _singleton
     if _singleton is None:
         s = settings()
-        _singleton = OpenAICompatLlm(s.api_url, s.api_key, s.model)
+        if s.llm_provider == "bedrock":
+            from core.clients.bedrock import BedrockLlm  # 延遲載入，避免地端路徑吃 boto3 啟動成本
+
+            _singleton = BedrockLlm(s.bedrock_model_id)
+        else:
+            _singleton = OpenAICompatLlm(s.api_url, s.api_key, s.model)
     return _singleton

@@ -126,6 +126,7 @@ class TestToolRegistry:
                     "properties": {"text": {"type": "string"}, "count": {"type": "integer"}},
                     "required": ["text"],
                 },
+                "writes": False,
             }
         ]
 

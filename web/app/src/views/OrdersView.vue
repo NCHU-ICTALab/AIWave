@@ -4,15 +4,14 @@ import { useRoute } from 'vue-router'
 
 import { createInquiryLifecycleClient, type Inquiry, type PlatformOrder } from '@/api/inquiryLifecycleClient'
 import { createLifeTaskClient, type LifeTask } from '@/api/lifeTaskClient'
+import { listBookings, listCommerceOrders, type Booking, type CommerceOrder } from '@/api/platformClient'
 import { createSupportClient, type SupportTicket } from '@/api/supportClient'
 import SupportIssuePanel from '@/components/SupportIssuePanel.vue'
-import { useDemoStore } from '@/stores/demo'
 import { useSessionStore } from '@/stores/session'
 
-const store = useDemoStore()
 const route = useRoute()
 const session = useSessionStore()
-const client = createInquiryLifecycleClient()
+const client = createInquiryLifecycleClient({ accountId: session.accountId, role: 'user' })
 const supportClient = createSupportClient()
 const lifeTaskClient = createLifeTaskClient()
 const inquiries = ref<Inquiry[]>([])
@@ -24,11 +23,59 @@ const supportTickets = ref<SupportTicket[]>([])
 const supportStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
 const lifeTasks = ref<LifeTask[]>([])
 
-const hasAnything = computed(() => lifeTasks.value.length > 0 || inquiries.value.length > 0 || platformOrders.value.length > 0 || store.orders.length > 0)
+const hasAnything = computed(() => lifeTasks.value.length > 0 || inquiries.value.length > 0 || platformOrders.value.length > 0)
 const currency = (value: number) => `NT$ ${(value ?? 0).toLocaleString('zh-TW')}`
+
+// ── M4 平台 Booking / CommerceOrder:與舊區塊各自載入,任一邊失敗不拖垮另一邊 ──
+const BOOKING_STATUS_LABELS: Record<string, string> = {
+  pending_provider: '需求送出', confirmed: '已預約', in_service: '服務中',
+  completed: '已完成', cancelled: '已取消', rejected: '廠商婉拒', exception: '履約異常',
+}
+const COMMERCE_STATUS_LABELS: Record<string, string> = {
+  placed: '收到訂單', accepted: '已接單', preparing: '備貨中', shipped: '已出貨',
+  ready_for_pickup: '可取貨', delivered: '已送達', payment_failed: '付款失敗', cancelled: '已取消',
+}
+const m4Bookings = ref<Booking[]>([])
+const m4Orders = ref<CommerceOrder[]>([])
+const m4Status = ref<'loading' | 'ready' | 'unavailable'>('loading')
+
+interface M4Row { id: string; title: string; meta: string; status: string; statusLabel: string }
+const formatTime = (value: string | null | undefined) => (value ?? '').replace('T', ' ').slice(0, 16)
+
+const m4Rows = computed<M4Row[]>(() => [
+  ...m4Bookings.value.map((booking) => ({
+    id: booking.id,
+    title: '服務預約',
+    meta: `${formatTime(booking.startsAt)} – ${formatTime(booking.endsAt)}`,
+    status: booking.status,
+    statusLabel: BOOKING_STATUS_LABELS[booking.status] ?? booking.status,
+  })),
+  ...m4Orders.value.map((order) => ({
+    id: order.id,
+    title: order.items[0]?.name ?? '購物訂單',
+    meta: currency(order.total),
+    status: order.status,
+    statusLabel: COMMERCE_STATUS_LABELS[order.status] ?? order.status,
+  })),
+])
+
+async function loadPlatform() {
+  m4Status.value = 'loading'
+  try {
+    const [bookings, orders] = await Promise.all([listBookings(), listCommerceOrders()])
+    m4Bookings.value = Array.isArray(bookings) ? bookings : []
+    m4Orders.value = Array.isArray(orders) ? orders : []
+    m4Status.value = 'ready'
+  } catch {
+    m4Status.value = 'unavailable'
+  }
+}
 
 /** 舊資料或部分回應可能沒有摘要，畫面不該因此崩掉。 */
 const lines = (inquiry: Inquiry) => inquiry.summary ?? []
+const inquiryTitle = (inquiry: Inquiry) => inquiry.title
+  || lines(inquiry).find((line) => /服務/.test(line.label))?.value
+  || '服務委託'
 const events = (inquiry: Inquiry) => inquiry.events ?? []
 
 async function load() {
@@ -143,7 +190,10 @@ async function confirmCancel(inquiry: Inquiry) {
   cancelling.value = null
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  void loadPlatform()
+})
 </script>
 
 <template>
@@ -155,6 +205,40 @@ onMounted(load)
   </header>
 
   <p v-if="error" class="need-error" role="alert">{{ error }}</p>
+
+  <!-- M4 平台預約/訂單:獨立資料源,不與舊 inquiries/orders 混在一起 -->
+  <section class="panel" aria-labelledby="m4-orders-title" data-testid="m4-order-section">
+    <h2 id="m4-orders-title">服務預約與訂單</h2>
+    <p v-if="m4Status === 'loading'" role="status">正在載入平台預約與訂單…</p>
+    <div v-else-if="m4Status === 'unavailable'" class="error-state compact" role="alert">
+      <strong>平台預約與訂單暫時無法載入</strong>
+      <p>下方的委託紀錄不受影響;重新連線後可再載入。</p>
+      <button class="button" type="button" @click="loadPlatform">重新載入</button>
+    </div>
+    <template v-else>
+      <div v-if="m4Rows.length">
+        <RouterLink
+          v-for="row in m4Rows"
+          :key="row.id"
+          class="order-row"
+          data-testid="m4-order-row"
+          :to="`/user/orders/${row.id}`"
+        >
+          <div>
+            <strong>{{ row.title }}</strong>
+            <span class="row-meta">{{ row.id }}・{{ row.meta }}</span>
+          </div>
+          <span class="status" :data-status="row.status">{{ row.statusLabel }}</span>
+        </RouterLink>
+      </div>
+      <div v-else class="empty-state compact">
+        <h3>尚無平台預約或訂單</h3>
+        <p>從服務探索建立第一筆預約或購物,進度會顯示在這裡。</p>
+        <RouterLink class="button primary inline" to="/user/services">去探索服務</RouterLink>
+      </div>
+    </template>
+    <p class="source-note muted">進度、通知與行事曆來自同一份 StatusEvent(展示資料)。</p>
+  </section>
 
   <div v-if="status === 'ready' && hasAnything" class="grid">
     <section class="panel span-8" aria-labelledby="active-orders">
@@ -246,7 +330,7 @@ onMounted(load)
       >
         <summary class="inquiry-head order-summary">
           <span class="order-summary-copy">
-            <strong>{{ lines(inquiry)[0]?.value || '服務委託' }}</strong>
+            <strong>{{ inquiryTitle(inquiry) }}</strong>
             <span class="row-meta">{{ inquiry.id }}</span>
           </span>
           <span class="status" :data-status="inquiry.status">{{ inquiry.status_label }}</span>
@@ -373,10 +457,6 @@ onMounted(load)
         </div>
       </details>
 
-      <article v-for="order in store.orders" :key="order.id" class="order-row">
-        <div><strong>{{ order.service.name }}</strong><div class="row-meta">{{ order.id }} · {{ order.service.partner }}</div></div>
-        <span class="status">{{ order.status }}</span>
-      </article>
     </section>
 
     <aside class="panel span-4" aria-labelledby="order-timeline">

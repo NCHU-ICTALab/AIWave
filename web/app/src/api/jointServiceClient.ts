@@ -59,13 +59,13 @@ interface ClientOptions { fetcher?: typeof fetch; baseUrl?: string; accountId?: 
 
 export function createJointServiceClient(options: ClientOptions = {}) {
   const baseUrl = options.baseUrl ?? '/api/v1'
-  async function request<T>(path: string, role: 'user' | 'manager' | 'partner', init: RequestInit = {}): Promise<T> {
+  async function request<T>(path: string, _role: 'user' | 'manager' | 'partner', init: RequestInit = {}): Promise<T> {
     const response = await (options.fetcher ?? globalThis.fetch)(`${baseUrl}${path}`, {
       ...init,
       credentials: 'same-origin',
       headers: {
-        Accept: 'application/json', 'Content-Type': 'application/json', 'X-Role': role,
-        ...(options.accountId ? { 'X-Account-Id': options.accountId } : {}), ...init.headers,
+        Accept: 'application/json', 'Content-Type': 'application/json',
+        ...currentAuthorizationHeaders(), ...init.headers,
       },
     })
     if (!response.ok) {
@@ -110,3 +110,4 @@ export function createJointServiceClient(options: ClientOptions = {}) {
     ),
   }
 }
+import { currentAuthorizationHeaders } from '@/stores/session'

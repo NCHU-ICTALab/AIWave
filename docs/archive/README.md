@@ -3,7 +3,7 @@
 這裡放**已被取代、但仍有參考價值**的文件與原型。它們記錄了「我們是怎麼走到現在這個
 設計的」，但**不再是有效規格**——實作請以 [docs/README.md](../README.md) 索引的現行文件為準。
 
-> 最近封存日期：2026-07-28
+> 最近封存日期：2026-07-30
 
 ## 內容
 
@@ -17,6 +17,9 @@
 | [superseded/2026-07-28/specs/](superseded/2026-07-28/specs/) | 舊 00／05／07／08 規格 | 社區 DUSKIN Hero、四工作區及 conversation-first 首頁已由會員生活任務方向取代 | [00](../specs/00-product-and-scenarios.md)、[05](../specs/05-erp-modules.md)、[07](../specs/07-demo-vertical-slice.md)、[08](../specs/08-product-experience.md) |
 | [superseded/2026-07-28/adr/](superseded/2026-07-28/adr/) | ADR-0005／0006／0010／0016 | 已由 ADR-0015、0019、0020 的會員優先與角色分離決策取代 | [ADR-0019](../adr/0019-member-first-life-task-orchestration.md)、[ADR-0020](../adr/0020-member-navigation-and-dedicated-ai.md) |
 | [superseded/2026-07-28/work-management/](superseded/2026-07-28/work-management/) | 舊 P0 roadmap 與社區 Hero 工作票 | 工作順序與 Destination 已改為單一會員生活任務閉環 | [現行 P0 map](../work-management/p0-map.md) |
+| [superseded/2026-07-30/specs/](superseded/2026-07-30/specs/) | 舊 00、01、02、04、05、06、07、08、10、12、14 規格 | 資料模型、角色／scope、Group／Community、廠商選擇、Agent、MCP 與 Demo 故事均已重新定案 | [15 產品與平台定案基線](../specs/15-agreed-product-and-platform-direction.md) |
+| [superseded/2026-07-30/adr/](superseded/2026-07-30/adr/) | ADR-0003、0015、0019 | `individual/group`、完全分離角色入口與 Group 包含 Community 的決策已被取代 | [15 產品與平台定案基線](../specs/15-agreed-product-and-platform-direction.md) |
+| [superseded/2026-07-30/work-management/](superseded/2026-07-30/work-management/) | 2026-07-28 決策佇列、P0／MCP 交付地圖與進度紀錄 | 舊文件把當時切片標成完成，無法代表新定案的完成度 | [現行工作入口](../work-management/README.md) |
 
 ## 為什麼不直接刪除
 

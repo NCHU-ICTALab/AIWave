@@ -47,7 +47,10 @@ export function createSupportClient(options: ClientOptions = {}) {
     const response = await fetcher(`${baseUrl}${path}`, {
       ...init,
       credentials: 'same-origin',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init.headers },
+      headers: {
+        Accept: 'application/json', 'Content-Type': 'application/json',
+        ...currentAuthorizationHeaders(), ...init.headers,
+      },
     })
     if (!response.ok) {
       const payload = await response.json().catch(() => ({})) as { detail?: string }
@@ -56,33 +59,29 @@ export function createSupportClient(options: ClientOptions = {}) {
     return ((await response.json()) as { data: T }).data
   }
 
-  const identity = (accountId: string | null, role: 'user' | 'manager') => ({
-    'X-Account-Id': accountId ?? '', 'X-Role': role,
-  })
   const payload = (subjectId: string, issueText: string) => ({ subject_id: subjectId, issue_text: issueText })
 
   return {
-    diagnose: (accountId: string, subjectId: string, issueText: string) =>
+    diagnose: (_accountId: string, subjectId: string, issueText: string) =>
       request<SupportDiagnostic>('/support/diagnose', {
-        method: 'POST', headers: identity(accountId, 'user'), body: JSON.stringify(payload(subjectId, issueText)),
+        method: 'POST', body: JSON.stringify(payload(subjectId, issueText)),
       }),
-    create: (accountId: string, subjectId: string, issueText: string, diagnosisToken: string) =>
+    create: (_accountId: string, subjectId: string, issueText: string, diagnosisToken: string) =>
       request<SupportTicket>('/support/tickets', {
-        method: 'POST', headers: identity(accountId, 'user'),
+        method: 'POST',
         body: JSON.stringify({ ...payload(subjectId, issueText), diagnosis_token: diagnosisToken }),
       }),
-    listMine: (accountId: string) =>
-      request<SupportTicket[]>('/support/tickets', { headers: identity(accountId, 'user') }),
-    queue: () => request<SupportTicket[]>('/support/queue', {
-      headers: identity(null, 'manager'),
-    }),
+    listMine: (_accountId: string) =>
+      request<SupportTicket[]>('/support/tickets'),
+    queue: () => request<SupportTicket[]>('/support/queue'),
     start: (ticketId: string) =>
       request<SupportTicket>(`/support/tickets/${encodeURIComponent(ticketId)}/start`, {
-        method: 'POST', headers: identity(null, 'manager'), body: JSON.stringify({}),
+        method: 'POST', body: JSON.stringify({}),
       }),
     resolve: (ticketId: string, note: string) =>
       request<SupportTicket>(`/support/tickets/${encodeURIComponent(ticketId)}/resolve`, {
-        method: 'POST', headers: identity(null, 'manager'), body: JSON.stringify({ note }),
+        method: 'POST', body: JSON.stringify({ note }),
       }),
   }
 }
+import { currentAuthorizationHeaders } from '@/stores/session'

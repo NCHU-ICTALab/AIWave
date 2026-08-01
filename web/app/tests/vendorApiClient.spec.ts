@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+// @vitest-environment happy-dom
+
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createVendorApiClient } from '@/api/vendorApiClient'
 
@@ -7,6 +9,13 @@ const json = (data: unknown) => new Response(JSON.stringify({ data, meta: { data
 })
 
 describe('vendor api client', () => {
+  beforeEach(() => {
+    globalThis.localStorage?.setItem('life-ai.identity', JSON.stringify({
+      role: 'partner', accountId: 'vendor-prince-electric',
+      displayName: '王子水電', accessToken: 'aiwave-partner',
+    }))
+  })
+
   it('only exposes cross-service tasks assigned to the selected vendor', async () => {
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = []
     const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -22,7 +31,8 @@ describe('vendor api client', () => {
 
     expect(rows.map((row) => row.id)).toEqual(['vinq-task'])
     expect(String(calls[0]?.[0])).toContain('vendor_id=vendor-prince-electric')
-    expect(new Headers(calls[0]?.[1]?.headers).get('X-Account-Id')).toBe('vendor-prince-electric')
+    expect(new Headers(calls[0]?.[1]?.headers).get('Authorization')).toBe('Bearer aiwave-partner')
+    expect(new Headers(calls[0]?.[1]?.headers).get('X-Account-Id')).toBeNull()
   })
 
   it('uses a stable payload-bound idempotency key for quote retries', async () => {

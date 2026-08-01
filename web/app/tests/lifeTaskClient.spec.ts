@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+// @vitest-environment happy-dom
+
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createLifeTaskClient, type LifeTask } from '@/api/lifeTaskClient'
 
@@ -11,7 +13,14 @@ function response(data: unknown) {
 }
 
 describe('life task client', () => {
-  it('keeps identity in headers and version-binds the one-confirm request', async () => {
+  beforeEach(() => {
+    globalThis.localStorage?.setItem('life-ai.identity', JSON.stringify({
+      role: 'user', accountId: '019a52d3-7f6b-7da3-b48d-9c9e2522d616',
+      displayName: '小圓', accessToken: 'aiwave',
+    }))
+  })
+
+  it('keeps authenticated identity in Bearer and version-binds the one-confirm request', async () => {
     const fetcher = vi.fn(async () => response({ ...TASK, status: 'submitted', version: 4 }))
     const client = createLifeTaskClient({ fetcher, baseUrl: 'https://example.test/api/v1/life-tasks' })
 
@@ -21,7 +30,7 @@ describe('life task client', () => {
       'https://example.test/api/v1/life-tasks/TASK-20260725-001/confirm',
       expect.objectContaining({
         method: 'POST', credentials: 'same-origin',
-        headers: expect.objectContaining({ 'X-Account-Id': 'member-001', 'X-Role': 'user' }),
+        headers: expect.objectContaining({ Authorization: 'Bearer aiwave' }),
         body: JSON.stringify({ expected_version: 2 }),
       }),
     )

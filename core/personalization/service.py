@@ -122,13 +122,17 @@ class PersonalizationService:
         self.repository = repository
         self.today = today
 
-    def restock_plan(self, account_id: str) -> dict:
+    def restock_plan(self, account_id: str, *, openpoint_balance: int = 0) -> dict:
         history = orders_for(account_id)
         shopping = [order for order in history if order.catalog_service_id == "service-shopping"]
         evidence_orders = (shopping or history)[-3:]
         quote = calculate_quote(
             "service-shopping",
-            {"bundle": "restock", "coupon": "apply", "points": "50", "payment": "icash-pay"},
+            {
+                "bundle": "restock", "coupon": "apply",
+                "points": "50" if openpoint_balance >= 50 else "0",
+                "payment": "icash-pay",
+            },
         ).to_dict()
         return {
             "recommendation": {
@@ -143,10 +147,10 @@ class PersonalizationService:
                 "suppressed": self.repository.is_suppressed(account_id, self.RECOMMENDATION_ID),
             },
             "wallet": {
-                "openpointBalance": 180,
+                "openpointBalance": openpoint_balance,
                 "coupon": {"id": "seed-restock-70", "label": "日用品滿額折 NT$70", "amount": 70},
                 "payment": "icash Pay",
-                "dataSource": "competition_seed_wallet",
+                "dataSource": "demo_points_ledger",
             },
             "bestOffer": {
                 "baseAmount": quote["baseAmount"],
@@ -164,7 +168,7 @@ class PersonalizationService:
                 }
                 for order in evidence_orders
             ],
-            "source": "official_orders+competition_seed_wallet",
+            "source": "official_orders+demo_points_ledger+competition_seed_coupon",
         }
 
     def feedback(self, account_id: str, recommendation_id: str, action: str) -> dict:

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { stubCatalogFetch } from './fixtures/catalogClient'
@@ -20,5 +21,29 @@ describe('member center', () => {
     expect(wrapper.get('a[href="/user/orders"]').text()).toContain('訂單')
     expect(wrapper.get('a[href="/user/community"]').text()).toContain('群組')
     expect(wrapper.text()).toContain('模擬 uniopen 身分')
+  })
+
+  it('requires a deliberate confirmation before restoring the demo', async () => {
+    let resets = 0
+    stubCatalogFetch((url, init) => {
+      if (url.endsWith('/api/v1/platform/demo/reset') && init?.method === 'POST') {
+        resets += 1
+        return new Response(JSON.stringify({ data: { status: 'ready', resetAt: '2026-07-29T10:00:00+08:00' } }), {
+          status: 200, headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/member')
+
+    await wrapper.get('[data-testid="open-demo-reset"]').trigger('click')
+    expect(resets).toBe(0)
+    expect(wrapper.get('[role="dialog"]').text()).toContain('所有展示操作紀錄')
+
+    await wrapper.get('[data-testid="confirm-demo-reset"]').trigger('click')
+    await flushPromises()
+
+    expect(resets).toBe(1)
+    expect(wrapper.text()).toContain('已還原成 Demo 初始資料')
   })
 })

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>服務探索 — AIWave(原型)</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .scene-anchors { list-style: none; margin: 0 0 24px; padding: 0; display: flex; gap: 10px; flex-wrap: wrap; }
+  .scene-anchors a { display: inline-flex; align-items: center; min-height: 44px; padding: 6px 18px; border: var(--border); border-radius: 999px; background: var(--surface); text-decoration: none; color: var(--ink); font-weight: 800; }
+  .scene-anchors a:hover { background: var(--lavender); }
+  .svc-card { display: flex; flex-direction: column; gap: 6px; border: 2px solid var(--ink); border-radius: 16px; padding: 14px 16px; background: var(--surface); }
+  .svc-card h3 { margin: 0; }
+  .svc-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: .9rem; color: var(--muted); font-weight: 700; }
+  .svc-price { font-weight: 900; color: var(--ink); }
+  .svc-card .btn-row { margin-top: auto; padding-top: 8px; }
+  .rx-flow { list-style: none; counter-reset: rx; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
+  .rx-flow li { counter-increment: rx; display: flex; gap: 12px; align-items: flex-start; border: 2px solid var(--ink); border-radius: 14px; padding: 10px 14px; background: var(--surface); }
+  .rx-flow li::before { content: counter(rx); flex: none; display: grid; place-items: center; width: 28px; height: 28px; border: 2px solid var(--ink); border-radius: 50%; font-weight: 900; background: var(--blue); }
+  .rx-disclaimer { border: var(--border); border-radius: 14px; background: var(--warn-bg); color: var(--warn-ink); font-weight: 800; padding: 12px 16px; margin-top: 12px; }
+  details.rx > summary { cursor: pointer; font-weight: 800; min-height: 44px; display: flex; align-items: center; }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 A・服務探索・<a href="index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<header class="site-header">
+  <a class="brand" href="dashboard.html"><span class="brand-mark" aria-hidden="true">AW</span>AIWave</a>
+  <span class="workspace-chip">林小圓・個人</span>
+  <nav class="main-nav" aria-label="主導覽">
+    <ul>
+      <li><a href="dashboard.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>首頁</a></li>
+      <li><a href="points.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5h5M9.5 13.5h5"/></svg>點數兌換</a></li>
+      <li><a href="ai.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg>AI</a></li>
+      <li><a href="services.html" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>服務</a></li>
+      <li><a href="member.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>會員中心</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+  <h1>服務探索</h1>
+  <p class="page-lead">六大生活場景,合作品牌皆為平台核准店家。評分與價格為展示資料(partner-demo-v2 seed)。</p>
+
+  <nav aria-label="場景快速連結">
+    <ul class="scene-anchors">
+      <li><a href="#scene-food">食</a></li>
+      <li><a href="#scene-med">醫</a></li>
+      <li><a href="#scene-home">住</a></li>
+      <li><a href="#scene-move">行</a></li>
+      <li><a href="#scene-shop">預</a></li>
+      <li><a href="#scene-fun">樂</a></li>
+    </ul>
+  </nav>
+
+  <!-- 食 -->
+  <section class="card" id="scene-food" aria-labelledby="food-title">
+    <h2 id="food-title">食・外送與訂位</h2>
+    <div class="grid cols-2">
+      <div class="svc-card">
+        <h3>foodomo・餐點外送</h3>
+        <div class="svc-meta"><span class="badge badge-mint">評分 4.6(1,204 則)</span><span class="svc-price">外送費 NT$29 起/單</span><span class="badge badge-blue">支援急件(即時外送)</span></div>
+        <p class="demo-note">評分與價格:partner-demo-v2 seed。</p>
+        <div class="btn-row"><button class="btn" type="button" data-out-of-scope>看方案</button></div>
+      </div>
+      <div class="svc-card">
+        <h3>EZTABLE 簡單桌・餐廳訂位</h3>
+        <div class="svc-meta"><span class="badge badge-mint">評分 4.7(893 則)</span><span class="svc-price">訂位免費・餐券 NT$500 起</span><span class="badge">不支援急件</span></div>
+        <p class="demo-note">評分與價格:partner-demo-v2 seed。</p>
+        <div class="btn-row"><button class="btn" type="button" data-out-of-scope>看方案</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 醫 -->
+  <section class="card" id="scene-med" aria-labelledby="med-title">
+    <h2 id="med-title">醫・處方箋與藥局</h2>
+    <div class="svc-card">
+      <h3>康是美・處方箋辨識與藥局領藥</h3>
+      <div class="svc-meta"><span class="badge badge-mint">評分 4.8(2,310 則)</span><span class="svc-price">領藥服務免費</span><span class="badge">不支援急件</span></div>
+      <p>拍照上傳處方箋,系統辨識後由你逐欄確認,再選擇康是美門市領藥。</p>
+      <p class="demo-note">評分:partner-demo-v2 seed。</p>
+      <details class="rx">
+        <summary>處方箋辨識流程示意(展開)</summary>
+        <ol class="rx-flow">
+          <li><span><strong>上傳處方箋照片</strong><span class="choice-meta">支援手機拍照或相簿選取,照片僅用於本次辨識。</span></span></li>
+          <li><span><strong>OCR 結果逐欄人工確認</strong><span class="choice-meta">藥品名稱、劑量、天數每一欄都由你逐一核對修改,系統不會替你確認。</span></span></li>
+          <li><span><strong>選擇康是美門市領藥</strong><span class="choice-meta">依你的地址列出可領藥門市,確認後產生領藥單。</span></span></li>
+        </ol>
+        <p class="rx-disclaimer">免責聲明:本流程僅提供辨識展示,不提供任何診斷或用藥建議;用藥問題請諮詢醫師或藥師。</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- 住 -->
+  <section class="card" id="scene-home" aria-labelledby="home-title">
+    <h2 id="home-title">住・修繕與清潔</h2>
+    <div class="grid cols-2">
+      <div class="svc-card">
+        <h3>王子水電・水電修繕</h3>
+        <div class="svc-meta"><span class="badge badge-mint">評分 4.8(516 則)</span><span class="svc-price">NT$1,200 起/次</span><span class="badge badge-blue">支援急件</span></div>
+        <p class="demo-note">評分與價格:partner-demo-v2 seed。</p>
+        <div class="btn-row"><a class="btn btn-primary" href="service-detail.html">看服務詳情</a></div>
+      </div>
+      <div class="svc-card">
+        <h3>DUSKIN 樂清・冷氣清洗</h3>
+        <div class="svc-meta"><span class="badge badge-mint">評分 4.7(742 則)</span><span class="svc-price">NT$1,800/次</span><span class="badge">不支援急件</span></div>
+        <p class="demo-note">評分與價格:partner-demo-v2 seed。</p>
+        <div class="btn-row"><button class="btn" type="button" data-out-of-scope>看方案</button></div>
+      </div>
+      <div class="svc-card">
+        <h3>DUSKIN 樂清・全室清潔</h3>
+        <div class="svc-meta"><span class="badge badge-mint">評分 4.7(742 則)</span><span class="svc-price">NT$3,200/次</span><span class="badge">不支援急件</span></div>
+        <p class="demo-note">評分與價格:partner-demo-v2 seed。</p>
+        <div class="btn-row"><button class="btn" type="button" data-out-of-scope>看方案</button></div>
+      </div>
+      <div class="svc-card">
+        <h3>太子物業・計時家事服務</h3>
+        <div class="svc-meta"><span class="badge badge-mint">評分 4.7(862 則)</span><span class="svc-price">NT$500/小時</span><span class="badge">不支援急件</span></div>
+        <p class="demo-note">評分與價格:partner-demo-v2 seed。</p>
+        <div class="btn-row"><button class="btn" type="button" data-out-of-scope>看方案</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 行 -->
+  <section class="card" id="scene-move" aria-labelledby="move-title">
+    <h2 id="move-title">行・寄件與物流</h2>
+    <div class="grid cols-2">
+      <div class="svc-card">
+        <h3>黑貓宅急便・到府收件寄件</h3>
+        <div class="svc-meta"><span class="badge badge-mint">評分 4.6(1,530 則)</span><span class="svc-price">NT$70 起/件</span><span class="badge badge-blue">支援急件(當日收件)</span></div>
+        <p class="demo-note">評分與價格:partner-demo-v2 seed。</p>
+        <div class="btn-row"><button class="btn" type="button" data-out-of-scope>看方案</button></div>
+      </div>
+      <div class="svc-card">
+        <h3>7-ELEVEN 交貨便・門市寄件</h3>
+        <div class="svc-meta"><span class="badge badge-mint">評分 4.5(2,088 則)</span><span class="svc-price">NT$70/件</span><span class="badge">不支援急件</span></div>
+        <p class="demo-note">評分與價格:partner-demo-v2 seed。</p>
+        <div class="btn-row"><button class="btn" type="button" data-out-of-scope>看方案</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 預 -->
+  <section class="card" id="scene-shop" aria-labelledby="shop-title">
+    <h2 id="shop-title">預・預購購物</h2>
+    <div class="grid cols-2">
+      <div class="svc-card">
+        <h3>7-ELEVEN 賣貨便・社群團購</h3>
+        <div class="svc-meta"><span class="badge badge-mint">評分 4.5(960 則)</span><span class="svc-price">運費 NT$39 起/單</span><span class="badge">不支援急件</span></div>
+        <p class="demo-note">評分與價格:partner-demo-v2 seed。</p>
+        <div class="btn-row"><button class="btn" type="button" data-out-of-scope>看方案</button></div>
+      </div>
+      <div class="svc-card">
+        <h3>7-ELEVEN 線上購物中心・預購商城</h3>
+        <div class="svc-meta"><span class="badge badge-mint">評分 4.6(1,742 則)</span><span class="svc-price">商品 NT$99 起</span><span class="badge">不支援急件</span></div>
+        <p class="demo-note">評分與價格:partner-demo-v2 seed。</p>
+        <div class="btn-row"><button class="btn" type="button" data-out-of-scope>看方案</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 樂 -->
+  <section class="card" id="scene-fun" aria-labelledby="fun-title">
+    <h2 id="fun-title">樂・影音娛樂</h2>
+    <div class="svc-card">
+      <h3>影音娛樂分類</h3>
+      <p>合作品牌洽談中,待產品負責人提供;此分類目前沒有核准品牌,不顯示未核准的品牌名稱。</p>
+      <div class="btn-row">
+        <button class="btn" type="button" disabled>入口尚未開放</button>
+        <span class="demo-note">待合作品牌確認後,此區將比照其他場景列出品牌卡。</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="assets/aiwave.js"></script>
+<script>
+  document.querySelectorAll("[data-out-of-scope]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      AIWave.toast("此服務詳情頁不在本次原型範圍,流程同「王子水電 水電修繕」示範。");
+    });
+  });
+</script>
+</body>
+</html>

@@ -125,6 +125,8 @@ class FormAgent:
         if t is TopicType.DATE:
             return '"YYYY-MM-DD"'
         if t in CONTACT_TYPES:
+            if t is TopicType.CONTACT:
+                return '{"name":"<姓名>","mobile":"<電話>","address":"<完整地址>"}'
             return '{"name":"<姓名>","mobile":"<電話>"}'
         if t is TopicType.PHOTO:
             return '[]（純文字無法上傳，通常回 skip）'
@@ -145,7 +147,10 @@ class FormAgent:
                 elif a.get("imgUrl"):
                     answers.append(f"{len(a['imgUrl'])} 張照片")
                 elif a.get("name"):
-                    answers.append(f"{a.get('name')} {a.get('mobile', '')}".strip())
+                    contact = f"{a.get('name')} {a.get('mobile', '')}".strip()
+                    if a.get("address"):
+                        contact += f"・{a['address']}"
+                    answers.append(contact)
             if answers:
                 parts.append("・" + "、".join(answers))
         body = "\n".join(parts)

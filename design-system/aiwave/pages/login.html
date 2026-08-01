@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登入 — AIWave(原型)</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .login-wrap { display: grid; gap: 32px; grid-template-columns: 1fr 1fr; max-width: 960px; margin: 0 auto; }
+  @media (max-width: 820px) { .login-wrap { grid-template-columns: 1fr; } }
+  .persona-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .persona-btn { width: 100%; justify-content: flex-start; text-align: left; }
+  .persona-btn .who { display: flex; flex-direction: column; }
+  .persona-btn .role { font-size: .85rem; color: var(--muted); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 A・<a href="index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<header class="site-header">
+  <a class="brand" href="home-public.html"><span class="brand-mark" aria-hidden="true">AW</span>AIWave</a>
+</header>
+
+<main id="main">
+  <h1>登入 AIWave</h1>
+  <p class="page-lead">使用帳號密碼登入,或用 Demo 快速登入切換不同角色視角。每個 Demo 人物使用彼此隔離的 DemoWorkspace。</p>
+
+  <div class="login-wrap">
+    <section class="card" aria-labelledby="pw-title">
+      <h2 id="pw-title">帳號密碼登入</h2>
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="login-email">電子郵件</label>
+          <input id="login-email" name="email" type="email" autocomplete="username" required>
+          <p class="error" id="login-email-err" hidden>請輸入有效的電子郵件。</p>
+        </div>
+        <div class="field">
+          <label for="login-password">密碼</label>
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+          <p class="error" id="login-password-err" hidden>請輸入密碼。</p>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" type="submit">登入</button>
+          <a href="#" class="btn btn-quiet" id="forgot-link">忘記密碼</a>
+        </div>
+        <p class="demo-note">原型說明:此表單示範驗證與錯誤狀態;正式版由 Platform API 簽發 session。</p>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="demo-title">
+      <h2 id="demo-title">Demo 快速登入</h2>
+      <ul class="persona-list">
+        <li>
+          <button class="btn persona-btn" type="button" data-persona="member" data-next="dashboard.html">
+            <span class="who"><strong>林小圓</strong><span class="role">一般會員・幸福社區住戶</span></span>
+          </button>
+        </li>
+        <li>
+          <button class="btn persona-btn" type="button" data-persona="partner" data-next="provider.html">
+            <span class="who"><strong>王師傅</strong><span class="role">合作廠商人員・王子水電</span></span>
+          </button>
+        </li>
+        <li>
+          <button class="btn persona-btn" type="button" data-persona="manager" data-next="community.html">
+            <span class="who"><strong>陳主委</strong><span class="role">社區管理者・幸福社區管委會</span></span>
+          </button>
+        </li>
+        <li>
+          <button class="btn persona-btn" type="button" data-persona="admin" data-next="admin.html">
+            <span class="who"><strong>aiwave-admin</strong><span class="role">平台營運・Demo workspace 管理</span></span>
+          </button>
+        </li>
+      </ul>
+      <p class="demo-note">Demo 人物與其訂單、點數、通知彼此隔離;一鍵重置只影響自己的 workspace。</p>
+    </section>
+  </div>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="assets/aiwave.js"></script>
+<script>
+  document.getElementById("login-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = document.getElementById("login-email");
+    var pw = document.getElementById("login-password");
+    var emailErr = document.getElementById("login-email-err");
+    var pwErr = document.getElementById("login-password-err");
+    var ok = true;
+    var emailBad = !email.value || email.value.indexOf("@") === -1;
+    emailErr.hidden = !emailBad;
+    email.setAttribute("aria-invalid", emailBad ? "true" : "false");
+    if (emailBad) { ok = false; }
+    var pwBad = !pw.value;
+    pwErr.hidden = !pwBad;
+    pw.setAttribute("aria-invalid", pwBad ? "true" : "false");
+    if (pwBad) { ok = false; }
+    if (!ok) { (emailBad ? email : pw).focus(); return; }
+    AIWave.login("member");
+    location.href = "dashboard.html";
+  });
+  document.getElementById("forgot-link").addEventListener("click", function (e) {
+    e.preventDefault();
+    AIWave.toast("忘記密碼流程不在本次原型範圍(正式版提供 Email 重設)。");
+  });
+  document.querySelectorAll(".persona-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      AIWave.login(btn.getAttribute("data-persona"));
+      location.href = btn.getAttribute("data-next");
+    });
+  });
+</script>
+</body>
+</html>

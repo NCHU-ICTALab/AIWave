@@ -22,6 +22,7 @@ from core.inquiries import SqliteInquiryRepository
 from core.services import LifeServicesService
 from core.tools.catalog import build_registry
 from core.tools.registry import ToolContext, ToolError
+from tests.auth import DUSKIN_PARTNER_HEADERS, MANAGER_HEADERS, MEMBER_HEADERS
 
 NOW = lambda: datetime(2026, 7, 28, 9, 0, tzinfo=timezone.utc)  # noqa: E731
 
@@ -101,9 +102,9 @@ def client(tmp_path: Path, repository: SqliteJointServiceRepository) -> TestClie
 
 
 def test_http_roles_and_cross_role_state(client: TestClient):
-    manager = {"X-Role": "manager"}
-    partner = {"X-Role": "partner", "X-Account-Id": "vendor-duskin"}
-    resident = {"X-Role": "user", "X-Account-Id": "A001"}
+    manager = MANAGER_HEADERS
+    partner = DUSKIN_PARTNER_HEADERS
+    resident = MEMBER_HEADERS
     campaign = client.get("/api/v1/community/joint-services", headers=manager).json()["data"][0]
 
     denied = client.post(
@@ -129,7 +130,7 @@ def test_http_roles_and_cross_role_state(client: TestClient):
 
 
 def test_resident_explicitly_consents_and_only_sees_own_signal(client: TestClient):
-    resident = {"X-Role": "user", "X-Account-Id": "A001"}
+    resident = MEMBER_HEADERS
     campaigns = client.get("/api/v1/groups/joint-services", headers=resident).json()["data"]
     collecting = next(item for item in campaigns if item["status"] == "collecting")
     assert collecting["myParticipation"] is None

@@ -17,10 +17,11 @@ from core.community import SqliteGroupBuyRepository
 from core.inquiries import SqliteInquiryRepository
 from core.insights.today import CLOSING_SOON_DAYS, build_briefing
 from core.services import LifeServicesService
+from tests.auth import MEMBER_HEADERS, MEMBER_ID, NEW_MEMBER_HEADERS
 
 TODAY = date(2026, 7, 25)
 FEEDBACK = {"data": [{"type": "3", "topicId": 1, "answerList": [{"answer": "燈具／開關", "answerId": 1071}]}]}
-ME = "A001"
+ME = MEMBER_ID
 
 
 def _campaign(campaign_id: int, *, close_in_days: int | None, joined: list[str] = ()) -> dict:
@@ -143,6 +144,21 @@ class TestSuggestionCap:
         suggestions = [item for item in items if item.kind == "suggestion"]
         assert len(suggestions) <= MAX_SUGGESTIONS
 
+    def test_real_recommendations_keep_their_own_slots_when_tasks_are_full(self):
+        """送單不能讓首頁的主要賣點『可解釋推薦』整區消失。"""
+        account_id = "019a52d3-7f6b-7da3-b48d-9c9e2522d616"
+        items = build_briefing(
+            account_id=account_id,
+            inquiries=[_inquiry(f"INQ-{index}", "pending_quote", account_id=account_id) for index in range(5)],
+            campaigns=[],
+            today=TODAY,
+            limit=5,
+        )
+
+        assert len(items) == 5
+        assert [item for item in items if item.kind == "suggestion"]
+        assert [item for item in items if item.kind == "waiting_on_vendor"]
+
 
 class TestNewUser:
     def test_a_brand_new_user_gets_nothing_rather_than_filler(self):
@@ -168,7 +184,7 @@ class TestApi:
         )
 
     def test_surfaces_the_quote_awaiting_confirmation(self, client: TestClient):
-        items = client.get(f"/api/v1/today/{ME}").json()["data"]
+        items = client.get(f"/api/v1/today/{ME}", headers=MEMBER_HEADERS).json()["data"]
 
         top = items[0]
         assert top["kind"] == "needs_your_decision"
@@ -176,7 +192,9 @@ class TestApi:
         assert top["actionRoute"] == "/user/orders"
 
     def test_a_new_account_sees_an_empty_briefing(self, client: TestClient):
-        assert client.get("/api/v1/today/none").json()["data"] == []
+        assert client.get("/api/v1/today/me", headers=NEW_MEMBER_HEADERS).json()["data"] == []
 
     def test_respects_the_limit(self, client: TestClient):
-        assert len(client.get(f"/api/v1/today/{ME}?limit=1").json()["data"]) <= 1
+        assert len(client.get(
+            f"/api/v1/today/{ME}?limit=1", headers=MEMBER_HEADERS,
+        ).json()["data"]) <= 1

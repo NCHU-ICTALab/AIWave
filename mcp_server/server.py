@@ -1,22 +1,12 @@
-"""MCP Server：把同一份工具註冊表曝露給外部 Agent（命題明文的交付要求）。
+"""Legacy stdio MCP compatibility proxy for the AIWave Platform API.
 
-命題要求「將 API 包裝成符合標準的 MCP Server，以利 Lumine one 等外部 Agent 調用」。
-依 [ADR-0017]「能力即 MCP 工具」，這裡**不定義任何新能力**——它只是
-`core.tools.catalog.build_registry()` 的另一個傳輸層：
-
-    規劃器（行程內） ─┐
-                      ├─→ ToolRegistry ─→ core/ 服務層 ─→ 資料
-    MCP（stdio/HTTP）─┘
-
-這樣「給評審看的 demo」和「給 Lumine one 調用的介面」是同一套實作，
-不會出現「MCP 版落後於 Web 版」這種兩份規則漂移的問題。
-
-身分不由呼叫端的工具參數決定（見 `core.tools.registry`）——外部 Agent 的身分由
-啟動時的環境變數指定，等同於「這個 MCP server 實例代表某位使用者」。
-真上雲時這裡要換成 OIDC token 解出的身分。
+This transport intentionally owns no repositories and never opens a database.  It
+discovers and invokes capabilities over the same authenticated Platform API used by
+the Web client.  The future SDK v2 Streamable HTTP Gateway is a later milestone; this
+module only keeps the existing stdio development entry point boundary-safe.
 
 執行：
-    uv run python -m mcp_server.server            # stdio，供 Claude Desktop / Lumine one 掛載
+    MCP_API_KEY=aiwave uv run python -m mcp_server.server
 """
 
 from __future__ import annotations
@@ -26,79 +16,124 @@ import os
 import secrets
 import time
 from copy import deepcopy
-from datetime import date, datetime, timezone
+from typing import Any
 
+import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool as McpTool
 
-from core.community.group_buy import SqliteGroupBuyRepository
-from core.community.joint_service import SqliteJointServiceRepository
-from core.config import get_settings
-from core.inquiries import SqliteInquiryRepository
-from core.life_tasks import LifeTaskService, SqliteLifeTaskRepository
-from core.personalization import PersonalizationService, SqlitePersonalizationRepository
-from core.orders import SqliteOrderRepository
-from core.retail import (
-    RetailService,
-    SqliteRetailRepository,
-    build_retail_connector,
-)
-from core.support import SupportService, SqliteSupportRepository
-from core.services import LifeServicesService
-from core.tools.catalog import build_registry
-from core.tools.registry import ToolContext, ToolError, ToolRegistry, validate_arguments
-from core.vendors import VendorService, build_vendor_client
+from core.tools.registry import Tool, ToolContext, ToolError, ToolRegistry, validate_arguments
 
 SERVER_NAME = "smart-living-butler"
 #: 外部 Agent 在握手時看到的版本。不指定的話會顯示 MCP SDK 的版本，那不是我們的東西。
 SERVER_VERSION = "0.1.0"
 
 
-def build_default_registry(*, today: date | None = None) -> ToolRegistry:
-    """用與 HTTP API 相同的相依組出註冊表。"""
-    config = get_settings()
-    resolved_today = today or config.demo_today
-    demo_now = lambda: datetime(  # noqa: E731
-        resolved_today.year, resolved_today.month, resolved_today.day, tzinfo=timezone.utc
-    )
-    retail_connector = build_retail_connector(
-        upstream_url=config.retail_upstream_url,
-        timeout_seconds=config.upstream_timeout_seconds,
-    )
-    vendor_client = build_vendor_client(
-        mode=config.vendor_mode,
-        fake_url=config.vendor_fake_url,
-        real_url=config.vendor_real_url,
-        api_token=config.vendor_api_token,
-        timeout_seconds=config.vendor_timeout_seconds,
-    )
-    vendor_service = VendorService(vendor_client)
-    return build_registry(
-        services=LifeServicesService(
-            SqliteInquiryRepository(config.inquiry_db_path),
-            orders=SqliteOrderRepository(config.inquiry_db_path),
-            today=resolved_today,
-        ),
-        group_buys=SqliteGroupBuyRepository(config.group_buy_db_path),
-        joint_services=SqliteJointServiceRepository(config.group_buy_db_path),
-        personalization=PersonalizationService(
-            SqlitePersonalizationRepository(config.inquiry_db_path), today=resolved_today
-        ),
-        retail=RetailService(SqliteRetailRepository(config.inquiry_db_path), connector=retail_connector),
-        support=SupportService(
-            SqliteSupportRepository(config.inquiry_db_path, now=demo_now),
-            inquiries=SqliteInquiryRepository(config.inquiry_db_path),
-            orders=SqliteOrderRepository(config.inquiry_db_path),
-            now=demo_now,
-        ),
-        vendors=vendor_service,
-        life_tasks=LifeTaskService(
-            SqliteLifeTaskRepository(config.inquiry_db_path, now=demo_now),
-            vendors=vendor_service,
-            today=resolved_today,
-        ),
-        today=resolved_today,
+class PlatformApiRegistry:
+    """ToolRegistry-compatible client whose only application boundary is HTTP."""
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        api_key: str,
+        timeout_seconds: float = 5.0,
+        client: Any | None = None,
+    ) -> None:
+        if not base_url.strip() or not api_key.strip():
+            raise ValueError("MCP_PLATFORM_API_URL 與 MCP_API_KEY 不可空白")
+        self.api_key = api_key
+        self.client = client or httpx.Client(
+            base_url=base_url.rstrip("/"), timeout=timeout_seconds,
+        )
+        self._tools: dict[str, Tool] = {}
+        self.refresh()
+
+    def _request(
+        self, method: str, path: str, *, json_body: dict[str, Any] | None = None,
+    ) -> Any:
+        try:
+            response = self.client.request(
+                method,
+                path,
+                headers={
+                    "Accept": "application/json",
+                    "Authorization": f"Bearer {self.api_key}",
+                },
+                json=json_body,
+            )
+        except httpx.HTTPError as exc:
+            raise ToolError(f"AIWave Platform API 無法連線：{exc}") from exc
+        if response.status_code >= 400:
+            try:
+                body = response.json()
+                detail = body.get("detail") or body.get("error", {}).get("message")
+            except (ValueError, TypeError, AttributeError):
+                detail = None
+            raise ToolError(str(detail or f"AIWave Platform API 回應 {response.status_code}"))
+        try:
+            return response.json()["data"]
+        except (ValueError, KeyError, TypeError) as exc:
+            raise ToolError("AIWave Platform API 回應格式不完整") from exc
+
+    def refresh(self) -> None:
+        described = self._request("GET", "/api/v1/assistant/tools")
+        if not isinstance(described, list):
+            raise ToolError("AIWave Platform API 工具清單格式錯誤")
+        tools: dict[str, Tool] = {}
+        for item in described:
+            try:
+                tool = Tool(
+                    name=str(item["name"]),
+                    description=str(item["description"]),
+                    parameters=deepcopy(item["inputSchema"]),
+                    handler=lambda _context, **_arguments: None,
+                    writes=bool(item.get("writes")),
+                )
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ToolError("AIWave Platform API 工具定義格式錯誤") from exc
+            tools[tool.name] = tool
+        self._tools = tools
+
+    def get(self, name: str) -> Tool | None:
+        return self._tools.get(name)
+
+    def list(self, *, role: str | None = None) -> list[Tool]:
+        # The Platform API already filtered this catalog by its Bearer principal.
+        return sorted(self._tools.values(), key=lambda tool: tool.name)
+
+    def call(
+        self, name: str, arguments: dict[str, Any] | None, context: ToolContext,
+    ) -> Any:
+        tool = self.get(name)
+        if tool is None:
+            raise ToolError(f"沒有這項能力：{name}")
+        cleaned = validate_arguments(tool.parameters, arguments or {})
+        plan = self._request(
+            "POST",
+            "/api/v1/assistant/plan/execute",
+            json_body={
+                "message": f"MCP 呼叫 {name}",
+                "steps": [{"tool": name, "arguments": cleaned, "why": "MCP compatibility proxy"}],
+                "approved": [0],
+            },
+        )
+        try:
+            step = plan["steps"][0]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise ToolError("AIWave Platform API 未回傳工具執行結果") from exc
+        if step.get("status") != "done":
+            raise ToolError(str(step.get("error") or "AIWave Platform API 未完成工具執行"))
+        return step.get("result")
+
+
+def build_default_registry() -> PlatformApiRegistry:
+    """Build an HTTP-only registry; the Platform API must already be running."""
+    return PlatformApiRegistry(
+        base_url=os.getenv("MCP_PLATFORM_API_URL", "http://127.0.0.1:8000"),
+        api_key=os.getenv("MCP_API_KEY", "aiwave"),
+        timeout_seconds=float(os.getenv("MCP_PLATFORM_TIMEOUT_SECONDS", "5.0")),
     )
 
 
@@ -111,8 +146,11 @@ def context_from_env() -> ToolContext:
     )
 
 
-def create_server(registry: ToolRegistry | None = None, context: ToolContext | None = None) -> Server:
-    """組出 MCP server；參數可注入，方便測試不碰真實資料庫。"""
+def create_server(
+    registry: ToolRegistry | PlatformApiRegistry | None = None,
+    context: ToolContext | None = None,
+) -> Server:
+    """Build the stdio proxy; injected registries remain available for unit tests."""
     resolved_registry = registry or build_default_registry()
     resolved_context = context or context_from_env()
     server: Server = Server(SERVER_NAME, version=SERVER_VERSION)

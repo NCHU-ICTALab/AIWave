@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>廠商工作台 — AIWave(原型)</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .role-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  table.data details summary { cursor: pointer; font-weight: 800; min-height: 44px; display: flex; align-items: center; }
+  .case-detail dl { margin: 8px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; }
+  .case-detail dt { font-weight: 800; color: var(--muted); font-size: .9rem; }
+  .case-detail dd { margin: 0; }
+  .slot-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+  .slot-list li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 2px solid var(--ink); border-radius: 12px; padding: 8px 14px; background: var(--surface); font-weight: 700; }
+  .slot-list li.full { background: var(--bg); color: var(--muted); border-style: dashed; }
+  @media (max-width: 720px) {
+    .role-actions { margin-left: 0; }
+    main { padding-bottom: 48px; }
+  }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 A・Provider Workspace・<a href="index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<!-- 角色隔離:廠商 workspace 不顯示會員五項導覽 -->
+<header class="site-header">
+  <a class="brand" href="provider.html"><span class="brand-mark" aria-hidden="true">AW</span>AIWave</a>
+  <span class="workspace-chip">王師傅・王子水電</span>
+  <div class="role-actions">
+    <a class="btn btn-quiet" href="login.html">切換身分</a>
+    <a class="btn" href="home-public.html">登出</a>
+  </div>
+</header>
+
+<main id="main">
+  <h1>王子水電・信義區服務站 工作台</h1>
+  <p class="page-lead">今天是 2026 年 7 月 30 日。你有 1 件新案件待接單、2 件已預約、1 件已完成。</p>
+
+  <!-- (a)(b) 待接案件 inbox + 案件操作 -->
+  <section class="card" aria-labelledby="inbox-title">
+    <h2 id="inbox-title">案件 inbox</h2>
+    <div class="table-wrap">
+      <table class="data">
+        <caption>近期案件(partner-demo-v2 seed 展示資料)</caption>
+        <thead>
+          <tr><th scope="col">案件編號</th><th scope="col">服務</th><th scope="col">時段</th><th scope="col">狀態</th><th scope="col">動作</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>BK-20260730-0032</td>
+            <td>水電修繕・陽台排水口阻塞</td>
+            <td>8/2(日)14:00–16:00</td>
+            <td id="status-0032"><span class="badge badge-warn">待接單</span></td>
+            <td>
+              <details>
+                <summary>查看需求</summary>
+                <div class="case-detail">
+                  <dl>
+                    <dt>需求描述</dt><dd>陽台排水口阻塞,下雨積水。</dd>
+                    <dt>服務地址</dt><dd>台北市信義區莊敬路 55 號 2 樓</dd>
+                    <dt>聯絡電話</dt><dd>0966-123-456</dd>
+                  </dl>
+                  <p class="demo-note">個資最小化:僅顯示履約必要資料,看不到會員的其他訂單、點數與個人檔案。</p>
+                </div>
+              </details>
+              <div class="btn-row" style="margin-top:8px">
+                <button class="btn btn-primary" type="button" id="accept-0032">確認接單</button>
+              </div>
+              <p class="demo-note" id="note-0032">接單後才可回報完工;不提供跳過中間狀態的按鈕。</p>
+            </td>
+          </tr>
+          <tr>
+            <td>BK-20260730-0031</td>
+            <td>水電修繕・到府檢測</td>
+            <td>8/1(六)09:00–11:00</td>
+            <td><span class="badge badge-blue">已預約</span></td>
+            <td>
+              <details>
+                <summary>查看需求</summary>
+                <div class="case-detail">
+                  <dl>
+                    <dt>需求描述</dt><dd>主臥冷氣不冷,上週開始滴水。</dd>
+                    <dt>服務地址</dt><dd>台北市信義區松勤街 1 號 8 樓</dd>
+                    <dt>聯絡電話</dt><dd>0912-345-678</dd>
+                    <dt>補充事項</dt><dd>社區需在一樓管理室換證。</dd>
+                  </dl>
+                  <p class="demo-note">個資最小化:僅顯示履約必要資料,看不到會員的其他訂單、點數與個人檔案。</p>
+                </div>
+              </details>
+              <p class="demo-note" style="margin-top:8px">7/30 15:10 已接單並指派水電一組;會員端訂單頁顯示同一份進度。</p>
+            </td>
+          </tr>
+          <tr>
+            <td>BK-20260729-0027</td>
+            <td>急件修繕・跳電排查</td>
+            <td>7/31(五)14:00–16:00</td>
+            <td><span class="badge badge-blue">已預約</span></td>
+            <td>
+              <details>
+                <summary>查看需求</summary>
+                <div class="case-detail">
+                  <dl>
+                    <dt>需求描述</dt><dd>廚房迴路跳電,重置後 10 分鐘再跳。</dd>
+                    <dt>服務地址</dt><dd>台北市信義區虎林街 22 號 3 樓</dd>
+                    <dt>聯絡電話</dt><dd>0933-222-111</dd>
+                  </dl>
+                  <p class="demo-note">個資最小化:僅顯示履約必要資料。</p>
+                </div>
+              </details>
+              <p class="demo-note" style="margin-top:8px">已預約;到府服務當日才能回報「服務中/已完成」,本原型不示範。</p>
+            </td>
+          </tr>
+          <tr>
+            <td>BK-20260726-0019</td>
+            <td>水電修繕・浴室水龍頭更換</td>
+            <td>7/27(一)10:00–12:00</td>
+            <td><span class="badge badge-mint">已完成</span></td>
+            <td>
+              <details>
+                <summary>查看需求</summary>
+                <div class="case-detail">
+                  <dl>
+                    <dt>需求描述</dt><dd>浴室水龍頭漏水,更換新品。</dd>
+                    <dt>服務地址</dt><dd>台北市信義區松山路 119 號 5 樓</dd>
+                    <dt>聯絡電話</dt><dd>0955-888-000</dd>
+                  </dl>
+                  <p class="demo-note">個資最小化:僅顯示履約必要資料。</p>
+                </div>
+              </details>
+              <p class="demo-note" style="margin-top:8px">已完成的案件僅供查看,不提供任何狀態變更。</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="demo-note">狀態轉移規則:待接單 → 已預約 → 服務中 → 已完成;不合法的跳轉(例:待接單直接改已完成)介面上不會出現按鈕。</p>
+  </section>
+
+  <!-- (c) 本週時段管理 -->
+  <section class="card" aria-labelledby="slots-title">
+    <h2 id="slots-title">本週可服務時段(信義站・水電一組)</h2>
+    <div class="grid cols-2">
+      <div>
+        <h3>8/1(六)</h3>
+        <ul class="slot-list" id="slots-0801">
+          <li>09:00–11:00 <span class="badge badge-blue">已預約(BK-…-0031)</span></li>
+          <li>14:00–16:00 <span class="badge badge-mint">空檔</span></li>
+          <li class="full">19:00–21:00 <span class="badge">已滿</span></li>
+        </ul>
+      </div>
+      <div>
+        <h3>8/2(日)</h3>
+        <ul class="slot-list" id="slots-0802">
+          <li class="full">09:00–11:00 <span class="badge">已滿</span></li>
+          <li>14:00–16:00 <span class="badge badge-mint">空檔</span></li>
+          <li>16:00–18:00 <span class="badge badge-mint">空檔</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-secondary" type="button" data-open-dialog="dlg-slot">編輯可用時段</button>
+    </div>
+    <p class="demo-note">會員預約頁只會列出這裡回報的空檔;「已滿」時段在會員端不可選取。</p>
+  </section>
+
+  <!-- (d) API 接入說明 -->
+  <section class="card" aria-labelledby="api-title" style="background:var(--lavender)">
+    <h2 id="api-title">標準接入(Partner API)</h2>
+    <p>已完成標準接入的廠商,可改由自家系統透過 Partner API 收單、回報時段與狀態;<strong>工作台與 API 操作的是同一份訂單狀態</strong>,兩邊看到的進度永遠一致。</p>
+    <p class="demo-note">王子水電為標準接入示範廠商(partner-demo-v2 seed);本工作台為未接入 API 的廠商保留人工操作路徑。</p>
+  </section>
+</main>
+
+<!-- 編輯可用時段 -->
+<dialog id="dlg-slot" aria-labelledby="dlg-slot-title">
+  <h2 id="dlg-slot-title">新增可服務空檔</h2>
+  <form id="slot-form" method="dialog">
+    <div class="field">
+      <label for="f-slot-date">日期</label>
+      <select id="f-slot-date" name="slotDate">
+        <option value="0801">8/1(六)</option>
+        <option value="0802" selected>8/2(日)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-slot-time">時段</label>
+      <select id="f-slot-time" name="slotTime">
+        <option value="11:00–13:00">11:00–13:00</option>
+        <option value="19:00–21:00" selected>19:00–21:00</option>
+      </select>
+    </div>
+    <p class="demo-note">新增後,會員端下一次查詢時段就會看到這個空檔。</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">新增空檔</button>
+      <button class="btn btn-quiet" type="button" data-close-dialog>取消</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="assets/aiwave.js"></script>
+<script>
+(function () {
+  /* (b) 合法狀態轉移:待接單 → 已預約 */
+  var acceptBtn = document.getElementById("accept-0032");
+  acceptBtn.addEventListener("click", function () {
+    document.getElementById("status-0032").innerHTML = '<span class="badge badge-blue">已預約</span>';
+    document.getElementById("note-0032").textContent = "已接單;到府服務當日才能回報「服務中/已完成」,本原型不示範。";
+    acceptBtn.remove();
+    AIWave.toast("已接單 BK-20260730-0032;會員端進度、通知與行事曆將同步更新。");
+  });
+
+  /* (c) 新增空檔 */
+  document.getElementById("slot-form").addEventListener("submit", function () {
+    var date = document.getElementById("f-slot-date");
+    var time = document.getElementById("f-slot-time").value;
+    var list = document.getElementById("slots-" + date.value);
+    var li = document.createElement("li");
+    li.textContent = time + " ";
+    var badge = document.createElement("span");
+    badge.className = "badge badge-mint";
+    badge.textContent = "空檔(新增)";
+    li.appendChild(badge);
+    list.appendChild(li);
+    AIWave.toast("已新增 " + date.options[date.selectedIndex].text + " " + time + " 空檔,會員端即可預約。");
+  });
+})();
+</script>
+</body>
+</html>

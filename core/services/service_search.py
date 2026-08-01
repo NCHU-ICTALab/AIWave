@@ -9,26 +9,13 @@ from __future__ import annotations
 from core.forms.service_catalog import ServiceInfo, list_services
 
 
-TERMS: dict[str, tuple[str, ...]] = {
-    "service-cleaning": ("打掃", "清潔", "大掃除", "掃地", "浴室", "廚房", "居家清潔"),
-    "service-housework": ("打掃", "家事", "整理", "收納", "洗衣", "幫忙做家事"),
-    "service-washer": ("洗衣機", "洗衣槽", "洗衣機清洗"),
-    "service-aircon": ("冷氣", "空調", "冷氣清洗", "不冷", "霉味"),
-    "service-repair": ("水電", "修理", "修繕", "漏水", "插座", "燈不亮", "馬桶"),
-    "service-shipping": ("寄件", "寄包裹", "宅急便", "黑貓"),
-    "service-restaurant": ("訂位", "餐廳", "聚餐", "幾位"),
-    "service-delivery": ("外送", "送餐", "叫吃的", "餐點"),
-    "service-shopping": ("購物", "補貨", "衛生紙", "咖啡券", "日用品", "商城"),
-}
-
-
 def search(query: str, *, limit: int = 3) -> dict:
     text = query.strip().lower()
     if not text:
         return {"query": query, "confidence": "low", "matches": [], "computedBy": "catalog_rules"}
     scored: list[tuple[int, ServiceInfo, list[str]]] = []
     for service in list_services():
-        matched = [term for term in TERMS.get(service.id, ()) if term.lower() in text]
+        matched = [term for term in service.search_terms if term.lower() in text]
         direct = service.name.lower() in text
         score = sum(4 + len(term) for term in matched) + (20 if direct else 0)
         if score:

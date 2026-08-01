@@ -23,10 +23,13 @@ from core.inquiries import (
     SqliteInquiryRepository,
 )
 from core.services import LifeServicesService
+from tests.auth import MEMBER_HEADERS, MEMBER_ID, PARTNER_HEADERS
 
 FEEDBACK = {"data": [{"type": "3", "topicId": 1, "answerList": [{"answer": "燈具／開關", "answerId": 1071}]}]}
 QUOTE_ITEMS = [{"name": "材料費", "amount": 300}, {"name": "施工費", "amount": 900}]
-ME = "A001"
+ME = MEMBER_ID
+USER_HEADERS = MEMBER_HEADERS
+VENDOR_HEADERS = PARTNER_HEADERS
 
 
 @pytest.fixture
@@ -141,14 +144,14 @@ class TestVendorWorkload:
         inquiry_id = _quoted(services)
         services.request_quote_revision(inquiry_id, note="太貴")
 
-        workload = services.list_vendor_workload()
+        workload = services.list_vendor_workload("vendor-prince-electric")
         assert any(record["id"] == inquiry_id for record in workload["pendingQuote"])
 
     def test_a_cancelled_case_leaves_the_vendor_queue(self, services):
         inquiry_id = _quoted(services)
         services.cancel_inquiry(inquiry_id)
 
-        workload = services.list_vendor_workload()
+        workload = services.list_vendor_workload("vendor-prince-electric")
         everything = workload["pendingQuote"] + workload["awaitingResident"] + workload["scheduled"]
         assert not [record for record in everything if record["id"] == inquiry_id]
 
@@ -161,12 +164,12 @@ class TestApi:
     def test_exposes_all_three_choices(self, client, services):
         inquiry_id = _quoted(services)
 
-        revised = client.post(f"/api/v1/inquiries/{inquiry_id}/revise", json={"note": "希望便宜一點"})
+        revised = client.post(f"/api/v1/inquiries/{inquiry_id}/revise", headers=USER_HEADERS, json={"note": "希望便宜一點"})
         assert revised.status_code == 200
         assert revised.json()["data"]["status"] == PENDING_QUOTE
 
         services.quote_inquiry(inquiry_id, items=QUOTE_ITEMS, vendor_name="速修水電")
-        cancelled = client.post(f"/api/v1/inquiries/{inquiry_id}/cancel", json={"reason": "不用了"})
+        cancelled = client.post(f"/api/v1/inquiries/{inquiry_id}/cancel", headers=USER_HEADERS, json={"reason": "不用了"})
         assert cancelled.status_code == 200
         assert cancelled.json()["data"]["status"] == CANCELLED
 
@@ -174,16 +177,16 @@ class TestApi:
         inquiry_id = _quoted(services)
         services.confirm_inquiry_quote(inquiry_id)
 
-        assert client.post(f"/api/v1/inquiries/{inquiry_id}/cancel", json={}).status_code == 409
-        assert client.post(f"/api/v1/inquiries/{inquiry_id}/revise", json={"note": "x"}).status_code == 409
+        assert client.post(f"/api/v1/inquiries/{inquiry_id}/cancel", headers=USER_HEADERS, json={}).status_code == 409
+        assert client.post(f"/api/v1/inquiries/{inquiry_id}/revise", headers=USER_HEADERS, json={"note": "x"}).status_code == 409
 
     def test_the_whole_loop_still_reaches_completion(self, client, services):
         """新增的分支不能把原本的正向流程弄壞。"""
         inquiry_id = _quoted(services)
-        client.post(f"/api/v1/inquiries/{inquiry_id}/revise", json={"note": "便宜點"})
+        client.post(f"/api/v1/inquiries/{inquiry_id}/revise", headers=USER_HEADERS, json={"note": "便宜點"})
         services.quote_inquiry(inquiry_id, items=[{"name": "施工", "amount": 800}], vendor_name="冠家水電")
 
-        assert client.post(f"/api/v1/inquiries/{inquiry_id}/confirm").json()["data"]["status"] == CONFIRMED
+        assert client.post(f"/api/v1/inquiries/{inquiry_id}/confirm", headers=USER_HEADERS).json()["data"]["status"] == CONFIRMED
         assert client.post(
-            f"/api/v1/inquiries/{inquiry_id}/complete", json={"note": "已完工"}
+            f"/api/v1/inquiries/{inquiry_id}/complete", headers=VENDOR_HEADERS, json={"note": "已完工"}
         ).json()["data"]["status"] == COMPLETED

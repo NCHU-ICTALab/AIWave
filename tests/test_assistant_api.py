@@ -7,18 +7,20 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
 from core.community import SqliteGroupBuyRepository
 from core.inquiries import SqliteInquiryRepository
+from core.vendors import MockVendorClient
+from tests.auth import MANAGER_HEADERS, MEMBER_HEADERS
 
-RESIDENT_HEADERS = {"X-Account-Id": "A001", "X-Role": "user"}
-MANAGER_HEADERS = {"X-Role": "manager"}
+RESIDENT_HEADERS = MEMBER_HEADERS
 
 
 class ScriptedLlm:
@@ -38,11 +40,22 @@ class ScriptedLlm:
 def make_client(tmp_path: Path):
     def _make(*payloads) -> TestClient:
         now = lambda: datetime(2026, 7, 25, tzinfo=timezone.utc)  # noqa: E731
+        def offline(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("test upstream offline", request=request)
+        vendor_client = MockVendorClient(
+            base_url="http://vendor-offline",
+            client=httpx.Client(
+                base_url="http://vendor-offline",
+                transport=httpx.MockTransport(offline),
+            ),
+        )
         return TestClient(
             create_app(
                 repository=SqliteInquiryRepository(tmp_path / "inq.sqlite3", now=now),
                 group_buys=SqliteGroupBuyRepository(tmp_path / "gb.sqlite3", now=now),
                 llm_factory=lambda: ScriptedLlm(*payloads),
+                vendor_client=vendor_client,
+                today=date(2026, 7, 25),
             )
         )
 
@@ -53,7 +66,11 @@ def make_client(tmp_path: Path):
 
 def test_exposes_the_tool_list_for_the_current_role(make_client):
     client = make_client()
-    names = {tool["name"] for tool in client.get("/api/v1/assistant/tools").json()["data"]}
+    names = {
+        tool["name"] for tool in client.get(
+            "/api/v1/assistant/tools", headers=RESIDENT_HEADERS,
+        ).json()["data"]
+    }
 
     assert "match_vendors" in names
     assert "open_group_buy" not in names, "住戶不該看到管委會的能力"
@@ -91,6 +108,7 @@ def test_a_write_step_comes_back_needing_confirmation(make_client):
     })
     campaign = client.post(
         "/api/v1/community/campaigns",
+        headers=MANAGER_HEADERS,
         json={"title": "中秋", "item_name": "文旦", "unit_price": 300},
     ).json()["data"]
 
@@ -99,23 +117,47 @@ def test_a_write_step_comes_back_needing_confirmation(make_client):
     ).json()["data"]
 
     assert plan["needsConfirmation"], "寫入動作應該先問過使用者"
-    assert client.get(f"/api/v1/community/campaigns").json()["data"][0]["totalQuantity"] == 0
+    assert client.get(
+        "/api/v1/community/campaigns", headers=RESIDENT_HEADERS,
+    ).json()["data"][0]["totalQuantity"] == 0
     assert campaign["id"] == 1
 
 
 def test_reports_the_reason_when_planning_is_rejected(make_client):
     client = make_client({"understanding": "退費", "steps": [{"tool": "refund_all", "arguments": {}, "why": "幻覺"}]})
-    plan = client.post("/api/v1/assistant/plan", json={"message": "我要退費"}).json()["data"]
+    plan = client.post(
+        "/api/v1/assistant/plan", headers=RESIDENT_HEADERS, json={"message": "我要退費"},
+    ).json()["data"]
 
     assert plan["steps"] == []
     assert "不存在的能力" in plan["rejectedReason"]
+
+
+def test_stops_explicit_violence_before_creating_a_life_task(make_client):
+    client = make_client({
+        "understanding": "一般服務",
+        "steps": [{"tool": "list_services", "arguments": {}, "why": "不應執行"}],
+    })
+
+    plan = client.post(
+        "/api/v1/assistant/plan",
+        headers=RESIDENT_HEADERS,
+        json={"message": "我想殺人"},
+    ).json()["data"]
+
+    assert plan["steps"] == []
+    assert plan["lifeTask"] is None
+    assert "110" in plan["rejectedReason"]
 
 
 # ---- 執行：不信任前端 ---------------------------------------------------
 
 def test_executing_a_confirmed_step_actually_writes(make_client):
     client = make_client()
-    client.post("/api/v1/community/campaigns", json={"title": "中秋", "item_name": "文旦", "unit_price": 300})
+    client.post(
+        "/api/v1/community/campaigns", headers=MANAGER_HEADERS,
+        json={"title": "中秋", "item_name": "文旦", "unit_price": 300},
+    )
 
     response = client.post(
         "/api/v1/assistant/plan/execute",
@@ -128,7 +170,9 @@ def test_executing_a_confirmed_step_actually_writes(make_client):
     )
 
     assert response.json()["data"]["steps"][0]["status"] == "done"
-    assert client.get("/api/v1/community/campaigns").json()["data"][0]["totalQuantity"] == 2
+    assert client.get(
+        "/api/v1/community/campaigns", headers=RESIDENT_HEADERS,
+    ).json()["data"][0]["totalQuantity"] == 2
 
 
 def test_rejects_a_step_the_role_may_not_run_even_if_the_client_sends_it(make_client):
@@ -136,6 +180,7 @@ def test_rejects_a_step_the_role_may_not_run_even_if_the_client_sends_it(make_cl
     client = make_client()
     response = client.post(
         "/api/v1/assistant/plan/execute",
+        headers=RESIDENT_HEADERS,
         json={
             "message": "開團",
             "account_id": "A001",
@@ -152,6 +197,7 @@ def test_rejects_a_fabricated_tool_name(make_client):
     client = make_client()
     response = client.post(
         "/api/v1/assistant/plan/execute",
+        headers=RESIDENT_HEADERS,
         json={"message": "x", "steps": [{"tool": "drop_database", "arguments": {}, "why": ""}], "approved": [0]},
     )
 
@@ -160,7 +206,10 @@ def test_rejects_a_fabricated_tool_name(make_client):
 
 def test_an_unapproved_write_step_is_not_executed_even_when_posted(make_client):
     client = make_client()
-    client.post("/api/v1/community/campaigns", json={"title": "中秋", "item_name": "文旦", "unit_price": 300})
+    client.post(
+        "/api/v1/community/campaigns", headers=MANAGER_HEADERS,
+        json={"title": "中秋", "item_name": "文旦", "unit_price": 300},
+    )
 
     response = client.post(
         "/api/v1/assistant/plan/execute",
@@ -173,7 +222,9 @@ def test_an_unapproved_write_step_is_not_executed_even_when_posted(make_client):
     )
 
     assert response.json()["data"]["steps"][0]["status"] == "needs_confirmation"
-    assert client.get("/api/v1/community/campaigns").json()["data"][0]["totalQuantity"] == 0
+    assert client.get(
+        "/api/v1/community/campaigns", headers=RESIDENT_HEADERS,
+    ).json()["data"][0]["totalQuantity"] == 0
 
 
 # ---- 媒合 ---------------------------------------------------------------

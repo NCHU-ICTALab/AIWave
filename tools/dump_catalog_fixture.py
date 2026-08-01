@@ -18,7 +18,7 @@ from core.forms.dto import form_to_dict, service_to_dict  # noqa: E402
 from core.insights.today import build_briefing  # noqa: E402
 from core.services import InsightsService  # noqa: E402
 
-# 與 api.app.DEMO_TODAY 一致，日期題的絕對範圍才對得上
+# Fixture 匯出刻意固定日期，確保快照中的相對日期範圍可重現。
 DEMO_TODAY = date(2026, 7, 25)
 OUT = Path(__file__).resolve().parents[1] / "web" / "app" / "tests" / "fixtures" / "catalog.generated.ts"
 

@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import AgentDrawer from '@/components/AgentDrawer.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useDemoStore } from '@/stores/demo'
 import { ROLE_LABEL, useSessionStore } from '@/stores/session'
@@ -25,7 +26,12 @@ const navItems = computed(() => {
   ] satisfies Array<{ to: string; label: string; icon: AppIconName }>
 })
 
-const showChrome = computed(() => route.name !== 'login')
+const showChrome = computed(() => route.name !== 'login' && route.name !== 'home-public')
+
+/** M8(spec 15 §4.1):會員殼掛 Agent 側欄;完整 AI 頁本身就是同一段對話,不重複疊側欄。 */
+const showAgentDrawer = computed(
+  () => showChrome.value && session.role === 'user' && route.name !== 'assistant',
+)
 
 async function signOut() {
   session.signOut()
@@ -71,5 +77,7 @@ watch(() => route.fullPath, async () => {
     <main id="main-content" ref="mainContent" tabindex="-1">
       <RouterView />
     </main>
+
+    <AgentDrawer v-if="showAgentDrawer" />
   </template>
 </template>

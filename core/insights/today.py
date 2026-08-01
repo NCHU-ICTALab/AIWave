@@ -201,11 +201,18 @@ def build_briefing(
     `account_id` 為 None（全新使用者）時只會有團購這類公開事項——
     新帳號真的沒有待辦，這時候應該由零狀態負責教學，不是塞假資料（spec 08）。
     """
-    items: list[BriefingItem] = []
-    if account_id:
-        items += _inquiry_items([r for r in inquiries if r.get("account_id") == account_id])
-        items += _group_buy_items(campaigns, account_id, today)
-        items += _recommendation_items(account_id, today, limit)[:MAX_SUGGESTIONS]
+    if not account_id or limit <= 0:
+        return []
 
+    tasks = _inquiry_items([r for r in inquiries if r.get("account_id") == account_id])
+    tasks += _group_buy_items(campaigns, account_id, today)
+    tasks.sort(key=lambda item: (-item.score, item.id))
+
+    suggestions = _recommendation_items(account_id, today, min(limit, MAX_SUGGESTIONS))[:MAX_SUGGESTIONS]
+    # 待辦與建議是首頁兩種不同承諾：待辦再多也不能把推薦整區擠掉；反之建議最多兩則，
+    # 且至少保留一格給真正卡住的事。完整待辦仍在訂單頁。
+    suggestion_slots = min(len(suggestions), max(0, limit - (1 if tasks else 0)))
+    task_slots = limit - suggestion_slots
+    items = tasks[:task_slots] + suggestions[:suggestion_slots]
     items.sort(key=lambda item: (-item.score, item.id))
-    return items[:limit]
+    return items

@@ -118,15 +118,14 @@ export function createLifeTaskClient(options: ClientOptions = {}): LifeTaskClien
   const baseUrl = options.baseUrl ?? '/api/v1/life-tasks'
   const fetcher = options.fetcher ?? globalThis.fetch
 
-  async function request<T>(path: string, identity: Identity, init: RequestInit = {}): Promise<T> {
+  async function request<T>(path: string, _identity: Identity, init: RequestInit = {}): Promise<T> {
     const response = await fetcher(`${baseUrl}${path}`, {
       ...init,
       credentials: 'same-origin',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        'X-Account-Id': identity.accountId,
-        'X-Role': 'user',
+        ...currentAuthorizationHeaders(),
         ...(init.headers ?? {}),
       },
     })
@@ -163,3 +162,4 @@ export function createLifeTaskClient(options: ClientOptions = {}): LifeTaskClien
     list: (identity) => request<LifeTask[]>('', identity),
   }
 }
+import { currentAuthorizationHeaders } from '@/stores/session'

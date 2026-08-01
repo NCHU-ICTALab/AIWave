@@ -59,7 +59,10 @@ export function createCommunityClient(options: ClientOptions = {}) {
     const response = await fetcher(`${baseUrl}${path}`, {
       ...init,
       credentials: 'same-origin',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init.headers },
+      headers: {
+        Accept: 'application/json', 'Content-Type': 'application/json',
+        ...currentAuthorizationHeaders(), ...init.headers,
+      },
     })
     if (!response.ok) {
       const payload = await response.json().catch(() => ({})) as { detail?: string }
@@ -87,3 +90,4 @@ export function createCommunityClient(options: ClientOptions = {}) {
       ),
   }
 }
+import { currentAuthorizationHeaders } from '@/stores/session'

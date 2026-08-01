@@ -28,6 +28,15 @@ function contrast(foreground: string, background: string) {
 }
 
 describe('design system tokens', () => {
+  it('keeps the resident account picker vertical-only and hover-stable', () => {
+    const listRule = css.match(/\.account-list\s*\{[^}]*\}/)?.[0] ?? ''
+    const hoverRule = css.match(/\.account-option:hover[^}]*\{[^}]*\}/)?.[0] ?? ''
+
+    expect(listRule).toContain('overflow-y: auto')
+    expect(listRule).toContain('overflow-x: hidden')
+    expect(hoverRule).not.toContain('transform:')
+  })
+
   it('separates the briefing source note and the following dashboard panel', () => {
     expect(css).toMatch(/\.briefing\s*\{[^}]*margin-bottom:\s*var\(--space-[^)]+\)/)
     expect(css).toMatch(/\.briefing\s*>\s*\.source-note\s*\{[^}]*margin-top:\s*var\(--space-[^)]+\)/)
@@ -83,6 +92,18 @@ describe('WCAG 2.2 AA', () => {
     // 非文字元件對比門檻為 3:1
     expect(contrast(token('accent'), token('bg'))).toBeGreaterThanOrEqual(3)
     expect(contrast(token('accent'), token('surface'))).toBeGreaterThanOrEqual(3)
+  })
+
+  it('keeps softened green highlights readable for both primary and secondary text', () => {
+    expect(contrast(token('ink'), token('mint'))).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(token('muted'), token('mint'))).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('styles every browser scrollbar with an accessible themed thumb and track', () => {
+    expect(contrast(token('scrollbar-thumb'), token('scrollbar-track'))).toBeGreaterThanOrEqual(3)
+    expect(css).toMatch(/\*\s*\{[^}]*scrollbar-color:\s*var\(--scrollbar-thumb\)\s+var\(--scrollbar-track\)/)
+    expect(css).toContain('*::-webkit-scrollbar-thumb')
+    expect(css).toContain('*::-webkit-scrollbar-track')
   })
 
   it('never removes a focus outline without providing a replacement', () => {

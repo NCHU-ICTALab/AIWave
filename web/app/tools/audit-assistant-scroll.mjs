@@ -99,7 +99,7 @@ for (const viewport of viewports) {
   const startCountBeforeLanding = chatStartRequests
   await page.goto(`${baseUrl}/user/assistant`, { waitUntil: 'networkidle' })
   const landingTitle = await page.locator('main h1').textContent()
-  if (landingTitle?.trim() !== '今天想處理什麼？') {
+  if (landingTitle?.trim() !== 'AI 管家') {
     failures.push(`${viewport.name}: 通用生活管家標題錯誤（${landingTitle?.trim() || '空白'}）`)
   }
   if (chatStartRequests !== startCountBeforeLanding) {

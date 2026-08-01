@@ -26,6 +26,7 @@ describe('demo state machine', () => {
       listServices: () => Promise.reject(new Error('offline')),
       getServiceForm: () => Promise.reject(new Error('offline')),
       quote: () => Promise.reject(new Error('offline')),
+      submit: () => Promise.reject(new Error('offline')),
     })
     expect(store.catalogStatus).toBe('unavailable')
     expect(store.services).toEqual([])
@@ -44,60 +45,55 @@ describe('demo state machine', () => {
       baseAmount: 699, couponDiscount: 50, pointDiscount: 50, paymentDiscount: 0, finalAmount: 599,
       ruleSummary: ['日用品補貨券 −NT$ 50', 'OPENPOINT 折抵 50 點'],
     })
-    expect(store.createOrder()?.amount).toBe(599)
+    const submission = await store.submitSelectedService()
+    expect(submission).toMatchObject({ kind: 'order', resource: { id: 'persisted-service-shopping' } })
   })
 
   it('does not create a submission that bypasses required form validation', async () => {
     const store = await storeWithCatalog()
     await store.selectService('service-aircon')
-    expect(store.createOrder()).toBeNull()
-    expect(store.orders.map(({ id }) => id)).toEqual(['TCAT-8842'])
+    expect(await store.submitSelectedService()).toBeNull()
   })
 
-  it('uses distinct landing seams for inquiries, reservations, shipments, and orders', async () => {
+  it('persists non-commerce forms as service requests instead of claiming fulfillment', async () => {
     const store = await storeWithCatalog()
 
     await store.selectService('service-repair')
     await store.setServiceAnswer('repairType', 'plumbing')
     await store.setServiceAnswer('urgency', 'normal')
-    expect(store.createInquiry()?.id).toBe('INQ-0725-001')
-    expect(store.createOrder()).toBeNull()
+    await store.setServiceAnswer('region', { county_name: '臺北市', district_name: '大同區' })
+    await store.setServiceAnswer('date', '2026-07-26')
+    await store.setServiceAnswer('slot', 'morning')
+    await store.setServiceAnswer('contact', { name: '王小明', mobile: '0912345678', address: '臺北市大同區民生西路 1 號' })
+    expect(await store.submitSelectedService()).toMatchObject({
+      kind: 'service_request', resource: { id: 'persisted-service-repair' },
+    })
 
     await store.selectService('service-restaurant')
     await store.setServiceAnswer('people', 2)
     await store.setServiceAnswer('date', '2026-07-27')
     await store.setServiceAnswer('slot', 'dinner')
-    expect(store.createReservation()?.id).toBe('RSV-0725-001')
+    expect(await store.submitSelectedService()).toMatchObject({
+      kind: 'service_request', resource: { id: 'persisted-service-restaurant' },
+    })
 
     await store.selectService('service-shipping')
     await store.setServiceAnswer('parcelSize', 'small')
     await store.setServiceAnswer('speed', 'normal')
     await store.setServiceAnswer('store', 'qingchuan')
-    expect(store.createShipment()?.id).toBe('SHP-0725-001')
-  })
-
-  it('carries one community request through vendor quote and assignment', () => {
-    const store = useDemoStore()
-    expect(store.campaignStatus).toBe('draft')
-
-    store.publishCampaign()
-    expect(store.campaignStatus).toBe('published')
-    store.submitQuote()
-    expect(store.campaignStatus).toBe('quoted')
-    store.assignVendor()
-    expect(store.campaignStatus).toBe('scheduled')
+    expect(await store.submitSelectedService()).toMatchObject({
+      kind: 'service_request', resource: { id: 'persisted-service-shipping' },
+    })
   })
 
   it('restores the stable seed state', async () => {
     const store = await storeWithCatalog()
-    store.publishCampaign()
     await store.selectService('service-shopping')
-    store.createOrder()
+    await store.setServiceAnswer('bundle', 'restock')
 
     store.resetDemo()
 
-    expect(store.campaignStatus).toBe('draft')
     expect(store.selectedService).toBeNull()
-    expect(store.orders.map(({ id }) => id)).toEqual(['TCAT-8842'])
+    expect(store.selectedAnswers).toEqual({})
   })
 })

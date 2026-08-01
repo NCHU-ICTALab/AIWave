@@ -238,6 +238,12 @@ class FormSession:
     def _validate_contact(self, topic: Topic, value: object) -> dict:
         data = dict(value) if isinstance(value, dict) else {}
         self._require(topic, not data)
+        if data:
+            required = ("name", "mobile", "address") if topic.type is TopicType.CONTACT else ("name", "mobile")
+            missing = [key for key in required if not str(data.get(key, "")).strip()]
+            if missing:
+                labels = {"name": "姓名", "mobile": "電話", "address": "地址"}
+                raise FormError(f"「{topic.title}」缺少{'、'.join(labels[key] for key in missing)}")
         return data
 
     # ---- 輸出 ----------------------------------------------------------

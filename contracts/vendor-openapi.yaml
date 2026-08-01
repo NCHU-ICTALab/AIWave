@@ -1,425 +1,312 @@
 openapi: 3.0.3
 info:
-  title: AIWave Vendor API
-  version: 1.0.0
+  title: AIWave Partner API
+  version: 2.0.0
   description: >-
-    智慧管家與合作廠商之間的穩定契約。fake 與 real adapter 都依賴此規格；
-    所有金額皆為新台幣整數，所有寫入皆以 Idempotency-Key 防止重複執行。
+    AIWave 與核准合作服務提供者共用的唯一現行契約。所有資料都由 Bearer API key
+    綁定 Provider 與 scopes；所有寫入都要求 Idempotency-Key。
 servers:
   - url: http://127.0.0.1:8020
-    description: 本機獨立 fake vendor server
+    description: 獨立 Partner fake upstream
+security:
+  - PartnerBearer: []
 tags:
-  - name: Vendors
-  - name: Inquiries
-  - name: Orders
-  - name: Fake control
+  - name: Catalog
+  - name: Availability
+  - name: Bookings
+  - name: Synchronization
 paths:
-  /v1/vendors:
+  /partner/v1/catalog:
     get:
-      tags: [Vendors]
-      operationId: searchVendors
-      parameters:
-        - {$ref: '#/components/parameters/ServiceId'}
-        - {$ref: '#/components/parameters/CountyCode'}
-        - {$ref: '#/components/parameters/DistrictCode'}
-        - name: supportsUrgent
-          in: query
-          schema: {type: boolean}
+      tags: [Catalog]
+      operationId: getPartnerCatalog
+      x-aiwave-scopes: [catalog:read]
       responses:
-        '200': {$ref: '#/components/responses/VendorList'}
-        default: {$ref: '#/components/responses/Error'}
-  /v1/vendors/{vendorId}:
-    get:
-      tags: [Vendors]
-      operationId: getVendor
-      parameters: [{$ref: '#/components/parameters/VendorId'}]
-      responses:
-        '200': {$ref: '#/components/responses/VendorSingle'}
-        '404': {$ref: '#/components/responses/Error'}
-  /v1/vendors/{vendorId}/locations:
-    get:
-      tags: [Vendors]
-      operationId: listVendorLocations
-      parameters: [{$ref: '#/components/parameters/VendorId'}]
-      responses:
-        '200': {$ref: '#/components/responses/LocationList'}
-        '404': {$ref: '#/components/responses/Error'}
-  /v1/offerings:
-    get:
-      tags: [Vendors]
-      operationId: listOfferings
-      parameters:
-        - name: vendorId
-          in: query
-          schema: {type: string}
-        - {$ref: '#/components/parameters/ServiceId'}
-      responses:
-        '200': {$ref: '#/components/responses/OfferingList'}
-        default: {$ref: '#/components/responses/Error'}
-  /v1/availability:
-    get:
-      tags: [Vendors]
-      operationId: getAvailability
-      parameters:
-        - name: vendorId
-          in: query
-          required: true
-          schema: {type: string}
-        - name: serviceId
-          in: query
-          required: true
-          schema: {type: string}
-        - name: date
-          in: query
-          schema: {type: string, format: date}
-      responses:
-        '200': {$ref: '#/components/responses/AvailabilityList'}
-        '404': {$ref: '#/components/responses/Error'}
-  /v1/inquiries:
-    get:
-      tags: [Inquiries]
-      operationId: listInquiries
-      parameters:
-        - {name: vendorId, in: query, schema: {type: string}}
-        - {name: status, in: query, schema: {type: string}}
-        - {name: accountId, in: query, schema: {type: string}}
-      responses:
-        '200': {$ref: '#/components/responses/InquiryList'}
-        default: {$ref: '#/components/responses/Error'}
-    post:
-      tags: [Inquiries]
-      operationId: createInquiry
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/InquiryCreate'}
-      responses:
-        '201': {$ref: '#/components/responses/InquirySingle'}
-        '400': {$ref: '#/components/responses/Error'}
-        '422': {$ref: '#/components/responses/Error'}
-  /v1/inquiries/{inquiryId}:
-    get:
-      tags: [Inquiries]
-      operationId: getInquiry
-      parameters: [{$ref: '#/components/parameters/InquiryId'}]
-      responses:
-        '200': {$ref: '#/components/responses/InquirySingle'}
-        '404': {$ref: '#/components/responses/Error'}
-  /v1/inquiries/{inquiryId}/quotes:
-    get:
-      tags: [Inquiries]
-      operationId: listQuotes
-      parameters: [{$ref: '#/components/parameters/InquiryId'}]
-      responses:
-        '200': {$ref: '#/components/responses/QuoteList'}
-        '404': {$ref: '#/components/responses/Error'}
-    post:
-      tags: [Inquiries]
-      operationId: createQuote
-      parameters:
-        - {$ref: '#/components/parameters/InquiryId'}
-        - {$ref: '#/components/parameters/IdempotencyKey'}
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/QuoteCreate'}
-      responses:
-        '201': {$ref: '#/components/responses/QuoteSingle'}
-        '400': {$ref: '#/components/responses/Error'}
-        '404': {$ref: '#/components/responses/Error'}
-        '422': {$ref: '#/components/responses/Error'}
-  /v1/orders:
-    get:
-      tags: [Orders]
-      operationId: listOrders
-      parameters:
-        - {name: vendorId, in: query, schema: {type: string}}
-        - {name: status, in: query, schema: {type: string}}
-        - {name: accountId, in: query, schema: {type: string}}
-      responses:
-        '200': {$ref: '#/components/responses/OrderList'}
-        default: {$ref: '#/components/responses/Error'}
-    post:
-      tags: [Orders]
-      operationId: createOrder
-      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/OrderCreate'}
-      responses:
-        '201': {$ref: '#/components/responses/OrderSingle'}
-        '400': {$ref: '#/components/responses/Error'}
-        '422': {$ref: '#/components/responses/Error'}
-  /v1/orders/{orderId}:
-    get:
-      tags: [Orders]
-      operationId: getOrder
-      parameters: [{$ref: '#/components/parameters/OrderId'}]
-      responses:
-        '200': {$ref: '#/components/responses/OrderSingle'}
-        '404': {$ref: '#/components/responses/Error'}
-  /v1/orders/{orderId}/events:
-    post:
-      tags: [Orders]
-      operationId: appendOrderEvent
-      parameters:
-        - {$ref: '#/components/parameters/OrderId'}
-        - {$ref: '#/components/parameters/IdempotencyKey'}
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/OrderEventCreate'}
-      responses:
-        '201': {$ref: '#/components/responses/OrderSingle'}
-        '400': {$ref: '#/components/responses/Error'}
-        '404': {$ref: '#/components/responses/Error'}
-  /__fake__/state:
-    get:
-      tags: [Fake control]
-      operationId: getFakeState
-      security: [{FakeControlKey: []}]
-      responses:
-        '200': {$ref: '#/components/responses/GenericObject'}
+        '200': {$ref: '#/components/responses/CatalogResponse'}
         '401': {$ref: '#/components/responses/Error'}
-  /__fake__/faults/next:
+        '403': {$ref: '#/components/responses/Error'}
     put:
-      tags: [Fake control]
-      operationId: injectNextFault
-      security: [{FakeControlKey: []}]
+      tags: [Catalog]
+      operationId: replacePartnerCatalog
+      x-aiwave-scopes: [catalog:write]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/FaultCreate'}
+            schema: {$ref: '#/components/schemas/Catalog'}
       responses:
-        '200': {$ref: '#/components/responses/GenericObject'}
+        '200': {$ref: '#/components/responses/CatalogResponse'}
         '401': {$ref: '#/components/responses/Error'}
-  /__fake__/reset:
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /partner/v1/availability:
+    get:
+      tags: [Availability]
+      operationId: getPartnerAvailability
+      x-aiwave-scopes: [availability:read]
+      parameters:
+        - {name: offeringId, in: query, schema: {type: string}}
+        - {name: startsAfter, in: query, schema: {type: string, format: date-time}}
+        - {name: startsBefore, in: query, schema: {type: string, format: date-time}}
+      responses:
+        '200': {$ref: '#/components/responses/AvailabilityResponse'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+    put:
+      tags: [Availability]
+      operationId: replacePartnerAvailability
+      x-aiwave-scopes: [availability:write]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [seedVersion, slots]
+              properties:
+                seedVersion: {type: string}
+                slots:
+                  type: array
+                  items: {$ref: '#/components/schemas/AvailabilitySlot'}
+      responses:
+        '200': {$ref: '#/components/responses/AvailabilityResponse'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /partner/v1/bookings:
+    get:
+      tags: [Bookings]
+      operationId: listPartnerBookings
+      x-aiwave-scopes: [bookings:read]
+      parameters:
+        - {name: status, in: query, schema: {type: string}}
+        - {name: updatedAfter, in: query, schema: {type: string, format: date-time}}
+      responses:
+        '200': {$ref: '#/components/responses/BookingListResponse'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
     post:
-      tags: [Fake control]
-      operationId: resetFakeState
-      security: [{FakeControlKey: []}]
+      tags: [Bookings]
+      operationId: pushBookingToPartner
+      x-aiwave-scopes: [bookings:write]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BookingCreate'}
       responses:
-        '200': {$ref: '#/components/responses/GenericObject'}
+        '201': {$ref: '#/components/responses/BookingResponse'}
         '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /partner/v1/bookings/{bookingId}:
+    get:
+      tags: [Bookings]
+      operationId: getPartnerBooking
+      x-aiwave-scopes: [bookings:read]
+      parameters: [{$ref: '#/components/parameters/BookingId'}]
+      responses:
+        '200': {$ref: '#/components/responses/BookingResponse'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+    patch:
+      tags: [Bookings]
+      operationId: updatePartnerBooking
+      x-aiwave-scopes: [bookings:write]
+      parameters:
+        - {$ref: '#/components/parameters/BookingId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BookingUpdate'}
+      responses:
+        '200': {$ref: '#/components/responses/BookingResponse'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /partner/v1/snapshot:
+    get:
+      tags: [Synchronization]
+      operationId: getPartnerSnapshot
+      x-aiwave-scopes: [snapshot:read]
+      responses:
+        '200':
+          description: Provider 資料與同步版本摘要
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: '#/components/schemas/Envelope'}
+                  - type: object
+                    properties:
+                      data: {$ref: '#/components/schemas/Snapshot'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+  /partner/v1/webhook-subscriptions:
+    put:
+      tags: [Synchronization]
+      operationId: configurePartnerWebhook
+      x-aiwave-scopes: [webhooks:write]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/WebhookSubscription'}
+      responses:
+        '200':
+          description: 已保存簽章 webhook 設定
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Envelope'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
 components:
   securitySchemes:
-    FakeControlKey:
-      type: apiKey
-      in: header
-      name: X-Fake-Control-Key
+    PartnerBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: AIWavePartnerKey
   parameters:
-    VendorId:
-      name: vendorId
-      in: path
-      required: true
-      schema: {type: string}
-    InquiryId:
-      name: inquiryId
-      in: path
-      required: true
-      schema: {type: string}
-    OrderId:
-      name: orderId
-      in: path
-      required: true
-      schema: {type: string}
-    ServiceId:
-      name: serviceId
-      in: query
-      schema: {type: string}
-    CountyCode:
-      name: countyCode
-      in: query
-      schema: {type: string}
-    DistrictCode:
-      name: districtCode
-      in: query
-      schema: {type: string}
     IdempotencyKey:
       name: Idempotency-Key
       in: header
       required: true
-      schema: {type: string, minLength: 1}
+      schema: {type: string, minLength: 8, maxLength: 200}
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      schema: {type: string}
   schemas:
-    Source:
+    Envelope:
       type: object
-      required: [kind, label, url, checkedAt, dataPolicy]
+      required: [data, meta]
       properties:
-        kind: {type: string}
-        label: {type: string}
-        url: {type: string, format: uri}
-        checkedAt: {type: string, format: date}
-        observedInOpenpoint: {type: boolean}
-        dataPolicy: {type: string}
-    Vendor:
+        data: {}
+        meta:
+          type: object
+          required: [traceId, seedVersion, idempotentReplay]
+          properties:
+            traceId: {type: string}
+            seedVersion: {type: string}
+            idempotentReplay: {type: boolean}
+            asOf: {type: string, format: date-time}
+    Provider:
       type: object
-      required: [id, name, legalName, summary, serviceIds, supportsUrgent, rating, reviewCount, source]
+      required: [id, name]
       properties:
         id: {type: string}
         name: {type: string}
-        legalName: {type: string}
-        summary: {type: string}
-        serviceIds: {type: array, items: {type: string}}
-        supportsUrgent: {type: boolean}
-        rating: {type: number, minimum: 0, maximum: 5}
-        reviewCount: {type: integer, minimum: 0}
-        source: {$ref: '#/components/schemas/Source'}
     Location:
       type: object
-      required: [id, vendorId, name, countyCode, countyName, districtCode, districtName, postalCode, address, phone]
+      required: [id, providerId, name, address]
       properties:
         id: {type: string}
-        vendorId: {type: string}
+        providerId: {type: string}
         name: {type: string}
-        countyCode: {type: string}
-        countyName: {type: string}
-        districtCode: {type: string}
-        districtName: {type: string}
-        postalCode: {type: string}
         address: {type: string}
-        phone: {type: string}
-        contactName: {type: string}
-        serviceRadiusKm: {type: integer, minimum: 0}
-        dataSource: {type: string}
     Offering:
       type: object
-      required: [id, vendorId, serviceId, name, basePrice, currency, pricingUnit, slots, supportsUrgent]
+      required: [id, providerId, name, serviceId, basePrice, currency]
       properties:
         id: {type: string}
-        vendorId: {type: string}
-        serviceId: {type: string}
+        providerId: {type: string}
+        locationIds: {type: array, items: {type: string}}
         name: {type: string}
-        description: {type: string}
+        serviceId: {type: string}
         basePrice: {type: integer, minimum: 0}
         currency: {type: string, enum: [TWD]}
-        pricingUnit: {type: string}
-        slots: {type: array, items: {type: string}}
-        supportsUrgent: {type: boolean}
-        dataSource: {type: string}
-    Availability:
+    Resource:
       type: object
-      required: [date, slot, available, remainingCapacity]
+      required: [id, providerId, name, kind]
       properties:
-        date: {type: string, format: date}
-        slot: {type: string}
-        available: {type: boolean}
-        remainingCapacity: {type: integer, minimum: 0}
-    Consumer:
-      type: object
-      required: [name, phone]
-      properties:
+        id: {type: string}
+        providerId: {type: string}
         name: {type: string}
-        phone: {type: string}
-        email: {type: string, format: email}
-    InquiryCreate:
+        kind: {type: string}
+    Catalog:
       type: object
-      required: [accountId, serviceId, consumer, location, summary]
+      required: [seedVersion, provider, locations, offerings, resources]
       properties:
-        accountId: {type: string}
-        serviceId: {type: string}
-        vendorId: {type: string, nullable: true}
-        consumer: {$ref: '#/components/schemas/Consumer'}
-        location: {type: object, additionalProperties: true}
-        preferredSlots: {type: array, items: {type: string}}
-        budget: {type: integer, minimum: 0, nullable: true}
-        urgency: {type: string, enum: [normal, urgent]}
-        answers: {type: object, additionalProperties: true}
-        summary: {type: string}
-        externalReference: {type: string, nullable: true}
-    Inquiry:
+        seedVersion: {type: string}
+        provider: {$ref: '#/components/schemas/Provider'}
+        locations: {type: array, items: {$ref: '#/components/schemas/Location'}}
+        offerings: {type: array, items: {$ref: '#/components/schemas/Offering'}}
+        resources: {type: array, items: {$ref: '#/components/schemas/Resource'}}
+    AvailabilitySlot:
+      type: object
+      required: [id, providerId, offeringId, locationId, startsAt, endsAt, status, capacity]
+      properties:
+        id: {type: string}
+        providerId: {type: string}
+        offeringId: {type: string}
+        locationId: {type: string}
+        resourceId: {type: string, nullable: true}
+        startsAt: {type: string, format: date-time}
+        endsAt: {type: string, format: date-time}
+        status: {type: string, enum: [available, held, booked, unavailable]}
+        capacity: {type: integer, minimum: 0}
+    BookingCreate:
+      type: object
+      required: [externalReference, accountReference, offeringId, locationId, slotId, startsAt, endsAt]
+      properties:
+        externalReference: {type: string}
+        accountReference: {type: string}
+        offeringId: {type: string}
+        locationId: {type: string}
+        resourceId: {type: string, nullable: true}
+        slotId: {type: string}
+        startsAt: {type: string, format: date-time}
+        endsAt: {type: string, format: date-time}
+        notes: {type: string, nullable: true}
+    Booking:
       allOf:
-        - {$ref: '#/components/schemas/InquiryCreate'}
+        - {$ref: '#/components/schemas/BookingCreate'}
         - type: object
-          required: [id, status, version, createdAt, updatedAt, dataSource]
+          required: [id, providerId, status, version, createdAt, updatedAt]
           properties:
             id: {type: string}
-            status: {type: string}
+            providerId: {type: string}
+            status: {type: string, enum: [pending_provider, confirmed, rejected, in_service, completed, cancelled, exception]}
             version: {type: integer, minimum: 1}
             createdAt: {type: string, format: date-time}
             updatedAt: {type: string, format: date-time}
-            dataSource: {type: string}
-    QuoteItem:
+    BookingUpdate:
       type: object
-      required: [name, quantity, unitPrice]
+      required: [expectedVersion, status]
       properties:
-        name: {type: string}
-        quantity: {type: integer, minimum: 1}
-        unitPrice: {type: integer, minimum: 0}
-    QuoteCreate:
-      type: object
-      required: [vendorId, items, validUntil]
-      properties:
-        vendorId: {type: string}
-        items: {type: array, minItems: 1, items: {$ref: '#/components/schemas/QuoteItem'}}
-        validUntil: {type: string, format: date}
-    Quote:
-      allOf:
-        - {$ref: '#/components/schemas/QuoteCreate'}
-        - type: object
-          required: [id, inquiryId, subtotal, total, currency, status, createdAt]
-          properties:
-            id: {type: string}
-            inquiryId: {type: string}
-            subtotal: {type: integer, minimum: 0}
-            total: {type: integer, minimum: 0}
-            currency: {type: string, enum: [TWD]}
-            status: {type: string}
-            createdAt: {type: string, format: date-time}
-    OrderCreate:
-      type: object
-      required: [inquiryId, quoteId, accountId]
-      properties:
-        inquiryId: {type: string}
-        quoteId: {type: string}
-        accountId: {type: string}
-        externalReference: {type: string, nullable: true}
-    OrderEventCreate:
-      type: object
-      required: [type, status]
-      properties:
-        type: {type: string}
-        status: {type: string}
+        expectedVersion: {type: integer, minimum: 1}
+        status: {type: string, enum: [confirmed, rejected, in_service, completed, cancelled, exception]}
         note: {type: string, nullable: true}
-        occurredAt: {type: string, format: date-time, nullable: true}
-    Order:
-      allOf:
-        - {$ref: '#/components/schemas/OrderCreate'}
-        - type: object
-          required: [id, vendorId, status, version, events, createdAt, updatedAt]
-          properties:
-            id: {type: string}
-            vendorId: {type: string}
-            status: {type: string}
-            version: {type: integer, minimum: 1}
-            events: {type: array, items: {type: object, additionalProperties: true}}
-            createdAt: {type: string, format: date-time}
-            updatedAt: {type: string, format: date-time}
-    FaultCreate:
+    Snapshot:
       type: object
-      required: [path]
+      required: [providerId, seedVersion, catalogVersion, availabilityVersion, bookingVersion, counts]
       properties:
-        method: {type: string, default: GET}
-        path: {type: string}
-        status: {type: integer, minimum: 200, maximum: 599, default: 503}
-        detail: {type: string}
-        delay_ms: {type: integer, minimum: 0, maximum: 10000}
-        body: {nullable: true}
-    Meta:
+        providerId: {type: string}
+        seedVersion: {type: string}
+        catalogVersion: {type: integer}
+        availabilityVersion: {type: integer}
+        bookingVersion: {type: integer}
+        counts:
+          type: object
+          additionalProperties: {type: integer}
+    WebhookSubscription:
       type: object
-      required: [scenario, dataSource, asOf, traceId]
+      required: [url, events, signingSecret]
       properties:
-        scenario: {type: string}
-        dataSource: {type: string}
-        asOf: {type: string, format: date-time}
-        traceId: {type: string}
-        idempotentReplay: {type: boolean}
+        url: {type: string, format: uri}
+        events: {type: array, items: {type: string}}
+        signingSecret: {type: string, minLength: 16}
     Error:
       type: object
       required: [error]
@@ -430,45 +317,49 @@ components:
           properties:
             code: {type: string}
             message: {type: string}
-            details: {nullable: true}
             traceId: {type: string}
+            details: {}
   responses:
-    VendorList:
-      description: 廠商清單
-      content: {application/json: {schema: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Vendor'}}, meta: {$ref: '#/components/schemas/Meta'}}}}}
-    VendorSingle:
-      description: 單一廠商
-      content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/Vendor'}, meta: {$ref: '#/components/schemas/Meta'}}}}}
-    LocationList:
-      description: 服務據點清單
-      content: {application/json: {schema: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Location'}}, meta: {$ref: '#/components/schemas/Meta'}}}}}
-    OfferingList:
-      description: 服務方案清單
-      content: {application/json: {schema: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Offering'}}, meta: {$ref: '#/components/schemas/Meta'}}}}}
-    AvailabilityList:
-      description: 可預約時段
-      content: {application/json: {schema: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Availability'}}, meta: {$ref: '#/components/schemas/Meta'}}}}}
-    InquirySingle:
-      description: 單一諮詢單
-      content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/Inquiry'}, meta: {$ref: '#/components/schemas/Meta'}}}}}
-    InquiryList:
-      description: 諮詢單清單
-      content: {application/json: {schema: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Inquiry'}}, meta: {$ref: '#/components/schemas/Meta'}}}}}
-    QuoteList:
-      description: 報價清單
-      content: {application/json: {schema: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Quote'}}, meta: {$ref: '#/components/schemas/Meta'}}}}}
-    QuoteSingle:
-      description: 單一報價
-      content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/Quote'}, meta: {$ref: '#/components/schemas/Meta'}}}}}
-    OrderSingle:
-      description: 單一履約訂單
-      content: {application/json: {schema: {type: object, properties: {data: {$ref: '#/components/schemas/Order'}, meta: {$ref: '#/components/schemas/Meta'}}}}}
-    OrderList:
-      description: 履約訂單清單
-      content: {application/json: {schema: {type: object, properties: {data: {type: array, items: {$ref: '#/components/schemas/Order'}}, meta: {$ref: '#/components/schemas/Meta'}}}}}
-    GenericObject:
-      description: fake control 回應
-      content: {application/json: {schema: {type: object, properties: {data: {type: object, additionalProperties: true}, meta: {$ref: '#/components/schemas/Meta'}}}}}
+    CatalogResponse:
+      description: Provider catalog
+      content:
+        application/json:
+          schema:
+            allOf:
+              - {$ref: '#/components/schemas/Envelope'}
+              - type: object
+                properties: {data: {$ref: '#/components/schemas/Catalog'}}
+    AvailabilityResponse:
+      description: Provider availability
+      content:
+        application/json:
+          schema:
+            allOf:
+              - {$ref: '#/components/schemas/Envelope'}
+              - type: object
+                properties:
+                  data: {type: array, items: {$ref: '#/components/schemas/AvailabilitySlot'}}
+    BookingResponse:
+      description: Provider booking
+      content:
+        application/json:
+          schema:
+            allOf:
+              - {$ref: '#/components/schemas/Envelope'}
+              - type: object
+                properties: {data: {$ref: '#/components/schemas/Booking'}}
+    BookingListResponse:
+      description: Provider bookings
+      content:
+        application/json:
+          schema:
+            allOf:
+              - {$ref: '#/components/schemas/Envelope'}
+              - type: object
+                properties:
+                  data: {type: array, items: {$ref: '#/components/schemas/Booking'}}
     Error:
-      description: 一致錯誤封套
-      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+      description: Traceable error
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}

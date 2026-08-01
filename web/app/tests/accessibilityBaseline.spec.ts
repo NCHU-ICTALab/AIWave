@@ -10,7 +10,7 @@ import { mountApp } from './fixtures/mountApp'
 
 const styles = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
-const residentRoutes = ['/user', '/user/services', '/user/orders']
+const residentRoutes = ['/user', '/user/services', '/user/orders', '/user/booking', '/user/calendar']
 
 function luminance(hex: string) {
   const normalized = hex.length === 4 ? `#${[...hex.slice(1)].map((value) => value.repeat(2)).join('')}` : hex

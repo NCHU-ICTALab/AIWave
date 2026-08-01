@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sqlite3
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -34,6 +35,8 @@ class SqliteOrderRepository:
                     answers TEXT NOT NULL,
                     amount INTEGER NOT NULL,
                     pricing TEXT NOT NULL,
+                    idempotency_key TEXT,
+                    idempotency_fingerprint TEXT,
                     created_at TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS platform_order_events (
@@ -46,16 +49,46 @@ class SqliteOrderRepository:
                 """
             )
 
-    def create(self, *, account_id: str, service_id: str, answers: dict, pricing: dict) -> dict:
+            existing = {row["name"] for row in connection.execute("PRAGMA table_info(platform_orders)")}
+            for column in ("idempotency_key", "idempotency_fingerprint"):
+                if column not in existing:
+                    connection.execute(f"ALTER TABLE platform_orders ADD COLUMN {column} TEXT")
+            connection.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_order_idempotency ON platform_orders(idempotency_key) WHERE idempotency_key IS NOT NULL"
+            )
+
+    def create(
+        self, *, account_id: str, service_id: str, answers: dict, pricing: dict,
+        idempotency_key: str | None = None,
+    ) -> dict:
         moment = self._now()
         if moment.tzinfo is None:
             moment = moment.replace(tzinfo=timezone.utc)
         timestamp = moment.isoformat()
+        normalized_key = (idempotency_key or "").strip() or None
+        fingerprint = hashlib.sha256(json.dumps({
+            "accountId": account_id, "serviceId": service_id,
+            "answers": answers, "pricing": pricing,
+        }, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         with self._connect() as connection:
+            if normalized_key:
+                existing = connection.execute(
+                    "SELECT id,idempotency_fingerprint FROM platform_orders WHERE idempotency_key=?",
+                    (normalized_key,),
+                ).fetchone()
+                if existing:
+                    if existing["idempotency_fingerprint"] != fingerprint:
+                        raise ValueError("相同 Idempotency-Key 不可用於不同訂單內容")
+                    record = self._record(connection, connection.execute(
+                        "SELECT * FROM platform_orders WHERE id=?", (existing["id"],),
+                    ).fetchone())
+                    record["idempotentReplay"] = True
+                    return record
             cursor = connection.execute(
                 """INSERT INTO platform_orders
-                   (id, account_id, service_id, status, answers, amount, pricing, created_at)
-                   VALUES (NULL, ?, ?, 'created', ?, ?, ?, ?)""",
+                   (id, account_id, service_id, status, answers, amount, pricing, created_at,
+                    idempotency_key,idempotency_fingerprint)
+                   VALUES (NULL, ?, ?, 'created', ?, ?, ?, ?, ?, ?)""",
                 (
                     account_id,
                     service_id,
@@ -63,6 +96,8 @@ class SqliteOrderRepository:
                     int(pricing["finalAmount"]),
                     json.dumps(pricing, ensure_ascii=False),
                     timestamp,
+                    normalized_key,
+                    fingerprint if normalized_key else None,
                 ),
             )
             order_id = f"ORD-{moment:%Y%m%d}-{cursor.lastrowid:03d}"

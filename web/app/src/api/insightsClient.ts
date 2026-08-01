@@ -146,7 +146,7 @@ export function createInsightsClient(options: InsightsClientOptions = {}): Insig
     const fetcher = options.fetcher ?? globalThis.fetch
     const response = await fetcher(`${baseUrl}${path}`, {
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...currentAuthorizationHeaders() },
     })
     if (!response.ok) throw new InsightsApiError(response.status, `洞察資料請求失敗（${response.status}）`)
     const payload = (await response.json()) as { data: T }
@@ -161,3 +161,4 @@ export function createInsightsClient(options: InsightsClientOptions = {}): Insig
     today: (accountId: string, limit = 5) => request<BriefingItem[]>(`/today/${accountId}?limit=${limit}`),
   }
 }
+import { currentAuthorizationHeaders } from '@/stores/session'

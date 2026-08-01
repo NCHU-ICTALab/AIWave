@@ -2,7 +2,11 @@
 import { onMounted, reactive, ref } from 'vue'
 
 import { createCommunityClient, type Campaign, type PurchaseOrder } from '@/api/communityClient'
+import { ApiError } from '@/api/http'
 import { createJointServiceClient, type JointProposal, type JointServiceCampaign } from '@/api/jointServiceClient'
+import {
+  listCommunityAnnouncements, publishCommunityAnnouncement, type CommunityAnnouncement,
+} from '@/api/platformClient'
 import { createSupportClient, type SupportTicket } from '@/api/supportClient'
 import { useSessionStore } from '@/stores/session'
 
@@ -56,6 +60,7 @@ async function load() {
     status.value = 'ready'
     void loadSupport()
     void loadJointServices()
+    void loadAnnouncements()
   } catch {
     status.value = 'unavailable'
   }
@@ -158,6 +163,49 @@ async function resolveSupport(ticket: SupportTicket) {
     supportActing.value = null
   }
 }
+
+// ── 社區公告發布:管理者社區與後端 seed 一致(community-sunshine=陽光社區) ──
+const MANAGED_COMMUNITY_ID = 'community-sunshine'
+const announcements = ref<CommunityAnnouncement[]>([])
+const announcementTitle = ref('')
+const announcementBody = ref('')
+const announcementPublishing = ref(false)
+const announcementNotice = ref('')
+const announcementError = ref('')
+
+async function loadAnnouncements() {
+  try {
+    const rows = await listCommunityAnnouncements(MANAGED_COMMUNITY_ID)
+    announcements.value = Array.isArray(rows) ? rows : []
+  } catch {
+    // 公告列表載入失敗不擋工作台;發布成功後仍會 prepend 到本頁
+  }
+}
+
+async function publishAnnouncement() {
+  if (announcementPublishing.value) return
+  announcementPublishing.value = true
+  announcementNotice.value = ''
+  announcementError.value = ''
+  try {
+    const created = await publishCommunityAnnouncement(MANAGED_COMMUNITY_ID, {
+      title: announcementTitle.value,
+      body: announcementBody.value,
+    })
+    announcements.value = [created, ...announcements.value.filter((item) => item.id !== created.id)]
+    announcementNotice.value = `已發布「${created.title}」，社區住戶現在可在社區頁看到。`
+    announcementTitle.value = ''
+    announcementBody.value = ''
+  } catch (reason) {
+    announcementError.value = reason instanceof ApiError
+      ? reason.message
+      : '公告未發布，請稍後再試。'
+  } finally {
+    announcementPublishing.value = false
+  }
+}
+
+const announcementDate = (value: string) => (value ?? '').replace('T', ' ').slice(0, 16)
 
 async function createCampaign() {
   if (!draft.title.trim() || !draft.item_name.trim() || draft.unit_price <= 0) {
@@ -369,6 +417,39 @@ onMounted(load)
         </div>
       </article>
     </div>
+  </section>
+
+  <!-- 社區公告發布:標題+內容 → 平台公告 API;住戶社區頁會看到同一份 -->
+  <section v-if="status === 'ready'" class="panel" data-testid="announcement-panel" aria-labelledby="announce-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">社區公告</p><h2 id="announce-title">發布公告</h2></div>
+      <span class="page-status">{{ announcements.length }} 則</span>
+    </div>
+    <form class="campaign-form" @submit.prevent="publishAnnouncement">
+      <label class="field">公告標題
+        <input v-model="announcementTitle" type="text" data-testid="announcement-title"
+          placeholder="例如：8/2 公共設施保養" />
+      </label>
+      <label class="field">公告內容
+        <textarea v-model="announcementBody" rows="3" data-testid="announcement-body"
+          placeholder="例如：8/2(日)公共設施保養，電梯輪流停機。" />
+      </label>
+      <button class="button primary" type="submit" data-testid="announcement-publish"
+        :disabled="announcementPublishing">
+        {{ announcementPublishing ? '發布中…' : '發布公告' }}
+      </button>
+    </form>
+    <p v-if="announcementNotice" class="feedback-inline" role="status" aria-live="polite"
+      data-testid="announcement-notice">{{ announcementNotice }}</p>
+    <p v-if="announcementError" class="need-error" role="alert" data-testid="announcement-error">{{ announcementError }}</p>
+    <p v-if="!announcements.length" class="muted">目前沒有公告。</p>
+    <ul v-else class="plain-list" data-testid="manager-announcement-list">
+      <li v-for="item in announcements" :key="item.id" data-testid="manager-announcement-item">
+        <strong>{{ item.title }}</strong>
+        <span class="muted">・{{ announcementDate(item.publishedAt) }}</span>
+        <p class="muted">{{ item.body }}</p>
+      </li>
+    </ul>
   </section>
 
   <div v-if="status === 'ready'" class="grid">

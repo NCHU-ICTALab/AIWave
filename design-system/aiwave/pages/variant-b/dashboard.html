@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>首頁 — AIWave(方向 B 原型)</title>
+<link rel="stylesheet" href="assets/variant-b.css">
+<style>
+  .reco { display: flex; flex-direction: column; gap: 6px; }
+  .reco .why { font-size: .84rem; color: var(--muted); margin: 0; }
+  .quick-links { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .quick-links button { width: 100%; }
+  .sched { list-style: none; margin: 0; padding: 0; }
+  .sched li { display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--hairline); }
+  .sched li:last-child { border-bottom: none; }
+  .sched .d { font-family: var(--font-mono); font-weight: 700; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 B(高密度對照)・<a href="../dashboard.html">回方向 A</a>・<a href="../index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<header class="site-header">
+  <a class="brand" href="dashboard.html">AIWAVE</a>
+  <span class="workspace-chip">林小圓・個人</span>
+  <nav class="main-nav" aria-label="主導覽">
+    <ul>
+      <li><a href="dashboard.html" aria-current="page"><span class="nav-no" aria-hidden="true">①</span>首頁</a></li>
+      <li><button type="button" data-scope-toast><span class="nav-no" aria-hidden="true">②</span>點數兌換</button></li>
+      <li><button type="button" data-scope-toast><span class="nav-no" aria-hidden="true">③</span>AI</button></li>
+      <li><button type="button" data-scope-toast><span class="nav-no" aria-hidden="true">④</span>服務</button></li>
+      <li><button type="button" data-scope-toast><span class="nav-no" aria-hidden="true">⑤</span>會員中心</button></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+  <p class="meta-line">資料時間 2026-07-30 08:00(UTC+8)・展示資料:partner-demo-v2 seed / Demo points ledger</p>
+  <h1>早安,小圓</h1>
+  <p class="page-lead">今天是 2026 年 7 月 30 日(週四)。你有 2 件待處理事項、1 筆服務進行中。</p>
+
+  <!-- 1. 點數與本月消費:KPI 條 -->
+  <section class="sec" aria-labelledby="points-title">
+    <div class="sec-head">
+      <span class="sec-no" aria-hidden="true">01</span>
+      <h2 id="points-title">點數與本月消費</h2>
+      <span class="sec-note">Demo points ledger</span>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi kpi-accent">
+        <span class="kpi-label">可用 OPENPOINT(Demo 帳本)</span>
+        <span class="kpi-value">1,240<small> 點</small></span>
+        <span class="kpi-note"><span class="tag tag-amber">8/15 到期</span> 180 點</span>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">本月消費</span>
+        <span class="kpi-value">NT$3,460</span>
+        <span class="kpi-note">3 筆訂單・對比上月 <span class="num" style="color:var(--green)">−12%</span></span>
+      </div>
+      <div class="kpi kpi-warn">
+        <span class="kpi-label">待處理事項</span>
+        <span class="kpi-value">2<small> 件</small></span>
+        <span class="kpi-note">1 筆服務進行中</span>
+      </div>
+      <div class="kpi" style="justify-content:center">
+        <button class="btn" type="button" data-scope-toast>查看點數明細與兌換</button>
+      </div>
+    </div>
+    <p class="demo-note">資料來源:Demo points ledger(可重置展示帳本,非真實 OPENPOINT 餘額)。</p>
+  </section>
+
+  <!-- 2. 待處理事項:表格化 -->
+  <section class="sec" aria-labelledby="todo-title">
+    <div class="sec-head">
+      <span class="sec-no" aria-hidden="true">02</span>
+      <h2 id="todo-title">待處理事項</h2>
+      <span class="sec-note">2 件・依急迫度排序</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th scope="col">狀態</th><th scope="col">事項</th><th class="num" scope="col">期限</th><th scope="col">動作</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="tag tag-red">等你確認</span></td>
+            <td>王子水電已回覆冷氣維修報價 <span class="num">NT$1,300</span>,報價 8/2 前有效。</td>
+            <td class="num">08/02</td>
+            <td><button class="btn" type="button" data-scope-toast>查看報價</button></td>
+          </tr>
+          <tr>
+            <td><span class="tag tag-amber">明天</span></td>
+            <td>DUSKIN 樂清・全室清潔 7/31(五)09:00–12:00,師傅出發前會再通知。</td>
+            <td class="num">07/31</td>
+            <td><button class="btn" type="button" data-scope-toast>查看預約</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3. 輕量 AI 任務入口 -->
+  <section class="sec" aria-labelledby="ai-title">
+    <div class="sec-head">
+      <span class="sec-no" aria-hidden="true">03</span>
+      <h2 id="ai-title">交給 AI 管家</h2>
+      <span class="sec-note">M8 里程碑・本原型僅示意入口</span>
+    </div>
+    <div class="panel">
+      <p style="margin:0">用一句話描述需求,AI 會拆解成可確認的任務,例如「這週末找一間信義區四人餐廳」。</p>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button" data-scope-toast>開始對話</button>
+        <span class="demo-note" style="margin:0">AI 工作區屬 M8 里程碑,本原型僅示意入口位置。</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. 個人化推薦 -->
+  <section class="sec" aria-labelledby="reco-title">
+    <div class="sec-head">
+      <span class="sec-no" aria-hidden="true">04</span>
+      <h2 id="reco-title">給你的建議</h2>
+      <span class="sec-note">2 則・含 1 則廣告</span>
+    </div>
+    <div class="grid cols-2">
+      <div class="panel reco" id="reco-1">
+        <span><span class="tag tag-green">個人化</span></span>
+        <h3>冷氣清洗該安排了</h3>
+        <p class="why">依據你的訂單紀錄:上次冷氣清洗是 2025 年 8 月(展示訂單 REC-0042)。</p>
+        <div class="btn-row">
+          <button class="btn" type="button" data-scope-toast>看方案</button>
+          <button class="btn btn-quiet" type="button" data-dismiss="reco-1">不感興趣</button>
+        </div>
+      </div>
+      <div class="panel reco" id="reco-2">
+        <span><span class="tag tag-amber">合作推薦・廣告</span></span>
+        <h3>康是美 保健品換點加倍</h3>
+        <p class="why">廣告內容。7/31 前以點數折抵滿 NT$500 送 50 點。</p>
+        <div class="btn-row">
+          <button class="btn" type="button" data-scope-toast>前往預購購物</button>
+          <button class="btn btn-quiet" type="button" data-dismiss="reco-2">不感興趣</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. 常用功能 -->
+  <section class="sec" aria-labelledby="quick-title">
+    <div class="sec-head">
+      <span class="sec-no" aria-hidden="true">05</span>
+      <h2 id="quick-title">常用功能</h2>
+    </div>
+    <ul class="quick-links">
+      <li><button class="btn" type="button" data-scope-toast>預約服務</button></li>
+      <li><button class="btn" type="button" data-scope-toast>我的訂單</button></li>
+      <li><button class="btn" type="button" data-scope-toast>行事曆</button></li>
+      <li><button class="btn" type="button" data-scope-toast>我的群組</button></li>
+      <li><button class="btn" type="button" data-scope-toast>我的社區</button></li>
+    </ul>
+  </section>
+
+  <!-- 6. 近期行程 -->
+  <section class="sec" aria-labelledby="cal-title">
+    <div class="sec-head">
+      <span class="sec-no" aria-hidden="true">06</span>
+      <h2 id="cal-title">近期行程</h2>
+      <span class="sec-note">未來 7 日・2 筆</span>
+    </div>
+    <div class="panel">
+      <ul class="sched">
+        <li><span class="d">07/31 五 09:00</span><span>DUSKIN 樂清・全室清潔</span><span class="tag tag-green" style="margin-left:auto">已預約</span></li>
+        <li><span class="d">08/02 日</span><span>社區公共設施保養(幸福社區公告)</span><span class="tag tag-ink" style="margin-left:auto">公告</span></li>
+      </ul>
+      <div class="btn-row">
+        <button class="btn" type="button" data-scope-toast>開啟行事曆</button>
+      </div>
+    </div>
+    <p class="demo-note">展示資料:partner-demo-v2 seed / Demo points ledger。</p>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p class="demo-note">2026 雲湧智生黑客松競賽作品。所有品牌名稱僅用於競賽展示情境,詳見資料來源標示。</p>
+</footer>
+
+<div class="ticker" aria-hidden="true">
+  <span class="ticker-label">今日摘要</span>
+  <div class="ticker-track">
+    <span>可用點數 <span class="up">1,240</span></span>
+    <span>本月消費 NT$3,460 <span class="up">−12%</span></span>
+    <span>待處理 <span class="down">2 件</span></span>
+    <span>明日 09:00 DUSKIN 全室清潔</span>
+    <span>展示資料 partner-demo-v2 seed</span>
+    <span>可用點數 <span class="up">1,240</span></span>
+    <span>本月消費 NT$3,460 <span class="up">−12%</span></span>
+    <span>待處理 <span class="down">2 件</span></span>
+    <span>明日 09:00 DUSKIN 全室清潔</span>
+    <span>展示資料 partner-demo-v2 seed</span>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script>
+(function () {
+  "use strict";
+  function toast(message) {
+    var el = document.getElementById("toast");
+    if (!el) return;
+    el.textContent = message;
+    el.hidden = false;
+    clearTimeout(el._timer);
+    el._timer = setTimeout(function () { el.hidden = true; }, 4000);
+  }
+
+  /* 範圍說明:方向 B 只做兩頁對照,其餘入口以說明取代死連結 */
+  document.querySelectorAll("[data-scope-toast]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      toast("方向 B 僅示範首頁與公開首頁;完整流程請看方向 A 或審閱目錄。");
+    });
+  });
+
+  /* 「不感興趣」只影響單一項目並可復原 */
+  document.querySelectorAll("[data-dismiss]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var id = btn.getAttribute("data-dismiss");
+      var card = document.getElementById(id);
+      var stub = document.createElement("div");
+      stub.className = "panel reco";
+      stub.innerHTML = '<p class="why">已隱藏這則建議。</p>';
+      var undo = document.createElement("button");
+      undo.type = "button";
+      undo.className = "btn btn-quiet";
+      undo.textContent = "復原";
+      undo.addEventListener("click", function () {
+        stub.replaceWith(card);
+        card.querySelector("[data-dismiss]").focus();
+      });
+      stub.appendChild(undo);
+      card.replaceWith(stub);
+      undo.focus();
+      toast("已隱藏這則建議,可按「復原」找回。");
+    });
+  });
+})();
+</script>
+</body>
+</html>

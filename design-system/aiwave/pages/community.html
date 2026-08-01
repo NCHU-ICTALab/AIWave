@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的社區 — AIWave(原型)</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .notice-list { display: grid; gap: 12px; }
+  .notice-list details { border: 2px solid var(--ink); border-radius: 14px; background: var(--surface); }
+  .notice-list summary {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; cursor: pointer;
+    min-height: 44px; padding: 10px 14px; font-weight: 800; list-style: none;
+  }
+  .notice-list summary::-webkit-details-marker { display: none; }
+  .notice-list summary::after { content: "展開 ▾"; margin-left: auto; font-size: .85rem; color: var(--muted); font-weight: 700; }
+  .notice-list details[open] summary::after { content: "收合 ▴"; }
+  .notice-list .notice-body { padding: 0 14px 14px; border-top: 2px dashed var(--lavender); }
+  .status-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 A・我的社區(會員視角)・<a href="index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<header class="site-header">
+  <a class="brand" href="dashboard.html"><span class="brand-mark" aria-hidden="true">AW</span>AIWave</a>
+  <span class="workspace-chip">林小圓・個人</span>
+  <nav class="main-nav" aria-label="主導覽">
+    <ul>
+      <li><a href="dashboard.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>首頁</a></li>
+      <li><a href="points.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5h5M9.5 13.5h5"/></svg>點數兌換</a></li>
+      <li><a href="ai.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg>AI</a></li>
+      <li><a href="services.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>服務</a></li>
+      <li><a href="member.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>會員中心</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+  <p><a href="member.html">← 回會員中心</a></p>
+  <h1>我的社區</h1>
+  <p class="page-lead">社區是真實存在的組織(由管委會管理),不是群組的一種;加入需要邀請、申請並經管理者審核。</p>
+
+  <!-- 加入狀態 -->
+  <section class="card" aria-labelledby="status-title">
+    <h2 id="status-title">我的加入狀態</h2>
+    <div class="status-line">
+      <span class="badge badge-mint">已加入</span>
+      <strong>幸福社區</strong>
+      <span class="source-tag">(台北市信義區・你的預設社區)</span>
+    </div>
+    <ul id="pending-list" class="status-line" style="list-style:none; padding:0; margin:12px 0 0; display:grid; gap:8px" hidden aria-label="申請中的社區"></ul>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-secondary" type="button" data-open-dialog="dlg-apply">申請加入其他社區</button>
+    </div>
+    <p class="demo-note">展示資料:partner-demo-v2 seed。加入社區需管理者審核通過後才會生效。</p>
+  </section>
+
+  <!-- 公告 -->
+  <section class="card" aria-labelledby="notice-title">
+    <h2 id="notice-title">幸福社區公告</h2>
+    <div class="notice-list">
+      <details>
+        <summary><span class="badge badge-peach">8/2(日)</span>公共設施年度保養,部分設施暫停開放</summary>
+        <div class="notice-body">
+          <p>8/2(日)09:00–17:00 進行機電與電梯年度保養,B 棟電梯輪流停機,健身房與交誼廳全日暫停開放。造成不便敬請見諒。</p>
+          <p class="demo-note">發布:幸福社區管委會・7/25。此公告也會出現在你的行事曆(社區來源)。</p>
+        </div>
+      </details>
+      <details>
+        <summary><span class="badge badge-blue">7/28 起</span>中元普渡登記開始,8/10 截止</summary>
+        <div class="notice-body">
+          <p>今年中元普渡於 8/28(五)舉行。欲參加的住戶請於 8/10 前向管理室登記供品桌位,每戶一桌,額滿為止。</p>
+          <p class="demo-note">發布:幸福社區管委會・7/28。</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- 社區服務入口 -->
+  <section class="card" aria-labelledby="svc-title">
+    <h2 id="svc-title">社區服務</h2>
+    <div class="grid cols-2">
+      <div class="card" style="margin:0; box-shadow:none">
+        <h3>社區團購</h3>
+        <p>跟鄰居一起以團購價訂購,7-ELEVEN 交貨便集中配送到管理室。</p>
+        <button class="btn" type="button" data-out-of-scope>查看本期團購</button>
+      </div>
+      <div class="card" style="margin:0; box-shadow:none">
+        <h3>公設預約</h3>
+        <p>預約交誼廳、健身房等公共設施時段。</p>
+        <button class="btn" type="button" data-out-of-scope>預約公設</button>
+      </div>
+    </div>
+    <p class="demo-note">這兩個流程不在本次原型審批範圍,按下按鈕僅提示,不會偽裝成可用功能。</p>
+  </section>
+
+  <!-- 預設社區 -->
+  <section class="card" aria-labelledby="default-title">
+    <h2 id="default-title">預設社區</h2>
+    <p>首頁的社區公告與行事曆的社區行程,會以預設社區為準。</p>
+    <form id="default-form">
+      <div class="field" style="max-width:360px">
+        <label for="f-default">選擇預設社區</label>
+        <select id="f-default" name="defaultCommunity">
+          <option value="幸福社區" selected>幸福社區(已加入)</option>
+        </select>
+        <p class="hint">審核通過的社區會自動出現在這個清單。</p>
+      </div>
+      <button class="btn btn-primary" type="submit">儲存設定</button>
+    </form>
+  </section>
+</main>
+
+<!-- 申請加入其他社區 -->
+<dialog id="dlg-apply" aria-labelledby="dlg-apply-title">
+  <h2 id="dlg-apply-title">申請加入其他社區</h2>
+  <form id="apply-form" method="dialog">
+    <div class="field">
+      <label for="f-community">社區代碼或名稱<span aria-hidden="true"> *</span></label>
+      <input id="f-community" name="community" type="text" required aria-describedby="f-community-hint">
+      <p class="hint" id="f-community-hint">輸入管理室提供的社區代碼(例:HC-0207),或直接輸入社區名稱搜尋。</p>
+      <p class="error" id="err-community" hidden>請輸入社區代碼或名稱。</p>
+    </div>
+    <div class="field">
+      <label for="f-house">戶別(選填)</label>
+      <input id="f-house" name="house" type="text" aria-describedby="f-house-hint">
+      <p class="hint" id="f-house-hint">例:B 棟 8 樓之 2。提供戶別可加快管理者審核。</p>
+    </div>
+    <p class="demo-note">送出後由該社區管理者人工審核;審核通過前你看不到該社區的公告與服務。</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">送出申請</button>
+      <button class="btn btn-quiet" type="button" data-close-dialog>取消</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="assets/aiwave.js"></script>
+<script>
+(function () {
+  /* 不在原型範圍的入口:誠實提示,不偽裝 */
+  document.querySelectorAll("[data-out-of-scope]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      AIWave.toast("此流程不在本次原型範圍,僅示意入口位置。");
+    });
+  });
+
+  /* 申請加入其他社區 → 顯示「待管理者審核」狀態 */
+  document.getElementById("apply-form").addEventListener("submit", function (e) {
+    var input = document.getElementById("f-community");
+    var name = input.value.trim();
+    if (!name) {
+      e.preventDefault();
+      document.getElementById("err-community").hidden = false;
+      input.setAttribute("aria-invalid", "true");
+      return;
+    }
+    document.getElementById("err-community").hidden = true;
+    input.removeAttribute("aria-invalid");
+    var list = document.getElementById("pending-list");
+    list.hidden = false;
+    var li = document.createElement("li");
+    li.className = "status-line";
+    var badge = document.createElement("span");
+    badge.className = "badge badge-warn";
+    badge.textContent = "待管理者審核";
+    var label = document.createElement("strong");
+    label.textContent = name;
+    li.appendChild(badge);
+    li.appendChild(label);
+    list.appendChild(li);
+    input.value = "";
+    document.getElementById("f-house").value = "";
+    AIWave.toast("已送出「" + name + "」的加入申請,審核結果會通知你。");
+  });
+
+  /* 預設社區儲存 */
+  document.getElementById("default-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var select = document.getElementById("f-default");
+    AIWave.toast("已將「" + select.value + "」設為預設社區。");
+  });
+})();
+</script>
+</body>
+</html>

@@ -15,7 +15,11 @@ export const catalogServices: CatalogService[] = [
     "category": "居家維護",
     "summary": "到府拆洗與基礎檢測",
     "partner": "專業清潔夥伴",
-    "glyph": "🧺"
+    "glyph": "🧺",
+    "keywords": [
+      "洗衣機",
+      "洗衣槽"
+    ]
   },
   {
     "id": "service-aircon",
@@ -23,7 +27,13 @@ export const catalogServices: CatalogService[] = [
     "category": "居家維護",
     "summary": "壁掛式冷氣深層清潔",
     "partner": "專業清潔夥伴",
-    "glyph": "❄️"
+    "glyph": "❄️",
+    "keywords": [
+      "冷氣",
+      "空調",
+      "不冷",
+      "霉味"
+    ]
   },
   {
     "id": "service-cleaning",
@@ -31,7 +41,16 @@ export const catalogServices: CatalogService[] = [
     "category": "居家維護",
     "summary": "居家空間重點清潔",
     "partner": "社區合作夥伴",
-    "glyph": "🧹"
+    "glyph": "🧹",
+    "keywords": [
+      "打掃",
+      "清潔",
+      "大掃除",
+      "掃地",
+      "浴室",
+      "廚房",
+      "居家清潔"
+    ]
   },
   {
     "id": "service-housework",
@@ -39,7 +58,15 @@ export const catalogServices: CatalogService[] = [
     "category": "生活支援",
     "summary": "兩小時計時家事協助",
     "partner": "生活服務夥伴",
-    "glyph": "🧽"
+    "glyph": "🧽",
+    "keywords": [
+      "打掃",
+      "家事",
+      "整理",
+      "收納",
+      "洗衣",
+      "幫忙做家事"
+    ]
   },
   {
     "id": "service-repair",
@@ -47,7 +74,16 @@ export const catalogServices: CatalogService[] = [
     "category": "生活支援",
     "summary": "初步判斷並安排到府",
     "partner": "安心修繕",
-    "glyph": "🔧"
+    "glyph": "🔧",
+    "keywords": [
+      "水電",
+      "修理",
+      "修繕",
+      "漏水",
+      "插座",
+      "燈不亮",
+      "馬桶"
+    ]
   },
   {
     "id": "service-shipping",
@@ -55,7 +91,13 @@ export const catalogServices: CatalogService[] = [
     "category": "生活支援",
     "summary": "黑貓宅急便到店寄件",
     "partner": "黑貓宅急便",
-    "glyph": "📦"
+    "glyph": "📦",
+    "keywords": [
+      "寄件",
+      "寄包裹",
+      "宅急便",
+      "黑貓"
+    ]
   },
   {
     "id": "service-restaurant",
@@ -63,7 +105,13 @@ export const catalogServices: CatalogService[] = [
     "category": "餐飲購物",
     "summary": "依人數與時段媒合餐廳",
     "partner": "統一集團餐飲",
-    "glyph": "🍽️"
+    "glyph": "🍽️",
+    "keywords": [
+      "訂位",
+      "餐廳",
+      "聚餐",
+      "幾位"
+    ]
   },
   {
     "id": "service-delivery",
@@ -71,7 +119,13 @@ export const catalogServices: CatalogService[] = [
     "category": "餐飲購物",
     "summary": "附近餐點與情境推薦",
     "partner": "外送合作夥伴",
-    "glyph": "🛵"
+    "glyph": "🛵",
+    "keywords": [
+      "外送",
+      "送餐",
+      "叫吃的",
+      "餐點"
+    ]
   },
   {
     "id": "service-shopping",
@@ -79,7 +133,15 @@ export const catalogServices: CatalogService[] = [
     "category": "餐飲購物",
     "summary": "日用品補貨並套用優惠",
     "partner": "iOPEN Mall",
-    "glyph": "🛒"
+    "glyph": "🛒",
+    "keywords": [
+      "購物",
+      "補貨",
+      "衛生紙",
+      "咖啡券",
+      "日用品",
+      "商城"
+    ]
   }
 ]
 
@@ -415,7 +477,7 @@ export const catalogForms: Record<string, ServiceFormDefinition> = {
     "formId": 105,
     "action": "inquiry",
     "actionLabel": "建立修繕諮詢",
-    "dataUse": "問題類型與說明只提供給媒合後的修繕夥伴判斷",
+    "dataUse": "問題、服務地區、預約時間與聯絡資料只提供給媒合後的修繕夥伴估價及到府聯繫",
     "fields": [
       {
         "id": "repairType",
@@ -476,6 +538,55 @@ export const catalogForms: Record<string, ServiceFormDefinition> = {
             "optionId": 1081
           }
         ]
+      },
+      {
+        "id": "region",
+        "topicId": 4,
+        "label": "服務地區",
+        "type": 5,
+        "required": true,
+        "hint": "請提供縣市與行政區，供系統媒合可服務的廠商"
+      },
+      {
+        "id": "date",
+        "topicId": 5,
+        "label": "希望日期",
+        "type": 9,
+        "required": true,
+        "minDate": "2026-07-26",
+        "maxDate": "2026-08-08"
+      },
+      {
+        "id": "slot",
+        "topicId": 6,
+        "label": "希望時段",
+        "type": 3,
+        "required": true,
+        "options": [
+          {
+            "value": "morning",
+            "label": "上午 09:00–12:00",
+            "optionId": 1090
+          },
+          {
+            "value": "afternoon",
+            "label": "下午 13:00–17:00",
+            "optionId": 1091
+          },
+          {
+            "value": "evening",
+            "label": "晚上 18:00–21:00",
+            "optionId": 1092
+          }
+        ]
+      },
+      {
+        "id": "contact",
+        "topicId": 7,
+        "label": "聯絡資料與到府地址",
+        "type": 8,
+        "required": true,
+        "hint": "請提供姓名、手機與完整服務地址；送出前會再次確認"
       }
     ]
   },

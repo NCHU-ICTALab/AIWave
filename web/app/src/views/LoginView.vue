@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { ROLE_HOME, useSessionStore, type Role } from '@/stores/session'
+import { DEMO_PARTNER_ACCOUNTS, demoAccessToken, ROLE_HOME, useSessionStore, type Role } from '@/stores/session'
 
 /**
  * 展示住戶（不是原始通路帳號）。
@@ -28,9 +28,7 @@ const accounts = ref<AccountOption[]>([])
 const accountsStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
 const staffEntries = [
   { role: 'manager' as const, accountId: null, label: '社區管理者工作台', name: '社區管理者' },
-  { role: 'partner' as const, accountId: 'vendor-prince-electric', label: '王子水電工作台', name: '王子水電' },
-  { role: 'partner' as const, accountId: 'vendor-duskin', label: 'DUSKIN 樂清工作台', name: 'DUSKIN 樂清' },
-  { role: 'partner' as const, accountId: 'vendor-prince-property', label: '太子物業工作台', name: '太子物業' },
+  { role: 'admin' as const, accountId: null, label: '平台營運管理台', name: 'AIWave 平台營運者' },
 ]
 
 onMounted(async () => {
@@ -50,8 +48,36 @@ function describe(account: AccountOption) {
   return parts.join('・')
 }
 
+/** 合作廠商登入:每家品牌一個 Demo 帳號,Bearer 與 core/access seed 一致。 */
+async function enterPartner(item: (typeof DEMO_PARTNER_ACCOUNTS)[number]) {
+  session.signIn({
+    role: 'partner',
+    accountId: item.accountId,
+    displayName: `${item.label}人員`,
+    accessToken: item.token,
+  })
+  await router.push('/partner')
+}
+
+// ── 帳密登入(方向 A 原型:示範驗證與錯誤狀態;展示環境一律登入為小圓) ──
+const loginEmail = ref('')
+const loginPassword = ref('')
+const emailError = ref('')
+const passwordError = ref('')
+
+async function submitPassword() {
+  emailError.value = loginEmail.value.includes('@') ? '' : '請輸入有效的電子郵件。'
+  passwordError.value = loginPassword.value ? '' : '請輸入密碼。'
+  if (emailError.value || passwordError.value) return
+  await enter('user', '019a52d3-7f6b-7da3-b48d-9c9e2522d616', '林小圓')
+}
+
 async function enter(role: Role, accountId: string | null, displayName: string) {
-  session.signIn({ role, accountId, displayName })
+  const normalizedAccount = role === 'user' && accountId === null ? 'demo-new-member' : accountId
+  session.signIn({
+    role, accountId: normalizedAccount, displayName,
+    accessToken: demoAccessToken(role, normalizedAccount),
+  })
   await router.push(ROLE_HOME[role])
 }
 </script>
@@ -93,8 +119,28 @@ async function enter(role: Role, accountId: string | null, displayName: string) 
     </div>
 
     <div class="login-panels">
+      <section class="panel login-card" aria-labelledby="password-entry">
+        <h2 id="password-entry">帳號密碼登入</h2>
+        <form class="password-form" novalidate @submit.prevent="submitPassword">
+          <label for="login-email">電子郵件</label>
+          <input
+            id="login-email" v-model="loginEmail" type="email" autocomplete="username"
+            :aria-invalid="emailError ? 'true' : 'false'" data-testid="login-email"
+          />
+          <p v-if="emailError" class="field-error" role="alert">{{ emailError }}</p>
+          <label for="login-password">密碼</label>
+          <input
+            id="login-password" v-model="loginPassword" type="password" autocomplete="current-password"
+            :aria-invalid="passwordError ? 'true' : 'false'" data-testid="login-password"
+          />
+          <p v-if="passwordError" class="field-error" role="alert">{{ passwordError }}</p>
+          <button class="button primary full" type="submit" data-testid="login-submit">登入</button>
+        </form>
+        <p class="muted login-hint">競賽展示:任何格式正確的帳密都會以展示住戶「林小圓」登入;正式版由平台簽發憑證。</p>
+      </section>
+
       <section class="panel login-card" aria-labelledby="resident-entry">
-        <h2 id="resident-entry">我是住戶</h2>
+        <h2 id="resident-entry">Demo 快速登入</h2>
         <button
           class="button primary full"
           type="button"
@@ -132,14 +178,49 @@ async function enter(role: Role, accountId: string | null, displayName: string) 
         <div class="staff-options">
           <button
             v-for="entry in staffEntries"
-            :key="`${entry.role}-${entry.accountId}`"
+            :key="entry.role"
             class="button full"
             type="button"
-            :data-testid="entry.role === 'manager' ? 'enter-manager' : `enter-${entry.accountId}`"
+            :data-testid="entry.role === 'manager' ? 'enter-manager' : 'enter-admin'"
             @click="enter(entry.role, entry.accountId, entry.name)"
           >{{ entry.label }}</button>
+        </div>
+
+        <div class="login-divider" role="separator"><span>合作廠商</span></div>
+        <h3 id="partner-entry">合作廠商工作台</h3>
+        <p class="muted login-hint">M4 六場景的 8 家合作方 Demo 帳號，各自只看得到自己的案件。</p>
+        <div class="staff-options" data-testid="partner-list" aria-labelledby="partner-entry">
+          <button
+            v-for="item in DEMO_PARTNER_ACCOUNTS"
+            :key="item.accountId"
+            class="button full"
+            type="button"
+            :data-testid="`enter-partner-${item.accountId}`"
+            @click="enterPartner(item)"
+          >{{ item.label }}</button>
         </div>
       </section>
     </div>
   </main>
 </template>
+
+<style scoped>
+.password-form {
+  display: grid;
+  gap: var(--space-2);
+}
+.password-form label {
+  font-weight: 700;
+}
+.password-form input {
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border: var(--border-chunky) solid var(--ink);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font: inherit;
+}
+.password-form .button {
+  margin-top: var(--space-2);
+}
+</style>

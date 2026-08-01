@@ -7,7 +7,18 @@
  */
 
 export type ServiceAction = 'inquiry' | 'order' | 'reservation' | 'shipment'
-export type ServiceAnswer = string | number
+export interface RegionAnswer {
+  county_name: string
+  district_name: string
+}
+
+export interface ContactAnswer {
+  name: string
+  mobile: string
+  address?: string
+}
+
+export type ServiceAnswer = string | number | RegionAnswer | ContactAnswer
 export type ServiceAnswers = Record<string, ServiceAnswer>
 
 export interface ServiceOption {
@@ -76,9 +87,21 @@ export function validateServiceAnswers(form: ServiceFormDefinition, answers: Ser
   for (const field of form.fields) {
     if (!isFieldVisible(field, answers)) continue
     const value = answers[field.id]
-    if (field.required && (value === undefined || String(value).trim() === '')) {
+    const empty = value === undefined || (typeof value !== 'object' && String(value).trim() === '')
+    if (field.required && empty) {
       errors[field.id] = `請填寫${field.label}`
       continue
+    }
+    if (field.type === 5 && value !== undefined) {
+      const region = typeof value === 'object' ? value as RegionAnswer : null
+      if (!region?.county_name.trim() || !region.district_name.trim()) errors[field.id] = `請完整填寫${field.label}的縣市與行政區`
+    }
+    if ((field.type === 8 || field.type === 10) && value !== undefined) {
+      const contact = typeof value === 'object' ? value as ContactAnswer : null
+      const needsAddress = field.type === 8
+      if (!contact?.name.trim() || !contact.mobile.trim() || (needsAddress && !contact.address?.trim())) {
+        errors[field.id] = `請完整填寫${field.label}${needsAddress ? '的姓名、電話與地址' : '的姓名與電話'}`
+      }
     }
     if (field.type === 1 && field.numberOnly && value !== undefined) {
       const number = Number(value)
@@ -105,6 +128,14 @@ export function summarizeServiceAnswers(form: ServiceFormDefinition, answers: Se
     .map((field) => {
       const value = answers[field.id]
       const optionLabel = field.options?.find((option) => option.value === String(value))?.label
+      if (field.type === 5 && typeof value === 'object') {
+        const region = value as RegionAnswer
+        return { label: field.label, value: `${region.county_name}${region.district_name}` }
+      }
+      if ((field.type === 8 || field.type === 10) && typeof value === 'object') {
+        const contact = value as ContactAnswer
+        return { label: field.label, value: [contact.name, contact.mobile, contact.address].filter(Boolean).join('・') }
+      }
       return { label: field.label, value: optionLabel ?? String(value) }
     })
 }

@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -22,9 +22,11 @@ from core.forms.seed_forms import OPT_LAMP_OFF, repair_form
 from core.forms.service_catalog import get_service_form
 from core.inquiries import SqliteInquiryRepository
 from core.sessions import ConversationState, InMemorySessionStore
+from tests.auth import MEMBER_HEADERS, MEMBER_ID, SECOND_MEMBER_HEADERS
 
 REPAIR_LIGHTING = 1071
 URGENCY_NORMAL = 1080
+SLOT_MORNING = 1090
 
 
 class RoundTripSessionStore:
@@ -52,6 +54,10 @@ class ScriptedLlm:
     ANSWERS = {
         "修繕項目": {"action": "answer", "value": {"option_id": REPAIR_LIGHTING, "quantity": None}, "note": ""},
         "緊急程度": {"action": "answer", "value": {"option_id": URGENCY_NORMAL, "quantity": None}, "note": ""},
+        "服務地區": {"action": "answer", "value": {"county_name": "臺北市", "district_name": "大同區"}, "note": ""},
+        "希望日期": {"action": "answer", "value": "2026-07-26", "note": ""},
+        "希望時段": {"action": "answer", "value": {"option_id": SLOT_MORNING, "quantity": None}, "note": ""},
+        "聯絡資料與到府地址": {"action": "answer", "value": {"name": "王小明", "mobile": "0912345678", "address": "臺北市大同區民生西路 1 號"}, "note": ""},
     }
 
     def json(self, messages, **kwargs):
@@ -128,39 +134,67 @@ class TestChatWithoutProcessMemory:
                 ),
                 sessions=RoundTripSessionStore(),
                 llm_factory=ScriptedLlm,
+                today=date(2026, 7, 25),
             )
         )
 
     def test_completes_a_whole_conversation_through_a_serialising_store(self, client: TestClient):
-        session_id = client.post("/api/chat/start", json={"service_id": "service-repair"}).json()["session_id"]
+        session_id = client.post(
+            "/api/chat/start", headers=MEMBER_HEADERS, json={"service_id": "service-repair"},
+        ).json()["session_id"]
 
-        for message in ["浴室的燈不亮了", "不急，可以安排時間"]:
-            payload = client.post("/api/chat/message", json={"session_id": session_id, "message": message}).json()
+        for message in ["浴室的燈不亮了", "不急，可以安排時間", "臺北市大同區", "明天", "上午", "王小明 0912345678 臺北市大同區民生西路 1 號"]:
+            payload = client.post(
+                "/api/chat/message", headers=MEMBER_HEADERS,
+                json={"session_id": session_id, "message": message},
+            ).json()
 
         assert payload["awaiting_confirmation"] is True
 
         done = client.post(
             "/api/chat/message",
+            headers=MEMBER_HEADERS,
             json={"session_id": session_id, "message": "確認送出", "account_id": "A001"},
         ).json()
         assert done["done"] is True
         assert done["operation"]["id"].startswith("INQ-")
 
     def test_the_submitted_inquiry_belongs_to_the_signed_in_household(self, client: TestClient):
-        session_id = client.post("/api/chat/start", json={"service_id": "service-repair"}).json()["session_id"]
-        for message in ["浴室的燈不亮了", "不急，可以安排時間"]:
-            client.post("/api/chat/message", json={"session_id": session_id, "message": message})
+        session_id = client.post(
+            "/api/chat/start", headers=MEMBER_HEADERS, json={"service_id": "service-repair"},
+        ).json()["session_id"]
+        for message in ["浴室的燈不亮了", "不急，可以安排時間", "臺北市大同區", "明天", "上午", "王小明 0912345678 臺北市大同區民生西路 1 號"]:
+            client.post(
+                "/api/chat/message", headers=MEMBER_HEADERS,
+                json={"session_id": session_id, "message": message},
+            )
         inquiry_id = client.post(
             "/api/chat/message",
+            headers=MEMBER_HEADERS,
             json={"session_id": session_id, "message": "確認送出", "account_id": "A001"},
         ).json()["operation"]["id"]
 
-        record = client.get(f"/api/v1/inquiries/{inquiry_id}").json()["data"]
-        assert record["account_id"] == "A001"
+        record = client.get(
+            f"/api/v1/inquiries/{inquiry_id}", headers=MEMBER_HEADERS,
+        ).json()["data"]
+        assert record["account_id"] == MEMBER_ID
 
     def test_an_unknown_session_is_reported_rather_than_crashing(self, client: TestClient):
-        response = client.post("/api/chat/message", json={"session_id": "nope", "message": "hi"})
+        response = client.post(
+            "/api/chat/message", headers=MEMBER_HEADERS,
+            json={"session_id": "nope", "message": "hi"},
+        )
 
+        assert response.status_code == 404
+
+    def test_another_member_cannot_resume_the_conversation(self, client: TestClient):
+        session_id = client.post(
+            "/api/chat/start", headers=MEMBER_HEADERS, json={"service_id": "service-repair"},
+        ).json()["session_id"]
+        response = client.post(
+            "/api/chat/message", headers=SECOND_MEMBER_HEADERS,
+            json={"session_id": session_id, "message": "浴室的燈不亮了"},
+        )
         assert response.status_code == 404
 
 

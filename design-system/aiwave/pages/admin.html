@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>平台後台 — AIWave(原型)</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .role-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .health-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .health-line code { font-family: ui-monospace, monospace; font-size: .9rem; background: var(--bg); border: 2px solid var(--lavender); border-radius: 8px; padding: 2px 8px; }
+  .fulfil-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .fulfil-list li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 2px solid var(--ink); border-radius: 14px; padding: 10px 14px; background: var(--surface); }
+  .fulfil-list .grow { flex: 1 1 220px; font-weight: 700; }
+  @media (max-width: 720px) {
+    .role-actions { margin-left: 0; }
+    main { padding-bottom: 48px; }
+  }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 A・平台後台(aiwave-admin)・<a href="index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<!-- 角色隔離:平台後台不顯示會員五項導覽 -->
+<header class="site-header">
+  <a class="brand" href="admin.html"><span class="brand-mark" aria-hidden="true">AW</span>AIWave</a>
+  <span class="workspace-chip">aiwave-admin・平台後台</span>
+  <div class="role-actions">
+    <a class="btn btn-quiet" href="login.html">切換身分</a>
+    <a class="btn" href="home-public.html">登出</a>
+  </div>
+</header>
+
+<main id="main">
+  <h1>平台後台(Demo 控制台)</h1>
+  <p class="page-lead">今天是 2026 年 7 月 30 日。管理固定 Demo personas、fake upstream 與 partner onboarding 展示流程。</p>
+
+  <!-- (a) Demo workspaces -->
+  <section class="card" aria-labelledby="ws-title">
+    <h2 id="ws-title">Demo workspaces</h2>
+    <div class="table-wrap">
+      <table class="data">
+        <caption>固定 Demo personas(partner-demo-v2 seed 展示資料)</caption>
+        <thead>
+          <tr><th scope="col">Workspace</th><th scope="col">訂單數</th><th scope="col">點數</th><th scope="col">Seed version</th><th scope="col">最後活動</th><th scope="col">動作</th></tr>
+        </thead>
+        <tbody>
+          <tr data-ws="林小圓">
+            <td>林小圓(會員)</td><td>3</td><td>1,240</td><td>partner-demo-v2</td><td>7/30 08:12</td>
+            <td><button class="btn" type="button" data-reset="林小圓">重置此 workspace</button></td>
+          </tr>
+          <tr data-ws="王師傅">
+            <td>王師傅(王子水電)</td><td>4 件案件</td><td>—</td><td>partner-demo-v2</td><td>7/30 07:55</td>
+            <td><button class="btn" type="button" data-reset="王師傅">重置此 workspace</button></td>
+          </tr>
+          <tr data-ws="陳主委">
+            <td>陳主委(幸福社區管委會)</td><td>—</td><td>—</td><td>partner-demo-v2</td><td>7/29 21:30</td>
+            <td><button class="btn" type="button" data-reset="陳主委">重置此 workspace</button></td>
+          </tr>
+          <tr data-ws="aiwave-admin">
+            <td>aiwave-admin(平台)</td><td>—</td><td>—</td><td>partner-demo-v2</td><td>7/30 09:00</td>
+            <td><button class="btn" type="button" data-reset="aiwave-admin">重置此 workspace</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="demo-note">重置只還原該 persona 的展示資料至 partner-demo-v2 初始狀態,不影響其他 workspace。</p>
+  </section>
+
+  <!-- (b) fake upstream 健康狀態 -->
+  <section class="card" aria-labelledby="health-title">
+    <h2 id="health-title">Fake upstream 健康狀態</h2>
+    <div class="health-line">
+      <code>localhost:8020(partner fake)</code>
+      <span id="upstream-status"><span class="badge badge-mint">正常</span></span>
+    </div>
+    <div class="health-line">
+      <span>Seed version 一致性:</span>
+      <code>platform=partner-demo-v2 / upstream=partner-demo-v2 ✓</code>
+      <span class="badge badge-mint">一致</span>
+    </div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn" type="button" data-inject="timeout">注入 timeout</button>
+      <button class="btn" type="button" data-inject="503">注入 503</button>
+      <button class="btn btn-secondary" type="button" id="clear-inject" hidden>清除注入</button>
+    </div>
+    <p class="demo-note">注入故障後,可在會員端展示重試與降級路徑(例:預約時段查詢失敗的重試提示)。</p>
+  </section>
+
+  <!-- (c) Partner onboarding -->
+  <section class="card" aria-labelledby="onboard-title">
+    <h2 id="onboard-title">Partner onboarding</h2>
+    <div class="table-wrap">
+      <table class="data">
+        <caption>合作廠商接入狀態(partner-demo-v2 seed 展示資料)</caption>
+        <thead>
+          <tr><th scope="col">廠商</th><th scope="col">接入方式</th><th scope="col">狀態</th><th scope="col">動作</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>王子水電</td><td>標準接入(Partner API)</td>
+            <td><span class="badge badge-mint">已上線</span></td>
+            <td><button class="btn btn-quiet" type="button" data-view="王子水電">查看</button></td>
+          </tr>
+          <tr>
+            <td>EZTABLE 簡單桌</td><td>Adapter 接入</td>
+            <td><span class="badge badge-blue">測試中</span></td>
+            <td><button class="btn btn-quiet" type="button" data-view="EZTABLE 簡單桌">查看</button></td>
+          </tr>
+          <tr>
+            <td>康是美</td><td>工作台接入</td>
+            <td><span class="badge badge-mint">已上線</span></td>
+            <td><button class="btn btn-quiet" type="button" data-view="康是美">查看</button></td>
+          </tr>
+          <tr data-partner="pending-demo">
+            <td>(展示)新廠商申請<span class="demo-note">匿名示範列,僅示意審核動線</span></td><td>工作台接入</td>
+            <td class="cell-status"><span class="badge badge-warn">申請審核中</span></td>
+            <td class="cell-action"><button class="btn btn-primary" type="button" data-open-dialog="dlg-review">審核</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- (d) 訂單履約總覽 -->
+  <section class="card" aria-labelledby="fulfil-title">
+    <h2 id="fulfil-title">訂單履約總覽</h2>
+    <ul class="fulfil-list">
+      <li><span class="grow">BK-20260730-0032・水電修繕(展示會員 → 王子水電)</span><span class="badge badge-warn">待接單</span></li>
+      <li><span class="grow">BK-20260730-0031・水電修繕(林小圓 → 王子水電)</span><span class="badge badge-blue">已預約</span></li>
+      <li><span class="grow">BK-20260729-0027・急件修繕(展示會員 → 王子水電)</span><span class="badge badge-blue">已預約</span></li>
+      <li><span class="grow">BK-20260726-0019・水電修繕(展示會員 → 王子水電)</span><span class="badge badge-mint">已完成</span></li>
+    </ul>
+    <p class="demo-note">4 筆展示訂單,狀態與廠商工作台、會員端為同一份資料(partner-demo-v2 seed)。</p>
+  </section>
+
+  <!-- (e) 權限說明 -->
+  <section class="card" aria-labelledby="perm-title" style="background:var(--lavender)">
+    <h2 id="perm-title">平台後台權限說明</h2>
+    <ul>
+      <li>aiwave-admin 僅能管理<strong>固定的 Demo personas</strong>(林小圓/王師傅/陳主委/aiwave-admin)與 fake upstream。</li>
+      <li><strong>不是無限制的越權帳號</strong>:不能讀取會員對話內容、修改訂單金額或代替任何角色送出交易。</li>
+      <li>所有重置與故障注入僅作用於展示環境,操作都會留下稽核紀錄。</li>
+    </ul>
+  </section>
+</main>
+
+<!-- 重置 workspace 確認 -->
+<dialog id="dlg-reset" aria-labelledby="dlg-reset-title">
+  <h2 id="dlg-reset-title">重置「<span id="reset-target">—</span>」workspace?</h2>
+  <p>這會把該 persona 的訂單、點數與狀態還原成 partner-demo-v2 的初始展示資料。其他 workspace 不受影響。</p>
+  <div class="btn-row">
+    <button class="btn btn-danger" type="button" id="reset-confirm-btn">確定重置</button>
+    <button class="btn" type="button" data-close-dialog>取消</button>
+  </div>
+</dialog>
+
+<!-- Partner 審核 -->
+<dialog id="dlg-review" aria-labelledby="dlg-review-title">
+  <h2 id="dlg-review-title">審核:(展示)新廠商・工作台接入申請</h2>
+  <p>申請資料(匿名示範):申請日 7/28・接入方式為工作台人工操作(暫不接 API)・正式名單由產品負責人提供。</p>
+  <div class="btn-row">
+    <button class="btn btn-primary" type="button" id="review-approve-btn">核准接入</button>
+    <button class="btn" type="button" id="review-reject-btn">退回補件</button>
+    <button class="btn btn-quiet" type="button" data-close-dialog>關閉</button>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="assets/aiwave.js"></script>
+<script>
+(function () {
+  /* (a) 重置 workspace:確認 dialog → toast */
+  var resetTarget = null;
+  document.querySelectorAll("[data-reset]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      resetTarget = btn.getAttribute("data-reset");
+      document.getElementById("reset-target").textContent = resetTarget;
+      document.getElementById("dlg-reset").showModal();
+    });
+  });
+  document.getElementById("reset-confirm-btn").addEventListener("click", function () {
+    document.getElementById("dlg-reset").close();
+    AIWave.toast("已重置「" + resetTarget + "」workspace 至 partner-demo-v2 初始狀態。");
+  });
+
+  /* (b) 故障注入 */
+  var statusEl = document.getElementById("upstream-status");
+  var clearBtn = document.getElementById("clear-inject");
+  document.querySelectorAll("[data-inject]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var kind = btn.getAttribute("data-inject");
+      statusEl.innerHTML = kind === "timeout"
+        ? '<span class="badge badge-warn">注入中:timeout</span>'
+        : '<span class="badge badge-danger">注入中:HTTP 503</span>';
+      clearBtn.hidden = false;
+      AIWave.toast("已對 8020 注入 " + (kind === "timeout" ? "timeout" : "503") + ";現在可到會員端展示重試路徑。");
+    });
+  });
+  clearBtn.addEventListener("click", function () {
+    statusEl.innerHTML = '<span class="badge badge-mint">正常</span>';
+    clearBtn.hidden = true;
+    AIWave.toast("已清除故障注入,fake upstream 恢復正常。");
+  });
+
+  /* (c) Partner onboarding */
+  document.querySelectorAll("[data-view]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      AIWave.toast("「" + btn.getAttribute("data-view") + "」接入詳情屬後續里程碑,本原型僅示意清單與審核動線。");
+    });
+  });
+  var partnerRow = document.querySelector('tr[data-partner="pending-demo"]');
+  document.getElementById("review-approve-btn").addEventListener("click", function () {
+    partnerRow.querySelector(".cell-status").innerHTML = '<span class="badge badge-mint">已上線</span>';
+    partnerRow.querySelector(".cell-action").innerHTML = '<button class="btn btn-quiet" type="button" data-view-late="">查看</button>';
+    partnerRow.querySelector("[data-view-late]").addEventListener("click", function () {
+      AIWave.toast("接入詳情屬後續里程碑,本原型僅示意清單與審核動線。");
+    });
+    document.getElementById("dlg-review").close();
+    AIWave.toast("已核准示範廠商的工作台接入申請。");
+  });
+  document.getElementById("review-reject-btn").addEventListener("click", function () {
+    partnerRow.querySelector(".cell-status").innerHTML = '<span class="badge badge-danger">已退回補件</span>';
+    document.getElementById("dlg-review").close();
+    AIWave.toast("已退回示範廠商的申請,請對方補件後重新送審。");
+  });
+})();
+</script>
+</body>
+</html>

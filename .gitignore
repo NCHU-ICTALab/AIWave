@@ -11,6 +11,9 @@ wheels/
 
 .env
 
+# Local AWS credentials (never commit)
+.aws/
+
 # Node / Vue
 node_modules/
 coverage/
@@ -18,3 +21,6 @@ coverage/
 
 # 拋棄式工作區（SQLite demo db、分析腳本、PDF 轉圖）
 tmp/
+
+.agents
+.claude

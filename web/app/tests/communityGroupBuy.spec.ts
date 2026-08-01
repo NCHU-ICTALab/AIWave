@@ -54,11 +54,53 @@ function stubCommunity(extra?: (url: string, init?: RequestInit) => Response | u
 }
 
 describe('community group buy', () => {
+  it('lets a resident create, join and manage real groups', async () => {
+    const calls: Array<{ url: string; body?: Record<string, unknown> }> = []
+    const group = {
+      id: 'group-shared-1', name: '小圓的群組',
+      inviteCode: 'HOME-7284', myRole: 'admin', myRoleLabel: '管理者',
+      members: [{ accountId: EXISTING_USER.accountId, displayName: '測試使用者', role: 'admin', roleLabel: '管理者' }],
+      createdAt: '2026-07-29T09:00:00+08:00',
+    }
+    stubCommunity((url, init) => {
+      if (url.endsWith('/api/v1/groups') && !init?.method) return json({ data: [group] })
+      if (url.endsWith('/api/v1/groups') && init?.method === 'POST') {
+        calls.push({ url, body: JSON.parse(String(init.body)) })
+        return json({ data: { ...group, id: 'group-new', name: '讀書會' } })
+      }
+      if (url.endsWith('/api/v1/groups/join') && init?.method === 'POST') {
+        calls.push({ url, body: JSON.parse(String(init.body)) })
+        return json({ data: group })
+      }
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/community')
+
+    expect(wrapper.get('[data-testid="my-groups"]').text()).toContain('小圓的群組')
+    expect(wrapper.text()).toContain('HOME-7284')
+
+    await wrapper.get('[data-testid="open-create-group"]').trigger('click')
+    await wrapper.get('[data-testid="group-name"]').setValue('讀書會')
+    await wrapper.get('[data-testid="create-group"]').element.closest('form')!.dispatchEvent(new Event('submit'))
+    await flushPromises()
+
+    await wrapper.get('[data-testid="open-join-group"]').trigger('click')
+    await wrapper.get('[data-testid="invite-code"]').setValue('HOME-7284')
+    await wrapper.get('[data-testid="join-group"]').element.closest('form')!.dispatchEvent(new Event('submit'))
+    await flushPromises()
+
+    expect(calls.map((call) => call.body)).toEqual([
+      expect.objectContaining({ name: '讀書會' }),
+      expect.objectContaining({ invite_code: 'HOME-7284' }),
+    ])
+    expect(wrapper.find('[data-testid="group-type"]').exists()).toBe(false)
+  })
+
   it('lets a resident see the community group buy from their own app', async () => {
     stubCommunity()
     const { wrapper } = await mountApp('/user/community')
 
-    expect(wrapper.get('h1').text()).toBe('社區團購')
+    expect(wrapper.get('h1').text()).toBe('群組與社區')
     expect(wrapper.text()).toContain('愛文芒果 5 斤')
     expect(wrapper.text()).toContain('2 戶')
     expect(wrapper.text()).toContain('還差 5 份')

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的群組 — AIWave(原型)</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .group-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .group-list .group-btn {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    min-height: 44px; padding: 12px 16px; border: var(--border); border-radius: 14px;
+    background: var(--surface); font: inherit; font-weight: 800; cursor: pointer;
+  }
+  .group-list .group-btn[aria-expanded="true"] { background: var(--mint); }
+  .group-list .group-btn .meta { font-size: .875rem; color: var(--muted); font-weight: 600; }
+  .member-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
+  .member-list li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 2px solid var(--ink); border-radius: 14px; padding: 10px 14px; background: var(--surface); }
+  .member-list .grow { flex: 1 1 160px; font-weight: 700; }
+  .feed-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
+  .feed-list li { border: 2px solid var(--ink); border-radius: 14px; padding: 10px 14px; background: var(--surface); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .feed-list .grow { flex: 1 1 200px; }
+  .feed-list .when { display: block; font-size: .85rem; color: var(--muted); }
+  .invite-link { display: block; margin-top: 6px; padding: 10px 14px; border: 2px dashed var(--ink); border-radius: 12px; background: var(--bg); font-family: ui-monospace, monospace; font-size: .9rem; word-break: break-all; }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 A・我的群組(會員視角)・<a href="index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<header class="site-header">
+  <a class="brand" href="dashboard.html"><span class="brand-mark" aria-hidden="true">AW</span>AIWave</a>
+  <span class="workspace-chip">林小圓・個人</span>
+  <nav class="main-nav" aria-label="主導覽">
+    <ul>
+      <li><a href="dashboard.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>首頁</a></li>
+      <li><a href="points.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5h5M9.5 13.5h5"/></svg>點數兌換</a></li>
+      <li><a href="ai.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg>AI</a></li>
+      <li><a href="services.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>服務</a></li>
+      <li><a href="member.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>會員中心</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+  <p><a href="member.html">← 回會員中心</a></p>
+  <h1>我的群組</h1>
+  <p class="page-lead">和家人朋友共用行程與團購。群組名稱由你自己取,系統不預設「家庭」或「朋友」類型。</p>
+
+  <!-- 群組清單 -->
+  <section class="card" aria-labelledby="list-title">
+    <h2 id="list-title">群組清單</h2>
+    <ul class="group-list" id="group-list">
+      <li>
+        <button class="group-btn" type="button" aria-expanded="true" aria-controls="group-detail" data-group="我們家">
+          <span class="badge badge-peach" aria-hidden="true">家</span>
+          <span>我們家 <span class="meta">4 位成員・你是建立者</span></span>
+        </button>
+      </li>
+      <li>
+        <button class="group-btn" type="button" aria-expanded="false" aria-controls="group-detail" data-group="閨蜜團">
+          <span class="badge badge-lavender" aria-hidden="true">友</span>
+          <span>閨蜜團 <span class="meta">3 位成員・你是成員</span></span>
+        </button>
+      </li>
+    </ul>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-primary" type="button" data-open-dialog="dlg-create">建立群組</button>
+    </div>
+    <p class="demo-note">展示資料:partner-demo-v2 seed。群組由使用者自行命名,系統不預設家庭/朋友類型。</p>
+  </section>
+
+  <!-- 選中群組的內容 -->
+  <section class="card" id="group-detail" aria-labelledby="detail-title" tabindex="-1">
+    <h2 id="detail-title">「<span id="detail-name">我們家</span>」群組內容</h2>
+
+    <h3 id="members-title">成員(<span id="member-count">4</span> 人)</h3>
+    <ul class="member-list" aria-labelledby="members-title" id="member-list">
+      <li><span class="grow">林小圓(你)</span><span class="badge badge-mint">建立者</span></li>
+      <li><span class="grow">Vivian</span><span class="badge">成員</span></li>
+      <li><span class="grow">爸爸</span><span class="badge">成員</span></li>
+      <li><span class="grow">媽媽</span><span class="badge">成員</span></li>
+    </ul>
+    <p class="demo-note">成員名單為 partner-demo-v2 seed 展示資料。</p>
+
+    <h3 id="feed-title">群組動態</h3>
+    <ul class="feed-list" aria-labelledby="feed-title">
+      <li>
+        <span class="grow">Vivian 發起了 8/9 媽媽生日聚餐訂位(EZTABLE 簡單桌)。<span class="when">7/29 21:40</span></span>
+        <button class="btn" type="button" id="feed-order-btn">查看訂位</button>
+      </li>
+      <li>
+        <span class="grow">你把「7-ELEVEN 賣貨便 團購取貨」加進了群組行事曆。<span class="when">7/27 10:12</span></span>
+        <a class="btn btn-quiet" href="calendar.html">開啟行事曆</a>
+      </li>
+    </ul>
+
+    <h3>群組操作</h3>
+    <div class="btn-row">
+      <button class="btn btn-secondary" type="button" data-open-dialog="dlg-invite">邀請成員</button>
+      <button class="btn" type="button" data-open-dialog="dlg-rename">修改群組名稱</button>
+      <button class="btn btn-danger" type="button" data-open-dialog="dlg-leave">離開群組</button>
+    </div>
+  </section>
+</main>
+
+<!-- 建立群組 -->
+<dialog id="dlg-create" aria-labelledby="dlg-create-title">
+  <h2 id="dlg-create-title">建立群組</h2>
+  <form id="create-form" method="dialog">
+    <div class="field">
+      <label for="f-new-name">群組名稱<span aria-hidden="true"> *</span></label>
+      <input id="f-new-name" name="newName" type="text" required aria-describedby="f-new-name-hint">
+      <p class="hint" id="f-new-name-hint">例:爬山小隊、隔壁棟拼單團。名稱之後可以再改。</p>
+      <p class="error" id="err-new-name" hidden>請輸入群組名稱。</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">建立</button>
+      <button class="btn btn-quiet" type="button" data-close-dialog>取消</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 邀請成員 -->
+<dialog id="dlg-invite" aria-labelledby="dlg-invite-title">
+  <h2 id="dlg-invite-title">邀請成員加入「<span class="dlg-group-name">我們家</span>」</h2>
+  <p>把邀請連結傳給對方,對方點開並登入後即可加入。連結 7 天內有效。</p>
+  <span class="invite-link" id="invite-link">https://aiwave.example/join/G-DEMO-8F2K(示意連結)</span>
+  <p class="demo-note">原型僅示意:連結不可實際使用,正式版由後端簽發一次性邀請碼。</p>
+  <div class="btn-row" style="margin-top:12px">
+    <button class="btn btn-primary" type="button" id="copy-invite-btn">複製邀請連結</button>
+    <button class="btn btn-quiet" type="button" data-close-dialog>關閉</button>
+  </div>
+</dialog>
+
+<!-- 改名 -->
+<dialog id="dlg-rename" aria-labelledby="dlg-rename-title">
+  <h2 id="dlg-rename-title">修改群組名稱</h2>
+  <form id="rename-form" method="dialog">
+    <div class="field">
+      <label for="f-rename">新名稱<span aria-hidden="true"> *</span></label>
+      <input id="f-rename" name="rename" type="text" required>
+      <p class="error" id="err-rename" hidden>請輸入新的群組名稱。</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" type="submit">儲存</button>
+      <button class="btn btn-quiet" type="button" data-close-dialog>取消</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 離開群組 -->
+<dialog id="dlg-leave" aria-labelledby="dlg-leave-title">
+  <h2 id="dlg-leave-title">確定要離開「<span class="dlg-group-name">我們家</span>」?</h2>
+  <p>離開後將看不到這個群組的動態與共用行程;若之後想回來,需要成員重新邀請。</p>
+  <div class="btn-row">
+    <button class="btn btn-danger" type="button" id="leave-confirm-btn">確定離開</button>
+    <button class="btn" type="button" data-close-dialog>先不要</button>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="assets/aiwave.js"></script>
+<script>
+(function () {
+  var currentGroup = "我們家";
+  var detail = document.getElementById("group-detail");
+
+  /* 群組資料(原型內建,展示 partner-demo-v2 seed) */
+  var GROUPS = {
+    "我們家": {
+      members: [
+        { name: "林小圓(你)", role: "建立者" },
+        { name: "Vivian", role: "成員" },
+        { name: "爸爸", role: "成員" },
+        { name: "媽媽", role: "成員" }
+      ]
+    },
+    "閨蜜團": {
+      members: [
+        { name: "Amber", role: "建立者" },
+        { name: "林小圓(你)", role: "成員" },
+        { name: "小婷", role: "成員" }
+      ]
+    }
+  };
+
+  function renderMembers(name) {
+    var data = GROUPS[name] || { members: [{ name: "林小圓(你)", role: "建立者" }] };
+    var list = document.getElementById("member-list");
+    list.innerHTML = "";
+    data.members.forEach(function (m) {
+      var li = document.createElement("li");
+      var span = document.createElement("span");
+      span.className = "grow";
+      span.textContent = m.name;
+      var badge = document.createElement("span");
+      badge.className = m.role === "建立者" ? "badge badge-mint" : "badge";
+      badge.textContent = m.role;
+      li.appendChild(span);
+      li.appendChild(badge);
+      list.appendChild(li);
+    });
+    document.getElementById("member-count").textContent = data.members.length;
+  }
+
+  function selectGroup(btn) {
+    document.querySelectorAll(".group-btn").forEach(function (b) {
+      b.setAttribute("aria-expanded", b === btn ? "true" : "false");
+    });
+    currentGroup = btn.getAttribute("data-group");
+    document.getElementById("detail-name").textContent = currentGroup;
+    document.querySelectorAll(".dlg-group-name").forEach(function (el) { el.textContent = currentGroup; });
+    renderMembers(currentGroup);
+    detail.focus();
+  }
+
+  document.getElementById("group-list").addEventListener("click", function (e) {
+    var btn = e.target.closest(".group-btn");
+    if (btn) selectGroup(btn);
+  });
+
+  /* 動態中的訂位:另一筆展示訂單,不連 order-detail(那頁固定顯示修繕訂單) */
+  document.getElementById("feed-order-btn").addEventListener("click", function () {
+    AIWave.toast("這是另一筆展示訂單(EZTABLE 8/9 訂位),本原型的訂單頁只示範修繕案例。");
+  });
+
+  /* 建立群組 */
+  document.getElementById("create-form").addEventListener("submit", function (e) {
+    var input = document.getElementById("f-new-name");
+    var name = input.value.trim();
+    if (!name) {
+      e.preventDefault();
+      document.getElementById("err-new-name").hidden = false;
+      input.setAttribute("aria-invalid", "true");
+      return;
+    }
+    document.getElementById("err-new-name").hidden = true;
+    input.removeAttribute("aria-invalid");
+    GROUPS[name] = { members: [{ name: "林小圓(你)", role: "建立者" }] };
+    var li = document.createElement("li");
+    var btn = document.createElement("button");
+    btn.className = "group-btn";
+    btn.type = "button";
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-controls", "group-detail");
+    btn.setAttribute("data-group", name);
+    btn.innerHTML = '<span class="badge badge-blue" aria-hidden="true">新</span>';
+    var label = document.createElement("span");
+    label.textContent = name + " ";
+    var meta = document.createElement("span");
+    meta.className = "meta";
+    meta.textContent = "1 位成員・你是建立者";
+    label.appendChild(meta);
+    btn.appendChild(label);
+    li.appendChild(btn);
+    document.getElementById("group-list").appendChild(li);
+    input.value = "";
+    AIWave.toast("已建立群組「" + name + "」,快邀請成員加入吧。");
+    selectGroup(btn);
+  });
+
+  /* 複製邀請連結(原型:寫入剪貼簿失敗也照樣提示) */
+  document.getElementById("copy-invite-btn").addEventListener("click", function () {
+    var text = document.getElementById("invite-link").textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () {});
+    }
+    AIWave.toast("已複製邀請連結(示意連結,原型不可實際加入)。");
+  });
+
+  /* 改名 */
+  document.getElementById("rename-form").addEventListener("submit", function (e) {
+    var input = document.getElementById("f-rename");
+    var name = input.value.trim();
+    if (!name) {
+      e.preventDefault();
+      document.getElementById("err-rename").hidden = false;
+      input.setAttribute("aria-invalid", "true");
+      return;
+    }
+    document.getElementById("err-rename").hidden = true;
+    input.removeAttribute("aria-invalid");
+    GROUPS[name] = GROUPS[currentGroup];
+    delete GROUPS[currentGroup];
+    var btn = document.querySelector('.group-btn[data-group="' + currentGroup + '"]');
+    if (btn) {
+      btn.setAttribute("data-group", name);
+      var meta = btn.querySelector(".meta");
+      var metaText = meta ? meta.textContent : "";
+      var label = btn.querySelector("span:last-child");
+      label.textContent = name + " ";
+      if (meta) {
+        var m = document.createElement("span");
+        m.className = "meta";
+        m.textContent = metaText;
+        label.appendChild(m);
+      }
+    }
+    currentGroup = name;
+    document.getElementById("detail-name").textContent = name;
+    document.querySelectorAll(".dlg-group-name").forEach(function (el) { el.textContent = name; });
+    input.value = "";
+    AIWave.toast("群組名稱已更新為「" + name + "」。");
+  });
+
+  /* 離開群組 */
+  document.getElementById("leave-confirm-btn").addEventListener("click", function () {
+    var btn = document.querySelector('.group-btn[data-group="' + currentGroup + '"]');
+    if (btn) btn.closest("li").remove();
+    delete GROUPS[currentGroup];
+    document.getElementById("dlg-leave").close();
+    AIWave.toast("你已離開「" + currentGroup + "」。");
+    var first = document.querySelector(".group-btn");
+    if (first) {
+      selectGroup(first);
+    } else {
+      document.getElementById("detail-name").textContent = "—";
+      document.getElementById("member-list").innerHTML = "";
+      document.getElementById("member-count").textContent = "0";
+    }
+  });
+})();
+</script>
+</body>
+</html>

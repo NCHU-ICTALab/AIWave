@@ -2,6 +2,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useAgentSessionStore } from '@/stores/agentSession'
+
 import { insightRecommendations, insightSummary, todayBriefing } from './fixtures/catalog.generated'
 import { stubCatalogFetch } from './fixtures/catalogClient'
 import { mountApp, NEW_USER } from './fixtures/mountApp'
@@ -9,10 +11,11 @@ import { mountApp, NEW_USER } from './fixtures/mountApp'
 describe('resident home', () => {
   beforeEach(() => stubCatalogFetch())
 
-  it('leads with a life overview while keeping AI available as the lightweight action', async () => {
+  it('greets the resident by name while keeping AI available as the lightweight action', async () => {
     const { wrapper } = await mountApp('/user')
 
-    expect(wrapper.get('h1').text()).toBe('生活總覽')
+    // 比照核准原型 dashboard.html:h1 是「早安,小圓」式問候(時段字依當下時間),不再是「生活總覽」
+    expect(wrapper.get('h1').text()).toMatch(/^(早安|午安|晚安)，測試使用者$/)
     expect(wrapper.find('[data-testid="need-input"]').exists()).toBe(true)
     expect(wrapper.findAll('[data-testid="need-starter"]').length).toBeGreaterThan(0)
   })
@@ -139,29 +142,40 @@ describe('resident home', () => {
    *
    * 原因：意圖比對只挑得出一項服務，「冷氣不冷，順便看團購」的後半句會被默默丟掉；
    * 而且判讀依據應該攤開給使用者看，不該在首頁默默決定完就跳走。
-   * 判讀失敗與無法對應的處理都移到生活管家頁，見 assistantPlanning.spec.ts。
+   *
+   * M8 更新（spec 15 §4.1）：需求不再用 `query.need` 帶字串，而是排進共用
+   * agent-session store 再導頁；AI 工作區掛載後 flushPending 自動送出。
+   * 因此這裡驗「排隊中」或「已送出」其一——兩種最終狀態都代表共享成功。
    */
   it('hands the need to the assistant instead of deciding the service on the home page', async () => {
     const { wrapper, router } = await mountApp('/user')
+    const agent = useAgentSessionStore()
 
     await wrapper.get('[data-testid="need-input"]').setValue('冷氣不冷，順便看看社區團購')
     await wrapper.get('[data-testid="need-submit"]').trigger('submit')
     await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('assistant'))
 
-    expect(router.currentRoute.value.query.need).toBe('冷氣不冷，順便看看社區團購')
+    await vi.waitFor(() => expect(
+      agent.pendingMessage === '冷氣不冷，順便看看社區團購'
+        || agent.messages.some((message) => message.content === '冷氣不冷，順便看看社區團購'),
+    ).toBe(true))
     // 首頁不預先決定服務——那是規劃器的工作，而且可能不只一項
     expect(router.currentRoute.value.query.service).toBeUndefined()
   })
 
   it('carries a starter through the same path as a typed need', async () => {
     const { wrapper, router } = await mountApp('/user')
+    const agent = useAgentSessionStore()
 
     const starter = wrapper.findAll('[data-testid="need-starter"]')[0]!
     const label = starter.text()
     await starter.trigger('click')
     await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('assistant'))
 
-    expect(router.currentRoute.value.query.need).toBe(label)
+    await vi.waitFor(() => expect(
+      agent.pendingMessage === label
+        || agent.messages.some((message) => message.content === label),
+    ).toBe(true))
   })
 
   it('degrades to a status message instead of crashing on a malformed payload', async () => {

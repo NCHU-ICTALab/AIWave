@@ -5,18 +5,27 @@ import { useRouter } from 'vue-router'
 import { createInsightsClient, type BehaviorSummary, type BriefingItem } from '@/api/insightsClient'
 import { createLifeTaskClient, type LifeTask } from '@/api/lifeTaskClient'
 import { createLifestyleClient } from '@/api/lifestyleClient'
+import {
+  listCalendarEvents, listNotifications, markNotificationRead,
+  type CalendarEvent, type NotificationRecord,
+} from '@/api/platformClient'
+import { createPointsClient, type PointsWallet } from '@/api/pointsClient'
+import { useAgentSessionStore } from '@/stores/agentSession'
 import { useDemoStore } from '@/stores/demo'
 import { useSessionStore } from '@/stores/session'
 
 const store = useDemoStore()
 const session = useSessionStore()
+const agentSession = useAgentSessionStore()
 const router = useRouter()
 const lifestyle = createLifestyleClient()
 const lifeTasksClient = createLifeTaskClient()
+const pointsClient = createPointsClient()
 
 const summary = ref<BehaviorSummary | null>(null)
 const briefing = ref<BriefingItem[]>([])
 const lifeTasks = ref<LifeTask[]>([])
+const wallet = ref<PointsWallet | null>(null)
 const status = ref<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
 const need = ref('')
 const feedbackStatus = ref('')
@@ -25,6 +34,19 @@ const matching = ref(false)
 const starters = ['浴室的燈不亮了', '想找人來打掃', '週末想訂餐廳']
 const hasHistory = computed(() => (summary.value?.totalOrders ?? 0) > 0)
 const currency = (value: number) => `NT$ ${(value ?? 0).toLocaleString('zh-TW')}`
+
+// ── 問候與導語:比照原型 dashboard.html「早安,小圓」+ page-lead;數字誠實取自現有資料 ──
+const now = new Date()
+const greeting = computed(() => {
+  const hour = now.getHours()
+  if (hour < 11) return '早安'
+  if (hour < 18) return '午安'
+  return '晚安'
+})
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'] as const
+const dateLine = computed(
+  () => `今天是 ${now.getFullYear()} 年 ${now.getMonth() + 1} 月 ${now.getDate()} 日（週${WEEKDAYS[now.getDay()]}）`,
+)
 
 const KIND_LABELS: Record<BriefingItem['kind'], string> = {
   needs_your_decision: '等你決定',
@@ -43,6 +65,20 @@ const suggestedBriefing = computed(() => visibleBriefing.value.filter((item) => 
 const lastDismissedRecommendation = computed(() =>
   briefing.value.find((item) => item.id === store.lastDismissedRecommendationId) ?? null,
 )
+const pendingCount = computed(() => pendingBriefing.value.length + activeLifeTasks.value.length)
+
+// 到期提示:只描述帳本裡「最近一批仍有效期的獲得點數」,不推算剩餘可用量(那需要 FIFO 沖銷)
+const nextExpiringEarn = computed(() => {
+  const entries = wallet.value?.entries ?? []
+  const nowIso = new Date().toISOString()
+  return entries
+    .filter((entry) => entry.type === 'earn' && entry.expiresAt && entry.expiresAt > nowIso)
+    .sort((a, b) => (a.expiresAt ?? '').localeCompare(b.expiresAt ?? ''))[0] ?? null
+})
+const formatShortDate = (iso: string) => {
+  const date = new Date(iso)
+  return Number.isNaN(date.getTime()) ? iso.slice(0, 10) : `${date.getMonth() + 1}/${date.getDate()}`
+}
 
 function dismissRecommendation(item: BriefingItem) {
   store.dismissRecommendation(item.id)
@@ -85,16 +121,18 @@ async function load() {
     summary.value = null
     briefing.value = []
     lifeTasks.value = []
+    wallet.value = null
     status.value = 'ready'
     return
   }
   status.value = 'loading'
   const client = createInsightsClient()
   try {
-    const [loadedSummary, loadedBriefing, loadedLifeTasks] = await Promise.all([
+    const [loadedSummary, loadedBriefing, loadedLifeTasks, loadedWallet] = await Promise.all([
       client.summary(session.accountId),
       client.today(session.accountId),
       lifeTasksClient.list({ accountId: session.accountId }).catch(() => []),
+      pointsClient.wallet().catch(() => null),
     ])
     if (!isSummary(loadedSummary)) {
       status.value = 'unavailable'
@@ -103,21 +141,68 @@ async function load() {
     summary.value = loadedSummary
     briefing.value = Array.isArray(loadedBriefing) ? loadedBriefing : []
     lifeTasks.value = Array.isArray(loadedLifeTasks) ? loadedLifeTasks : []
+    wallet.value = loadedWallet
     status.value = 'ready'
   } catch {
     status.value = 'unavailable'
   }
 }
 
-onMounted(load)
+// ── 近期行程與通知(M4):獨立載入,失敗只影響這張卡,不拖垮整頁 ──
+const upcomingEvents = ref<CalendarEvent[]>([])
+const unreadCount = ref(0)
+const recentNotifications = ref<NotificationRecord[]>([])
+const notificationsOpen = ref(false)
+const scheduleStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
+
+const formatEventTime = (value: string | null | undefined) => (value ?? '').replace('T', ' ').slice(0, 16)
+
+async function loadSchedule() {
+  scheduleStatus.value = 'loading'
+  try {
+    const [events, inbox] = await Promise.all([listCalendarEvents(), listNotifications()])
+    upcomingEvents.value = (Array.isArray(events) ? events : [])
+      .slice()
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+      .slice(0, 3)
+    const inboxRecord = inbox as { unreadCount?: unknown; items?: unknown } | null
+    unreadCount.value = typeof inboxRecord?.unreadCount === 'number' ? inboxRecord.unreadCount : 0
+    recentNotifications.value = Array.isArray(inboxRecord?.items)
+      ? (inboxRecord.items as NotificationRecord[]).slice(0, 3)
+      : []
+    scheduleStatus.value = 'ready'
+  } catch {
+    scheduleStatus.value = 'unavailable'
+  }
+}
+
+async function markRead(item: NotificationRecord) {
+  try {
+    const updated = await markNotificationRead(item.id)
+    recentNotifications.value = recentNotifications.value.map((row) => (row.id === updated.id ? updated : row))
+    unreadCount.value = Math.max(0, unreadCount.value - 1)
+  } catch {
+    // 已讀狀態同步失敗不擋畫面;下次載入會回到真實狀態
+  }
+}
+
+onMounted(() => {
+  void load()
+  void loadSchedule()
+})
 watch(() => session.accountId, load)
 
+/**
+ * M8(spec 15 §4.1):首頁不再用 query 帶字串,而是把需求排進共用 agent store,
+ * AI 工作區掛載時 flushPending 自動送出——首頁、側欄與 AI 頁因此是同一段對話。
+ */
 async function submitNeed(text: string) {
   const description = text.trim()
   if (!description || matching.value) return
   matching.value = true
   try {
-    await router.push({ name: 'assistant', query: { need: description } })
+    agentSession.queueMessage(description)
+    await router.push({ name: 'assistant' })
   } finally {
     matching.value = false
   }
@@ -126,38 +211,41 @@ async function submitNeed(text: string) {
 
 <template>
   <section class="member-page home-page">
-    <section class="home-overview" data-home-section="overview" aria-labelledby="home-title">
-      <header class="page-heading">
-        <div>
-          <p class="eyebrow">YOUR DAY</p>
-          <h1 id="home-title">生活總覽</h1>
-          <p class="muted">先看資源與待辦，再把接下來的事交給 AI。</p>
-        </div>
-        <span class="page-status">{{ hasHistory ? '資料已更新' : '從第一件事開始' }}</span>
-      </header>
+    <!-- 版面比照核准原型 design-system/aiwave/pages/dashboard.html:問候 h1 + page-lead,之後單欄 card 堆疊 -->
+    <header class="home-heading">
+      <h1 id="home-title">{{ greeting }}，{{ session.displayName }}</h1>
+      <p class="page-lead">
+        {{ dateLine }}。
+        <template v-if="status === 'ready' && summary">
+          你有 {{ pendingCount }} 件待處理事項、<strong class="lead-count" data-testid="metric-open">{{ summary.openOrders }}</strong> 筆服務進行中。
+        </template>
+        <template v-else-if="status === 'ready'">從第一件事開始。</template>
+      </p>
+    </header>
 
-      <div v-if="status === 'ready' && summary" class="panel overview-panel">
-        <div class="metric-row home-metrics">
-          <div class="metric"><span>資料期間消費</span><strong data-testid="metric-spend">{{ currency(summary.totalSpend) }}</strong></div>
-          <div class="metric"><span>累積點數</span><strong>{{ summary.earnedPoints.toLocaleString('zh-TW') }}</strong></div>
-          <div class="metric"><span>進行中</span><strong data-testid="metric-open">{{ summary.openOrders }}</strong></div>
-          <div class="metric"><span>使用服務</span><strong>{{ summary.distinctServices }}</strong></div>
+    <!-- 1. 點數與本月消費 -->
+    <section class="home-card" data-home-section="overview" aria-labelledby="points-title">
+      <div v-if="status === 'ready' && summary" class="panel home-panel">
+        <h2 id="points-title">點數與本月消費</h2>
+        <div class="kpi-grid">
+          <div class="kpi">
+            <strong class="kpi-value" data-testid="metric-points">{{ (wallet?.balance ?? summary.earnedPoints).toLocaleString('zh-TW') }}</strong>
+            <span class="kpi-label">可用點數（Demo 帳本）</span>
+            <span v-if="nextExpiringEarn" class="kpi-note">其中一批 {{ nextExpiringEarn.amount.toLocaleString('zh-TW') }} 點效期至 {{ formatShortDate(nextExpiringEarn.expiresAt!) }}</span>
+          </div>
+          <div class="kpi">
+            <strong class="kpi-value" data-testid="metric-spend">{{ currency(summary.totalSpend) }}</strong>
+            <span class="kpi-label">資料期間消費</span>
+            <span class="kpi-note">{{ summary.totalOrders }} 筆官方服務紀錄</span>
+          </div>
+          <div class="kpi-action">
+            <RouterLink class="button inline" to="/user/points">查看點數明細與兌換</RouterLink>
+          </div>
         </div>
-        <div class="overview-footer">
-          <p class="source-note">來源：競賽提供的服務紀錄；「資料期間消費」不假稱為即時月帳單。</p>
-          <RouterLink class="text-link" to="/user/points">查看點數與優惠方案 →</RouterLink>
-        </div>
-        <details v-if="summary.services.length" class="usage-disclosure">
-          <summary>查看常用服務紀錄</summary>
-          <ul class="plain-list" data-testid="service-usage-list">
-            <li v-for="usage in summary.services" :key="usage.serviceName">
-              <strong>{{ usage.serviceName }}</strong> {{ usage.count }} 次
-              <span v-if="usage.daysSinceLast !== null" class="muted">・{{ usage.daysSinceLast }} 天前</span>
-            </li>
-          </ul>
-        </details>
+        <p class="source-note">資料來源：Demo points ledger 與競賽提供的服務紀錄；「資料期間消費」不假稱為即時月帳單。</p>
       </div>
-      <div v-else-if="status === 'ready'" class="panel empty-overview">
+      <div v-else-if="status === 'ready'" class="panel home-panel empty-overview">
+        <h2 id="points-title">點數與本月消費</h2>
         <strong>尚無消費與點數紀錄</strong>
         <p class="muted">新會員不會看到其他人的展示數字；完成第一件服務後才開始累積。</p>
       </div>
@@ -165,19 +253,20 @@ async function submitNeed(text: string) {
       <div v-else class="panel" role="status">正在整理你的生活資訊…</div>
     </section>
 
-    <section class="panel briefing" data-home-section="pending" data-testid="today-pending" aria-labelledby="pending-title">
+    <!-- 2. 待處理事項 -->
+    <section class="panel home-panel briefing" data-home-section="pending" data-testid="today-pending" aria-labelledby="pending-title">
       <div class="section-title-row">
-        <div>
-          <p class="eyebrow">NEXT ACTION</p>
-          <h2 id="pending-title">待處理事項</h2>
-        </div>
+        <h2 id="pending-title">待處理事項</h2>
         <RouterLink class="text-link" to="/user/orders">查看全部訂單</RouterLink>
       </div>
-      <p v-if="!pendingBriefing.length && !activeLifeTasks.length" class="muted">目前沒有等你處理的案件。</p>
+      <p v-if="!pendingBriefing.length && !activeLifeTasks.length" class="muted">
+        <template v-if="summary?.openOrders">目前沒有等你確認的案件；另有 {{ summary.openOrders }} 筆官方紀錄尚未結案，可到訂單頁查看。</template>
+        <template v-else>目前沒有等你處理的案件。</template>
+      </p>
       <ul v-if="activeLifeTasks.length" class="briefing-list" data-testid="life-task-briefing-list">
         <li v-for="task in activeLifeTasks" :key="task.id" class="briefing-item in_progress" data-testid="life-task-briefing-item">
           <div class="briefing-body">
-            <span class="briefing-tag" data-kind="in_progress">跨服務任務</span>
+            <span class="briefing-tag status" data-kind="in_progress">跨服務任務</span>
             <strong>{{ task.items.map((item) => item.title).join('＋') }}</strong>
             <p class="muted">{{ task.statusLabel }}<span v-if="task.scheduledDate">・{{ task.scheduledDate }}</span></p>
           </div>
@@ -192,7 +281,7 @@ async function submitNeed(text: string) {
       <ul v-if="pendingBriefing.length" class="briefing-list">
         <li v-for="item in pendingBriefing" :key="item.id" class="briefing-item" :class="item.kind" data-testid="briefing-item">
           <div class="briefing-body">
-            <span class="briefing-tag" :data-kind="item.kind">{{ KIND_LABELS[item.kind] }}</span>
+            <span class="briefing-tag status" :data-kind="item.kind">{{ KIND_LABELS[item.kind] }}</span>
             <strong>{{ item.title }}</strong>
             <p class="muted">{{ item.detail }}</p>
             <details v-if="item.evidence.length" class="reason-details">
@@ -205,13 +294,47 @@ async function submitNeed(text: string) {
           <RouterLink v-if="item.actionRoute" class="button inline" :to="item.actionRoute">{{ item.actionLabel }}</RouterLink>
         </li>
       </ul>
+      <!-- 近期行程卡:行事曆 projection 的前三筆 + 通知未讀;非六大區塊之一,掛在待處理事項之下 -->
+      <div class="panel schedule-card" data-testid="upcoming-schedule">
+        <div class="section-title-row">
+          <h3>近期行程</h3>
+          <RouterLink class="text-link" to="/user/calendar">開啟行事曆</RouterLink>
+        </div>
+        <p v-if="scheduleStatus === 'unavailable'" class="muted" role="status">
+          行程與通知暫時無法載入;其他內容不受影響。
+        </p>
+        <template v-else>
+          <ul v-if="upcomingEvents.length" class="plain-list" data-testid="upcoming-event-list">
+            <li v-for="event in upcomingEvents" :key="event.id">
+              <strong>{{ event.title }}</strong>
+              <span class="muted">・{{ formatEventTime(event.startsAt) }}</span>
+            </li>
+          </ul>
+          <p v-else class="muted">近期沒有已排定的行程。</p>
+          <div v-if="unreadCount > 0">
+            <button class="text-button" type="button" data-testid="notification-toggle"
+              :aria-expanded="notificationsOpen" @click="notificationsOpen = !notificationsOpen">
+              通知 <span class="status" data-testid="notification-badge">{{ unreadCount }} 則未讀</span>
+            </button>
+            <ul v-if="notificationsOpen" class="plain-list" data-testid="notification-list">
+              <li v-for="item in recentNotifications" :key="item.id">
+                <strong>{{ item.title }}</strong>
+                <span class="muted">・{{ item.body }}</span>
+                <button v-if="!item.readAt" class="text-button" type="button"
+                  :data-testid="`notification-read-${item.id}`" @click="markRead(item)">標為已讀</button>
+              </li>
+            </ul>
+          </div>
+          <p class="source-note muted">進度、通知與行事曆來自同一份 StatusEvent(展示資料)。</p>
+        </template>
+      </div>
       <p class="source-note">依你的委託與案件狀態以規則整理，非語言模型生成。</p>
     </section>
 
-    <section class="need-hero home-ai" data-home-section="ai" aria-labelledby="need-title">
-      <p class="eyebrow">AI LIFE ASSISTANT</p>
-      <h2 id="need-title">接下來想處理什麼？</h2>
-      <p class="need-lede">直接說生活目標，AI 會拆成可確認的步驟，不會只丟一串服務名稱。</p>
+    <!-- 3. 交給 AI 管家 -->
+    <section class="panel home-panel home-ai" data-home-section="ai" aria-labelledby="ai-title">
+      <h2 id="ai-title">交給 AI 管家</h2>
+      <p class="need-lede">用一句話描述需求，AI 會拆解成可確認的任務，例如「這週末找一間信義區四人餐廳」。</p>
       <form class="need-form" @submit.prevent="submitNeed(need)">
         <label class="visually-hidden" for="need-input">描述你的需求</label>
         <input id="need-input" v-model="need" data-testid="need-input" type="text" placeholder="例如：爸媽週六要來，幫我安排清潔和修繕" autocomplete="off" />
@@ -221,6 +344,9 @@ async function submitNeed(text: string) {
         <span class="muted">試試看：</span>
         <button v-for="starter in starters" :key="starter" class="starter-chip" type="button" data-testid="need-starter" @click="submitNeed(starter)">{{ starter }}</button>
       </div>
+      <div class="button-row ai-cta-row">
+        <RouterLink class="button primary" to="/user/assistant">開始對話</RouterLink>
+      </div>
       <ol v-if="status === 'ready' && !hasHistory" class="onboarding-steps compact" data-testid="onboarding-steps">
         <li><strong>描述需求</strong><span>用日常說法即可。</span></li>
         <li><strong>預覽方案</strong><span>AI 補齊必要資訊。</span></li>
@@ -228,20 +354,18 @@ async function submitNeed(text: string) {
       </ol>
     </section>
 
-    <section class="panel briefing" data-home-section="recommendations" aria-labelledby="recommendation-title">
+    <!-- 4. 給你的建議 -->
+    <section class="panel home-panel briefing" data-home-section="recommendations" aria-labelledby="recommendation-title">
       <div class="section-title-row">
-        <div>
-          <p class="eyebrow">FOR YOU</p>
-          <h2 id="recommendation-title">為你整理的建議</h2>
-        </div>
+        <h2 id="recommendation-title">給你的建議</h2>
       </div>
       <p v-if="!suggestedBriefing.length" class="muted">使用服務後，這裡會出現有依據、可單獨調整的建議。</p>
       <ul v-else class="briefing-list">
         <li v-for="item in suggestedBriefing" :key="item.id" class="briefing-item suggestion" data-testid="briefing-item">
           <div class="briefing-body">
-            <span class="briefing-tag" data-kind="suggestion">建議</span>
+            <span class="briefing-tag status reco-badge" data-kind="suggestion">個人化</span>
             <strong>{{ item.title }}</strong>
-            <p class="muted">{{ item.detail }}</p>
+            <p class="muted reco-why">{{ item.detail }}</p>
             <details v-if="item.evidence.length" class="reason-details">
               <summary>為什麼提這件事？</summary>
               <ul :data-testid="`briefing-evidence-${item.id}`">
@@ -263,18 +387,21 @@ async function submitNeed(text: string) {
       <p class="source-note">依你的使用紀錄以規則整理，非語言模型生成。</p>
     </section>
 
-    <section class="home-section" data-home-section="shortcuts" aria-labelledby="shortcuts-title">
-      <div class="section-title-row"><h2 id="shortcuts-title">常用功能</h2></div>
-      <div class="shortcut-grid">
-        <RouterLink class="panel shortcut-card" to="/user/orders"><strong>追蹤訂單</strong><span>報價、進度與異常處理</span></RouterLink>
-        <RouterLink class="panel shortcut-card" to="/user/services"><strong>瀏覽服務</strong><span>清潔、修繕、訂位與購物</span></RouterLink>
-        <RouterLink class="panel shortcut-card" to="/user/community"><strong>群組共享</strong><span>家庭、朋友與社區任務</span></RouterLink>
-      </div>
+    <!-- 5. 常用功能 -->
+    <section class="panel home-panel" data-home-section="shortcuts" aria-labelledby="shortcuts-title">
+      <h2 id="shortcuts-title">常用功能</h2>
+      <ul class="quick-links">
+        <li><RouterLink to="/user/services">預約服務</RouterLink></li>
+        <li><RouterLink to="/user/orders">我的訂單</RouterLink></li>
+        <li><RouterLink to="/user/calendar">行事曆</RouterLink></li>
+        <li><RouterLink to="/user/community#my-groups-title">我的群組</RouterLink></li>
+        <li><RouterLink to="/user/community">我的社區</RouterLink></li>
+      </ul>
     </section>
 
-    <section class="panel promotion-card" data-home-section="promotions" aria-labelledby="promotion-title">
+    <!-- 6. 優惠內容(原型無此區,依 MASTER 閱讀順序保留在最後,樣式改為同款 card) -->
+    <section class="panel home-panel promotion-card" data-home-section="promotions" aria-labelledby="promotion-title">
       <div>
-        <p class="eyebrow">SMART SAVING</p>
         <h2 id="promotion-title">不要只看點數，讓 AI 一起算優惠</h2>
         <p class="muted">整合展示點數、優惠券與支付方式，先試算再決定是否使用。</p>
       </div>
@@ -282,3 +409,147 @@ async function submitNeed(text: string) {
     </section>
   </section>
 </template>
+
+<style scoped>
+/* 版面語彙照原型:整頁單欄 card 堆疊,每張 card 是 .panel,h2 直接是區塊標題 */
+.home-page {
+  width: min(100%, 72rem);
+  gap: var(--space-5, 1.25rem);
+}
+.home-heading h1 {
+  margin: 0 0 0.35rem;
+}
+.page-lead {
+  margin: 0;
+  color: var(--muted, #666);
+  font-size: 1.02rem;
+}
+.page-lead .lead-count {
+  color: inherit;
+  font-weight: 700;
+}
+.home-panel h2 {
+  margin: 0 0 0.75rem;
+}
+.home-card {
+  display: grid;
+}
+
+/* 點數與本月消費:三欄 KPI(原型 .grid.cols-3 + .kpi) */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-4, 1rem);
+  align-items: start;
+}
+.kpi {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  border-radius: 14px;
+  background: var(--surface-2, #f5f5f5);
+  padding: 0.9rem;
+}
+.kpi-value {
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.kpi-label {
+  color: var(--muted, #666);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.kpi-note {
+  color: var(--muted, #666);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.kpi-action {
+  align-self: center;
+  justify-self: start;
+}
+.home-panel > .source-note {
+  margin: var(--space-3, 0.75rem) 0 0;
+}
+.empty-overview {
+  display: grid;
+  gap: 0.35rem;
+}
+
+/* 待處理事項的狀態 badge:沿用全域 .status,依 kind 上原型的色票 */
+.briefing-tag.status {
+  align-self: flex-start;
+}
+.briefing-tag.status[data-kind='needs_your_decision'] {
+  background: var(--peach, #ffd9c9);
+}
+.briefing-tag.status[data-kind='closing_soon'] {
+  background: var(--blue, #cfe3ff);
+}
+.briefing-tag.status[data-kind='in_progress'],
+.briefing-tag.status[data-kind='waiting_on_vendor'] {
+  background: var(--lilac, #e6e6fa);
+}
+.briefing-tag.status[data-kind='suggestion'] {
+  background: var(--mint, #cdeedd);
+}
+
+/* 交給 AI 管家:一般 card,不再是多欄 grid hero */
+.home-ai {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  text-align: left;
+}
+.home-ai .need-lede {
+  margin: 0 0 1rem;
+  max-width: none;
+}
+.home-ai .need-form {
+  margin-inline: 0;
+}
+.ai-cta-row {
+  margin-top: var(--space-3, 0.75rem);
+}
+
+/* 常用功能:原型 .quick-links grid(五格) */
+.quick-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.quick-links li {
+  display: contents;
+}
+.quick-links a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 8px;
+  border: 2px solid var(--ink, #1a1a1a);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  box-shadow: 3px 3px 0 var(--ink, #1a1a1a);
+  color: var(--ink, #1a1a1a);
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+}
+.quick-links a:hover {
+  translate: 1px 1px;
+  box-shadow: 2px 2px 0 var(--ink, #1a1a1a);
+}
+
+/* 390px 單欄:KPI 與快速連結各自縮成單欄,card 內不橫向溢出 */
+@media (max-width: 480px) {
+  .kpi-grid,
+  .quick-links {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

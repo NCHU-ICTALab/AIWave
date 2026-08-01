@@ -19,6 +19,7 @@ from core.services import LifeServicesService
 from core.support import SupportError, SupportService, SqliteSupportRepository
 from core.tools.catalog import build_registry
 from core.tools.registry import ToolContext
+from tests.auth import MANAGER_HEADERS, THIRD_MEMBER_HEADERS
 
 
 NOW = lambda: datetime(2026, 7, 28, 9, 0, tzinfo=timezone.utc)  # noqa: E731
@@ -159,8 +160,8 @@ def test_http_support_flow_returns_the_same_ticket_to_resident_and_queue(tmp_pat
         llm_factory=UnusedLlm,
     ))
 
-    resident_headers = {"X-Account-Id": ACCOUNT, "X-Role": "user"}
-    manager_headers = {"X-Role": "manager"}
+    resident_headers = THIRD_MEMBER_HEADERS
+    manager_headers = MANAGER_HEADERS
     diagnosed = client.post("/api/v1/support/diagnose", headers=resident_headers, json={
         "subject_id": inquiry_id,
         "issue_text": "師傅沒有出現，也沒有通知",
@@ -186,7 +187,7 @@ def test_http_support_flow_returns_the_same_ticket_to_resident_and_queue(tmp_pat
         "note": "已重新安排 14:00 到場",
     })
     assert resolved.json()["data"]["status"] == "resolved"
-    assert resolved.json()["data"]["events"][-1]["actor"] == "社區管理者"
+    assert resolved.json()["data"]["events"][-1]["actor"] == "陽光社區管理者"
 
 
 def test_ticket_creation_requires_the_exact_unexpired_diagnosis_preview(tmp_path: Path):

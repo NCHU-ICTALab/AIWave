@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIWave M4 原型審閱目錄</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .review-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .review-list li { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border: 2px solid var(--ink); border-radius: 14px; padding: 10px 16px; background: var(--surface); }
+  .review-list .num { font-weight: 900; width: 2em; }
+  .review-list .grow { flex: 1 1 240px; }
+  .review-list .note { font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">跳到主要內容</a>
+<header class="site-header">
+  <span class="brand"><span class="brand-mark" aria-hidden="true">AW</span>AIWave 原型審閱</span>
+</header>
+
+<main id="main">
+  <h1>M4 HTML 原型審閱目錄</h1>
+  <p class="page-lead">依 spec 15 §9.2:正式改寫 Vue 前先核准 HTML 方向。以下為方向 A(AIWave 消費者風,完整 11 項)與方向 B(HULLWATCH 高密度對照,2 頁)。所有頁面可直接雙擊開啟、鍵盤可操作、390px/1440px responsive。原型狀態僅存於瀏覽器 localStorage;正式版一律走 Platform API。</p>
+
+  <section class="card" aria-labelledby="a-title">
+    <h2 id="a-title">方向 A・AIWave 消費者風(主提案)</h2>
+    <ol class="review-list">
+      <li><span class="num">1</span><span class="grow">公開首頁<span class="note"> 產品價值主張、六場景、登入入口</span></span><a class="btn" href="home-public.html">開啟</a></li>
+      <li><span class="num">2</span><span class="grow">登入<span class="note"> 帳密驗證錯誤示範 + 4 個 Demo 快速登入角色</span></span><a class="btn" href="login.html">開啟</a></li>
+      <li><span class="num">3</span><span class="grow">Dashboard(登入後首頁)<span class="note"> 點數、待處理、AI 入口、推薦(含廣告標示與可復原的「不感興趣」)、行事曆卡</span></span><a class="btn" href="dashboard.html">開啟</a></li>
+      <li><span class="num">4</span><span class="grow">服務探索與詳情<span class="note"> 六場景分區、核准品牌卡、修繕詳情、處方箋辨識示意(含免責)</span></span><span class="btn-row"><a class="btn" href="services.html">探索</a><a class="btn" href="service-detail.html">詳情</a></span></li>
+      <li><span class="num">5</span><span class="grow">表單、店家及時段選擇<span class="note"> 5 步 TaskDraft:據點→方案/人員→真實時段→表單(草稿自動存/重新整理續填)→價格與點數試算→送出(重複提交保護)</span></span><a class="btn" href="booking-repair.html">開啟</a></li>
+      <li><span class="num">6</span><span class="grow">訂單詳情與進度時間軸<span class="note"> StatusEvent 時間軸、改期/取消/退款路徑</span></span><a class="btn" href="order-detail.html">開啟</a></li>
+      <li><span class="num">7</span><span class="grow">Calendar<span class="note"> 月/週/列表、來源篩選、手動事件、projection 原則</span></span><a class="btn" href="calendar.html">開啟</a></li>
+      <li><span class="num">8</span><span class="grow">Group<span class="note"> 自行命名群組、邀請、改名、離開</span></span><a class="btn" href="group.html">開啟</a></li>
+      <li><span class="num">9</span><span class="grow">Community<span class="note"> 會員視角(公告、加入申請)+ 管理者後台(審核、公告發布)</span></span><span class="btn-row"><a class="btn" href="community.html">會員</a><a class="btn" href="community-manage.html">管理者</a></span></li>
+      <li><span class="num">10</span><span class="grow">Provider Workspace<span class="note"> 王子水電接單、案件詳情、合法狀態轉移、時段管理</span></span><a class="btn" href="provider.html">開啟</a></li>
+      <li><span class="num">11</span><span class="grow">aiwave-admin<span class="note"> Demo workspaces、seed version、fake upstream 健康與錯誤注入、Partner onboarding、reset</span></span><a class="btn" href="admin.html">開啟</a></li>
+    </ol>
+    <p class="demo-note">輔助頁(讓主導覽無死連結):<a href="points.html">點數兌換</a>・<a href="ai.html">AI(M8 誠實佔位)</a>・<a href="member.html">會員中心</a></p>
+  </section>
+
+  <section class="card" aria-labelledby="b-title">
+    <h2 id="b-title">方向 B・高密度對照(參考 aws summit 得獎前端)</h2>
+    <p>同樣的內容與資訊架構,以白底細線、等寬數字、編號導覽的營運主控台語言呈現,供比較選擇或混搭。</p>
+    <div class="btn-row">
+      <a class="btn" href="variant-b/home-public.html">公開首頁 B</a>
+      <a class="btn" href="variant-b/dashboard.html">Dashboard B</a>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="r-title">
+    <h2 id="r-title">審閱須知</h2>
+    <p>設計假設、可替換內容與待你提供的輸入(廠商名單、參考表單、品牌素材)整理在 <a href="README.md">README.md</a>。品牌僅使用 fake upstream 既有核准 allowlist;「樂」場景無核准品牌,以誠實佔位呈現。</p>
+  </section>
+</main>
+</body>
+</html>

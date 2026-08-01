@@ -51,8 +51,8 @@ export function createVendorApiClient(options: VendorApiClientOptions = {}): Ven
       ...init,
       credentials: 'same-origin',
       headers: {
-        Accept: 'application/json', 'Content-Type': 'application/json', 'X-Role': 'partner',
-        ...(options.accountId ? { 'X-Account-Id': options.accountId } : {}), ...(init.headers ?? {}),
+        Accept: 'application/json', 'Content-Type': 'application/json',
+        ...currentAuthorizationHeaders(), ...(init.headers ?? {}),
       },
     })
     const payload = await response.json().catch(() => ({})) as { data?: T; detail?: string }
@@ -86,3 +86,4 @@ export function createVendorApiClient(options: VendorApiClientOptions = {}): Ven
     ),
   }
 }
+import { currentAuthorizationHeaders } from '@/stores/session'

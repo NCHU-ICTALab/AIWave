@@ -339,6 +339,22 @@ def test_empty_input_is_rejected_without_calling_the_llm(registry, resident):
     assert llm.prompts == [], "空輸入不該浪費一次 LLM 呼叫"
 
 
+def test_direct_violent_intent_is_stopped_before_the_llm(registry, resident):
+    planner, llm = _planner(
+        registry,
+        {
+            "understanding": "傷害他人",
+            "steps": [{"tool": "list_services", "arguments": {}, "why": "假裝有下一步"}],
+        },
+    )
+
+    plan = planner.plan("我想殺人", resident)
+
+    assert plan.is_empty
+    assert "110" in (plan.rejected_reason or "")
+    assert llm.prompts == [], "明確的暴力意圖不該交給一般生活服務規劃器"
+
+
 def test_a_failing_step_reports_the_error_rather_than_crashing(registry, resident):
     planner, _ = _planner(
         registry,

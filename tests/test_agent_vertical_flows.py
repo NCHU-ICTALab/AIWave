@@ -21,6 +21,7 @@ from core.retail import RetailService, SqliteRetailRepository
 from core.services import LifeServicesService
 from core.tools.catalog import build_registry
 from core.tools.registry import ToolContext
+from tests.auth import MEMBER_HEADERS
 
 
 TODAY = date(2026, 7, 25)
@@ -87,7 +88,7 @@ def test_external_agent_can_submit_a_validated_cleaning_inquiry(registry, reside
 def test_restock_plan_combines_history_wallet_and_explainable_best_price(registry, resident):
     result = registry.call("get_restock_plan", {}, resident)
 
-    assert result["source"] == "official_orders+competition_seed_wallet"
+    assert result["source"] == "official_orders+demo_points_ledger+competition_seed_coupon"
     assert result["recommendation"]["serviceId"] == "service-shopping"
     assert result["bestOffer"]["finalAmount"] < result["bestOffer"]["baseAmount"]
     assert result["bestOffer"]["applied"]
@@ -226,10 +227,13 @@ def test_http_seams_expose_persistent_personalization_and_retail_flows(tmp_path:
 
     feedback = client.post(
         f"/api/v1/personalization/{ACCOUNT}/feedback",
+        headers=MEMBER_HEADERS,
         json={"recommendation_id": "restock-monthly", "action": "dismiss"},
     )
     assert feedback.status_code == 200
-    assert client.get(f"/api/v1/personalization/{ACCOUNT}/restock-plan").json()["data"]["recommendation"]["suppressed"] is True
+    assert client.get(
+        f"/api/v1/personalization/{ACCOUNT}/restock-plan", headers=MEMBER_HEADERS,
+    ).json()["data"]["recommendation"]["suppressed"] is True
 
     store_search = client.get(
         "/api/v1/retail/stores/search",
@@ -239,8 +243,12 @@ def test_http_seams_expose_persistent_personalization_and_retail_flows(tmp_path:
 
     watch = client.post(
         "/api/v1/retail/stock-watches",
+        headers=MEMBER_HEADERS,
         json={"account_id": ACCOUNT, "product_id": "limited-cup", "store_id": "qingchuan"},
     )
     assert watch.status_code == 200
-    listed = client.get("/api/v1/retail/stock-watches", params={"account_id": ACCOUNT})
+    listed = client.get(
+        "/api/v1/retail/stock-watches", headers=MEMBER_HEADERS,
+        params={"account_id": ACCOUNT},
+    )
     assert listed.json()["data"][0]["productId"] == "limited-cup"

@@ -12,16 +12,23 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
+from api.app import create_app
 from core.community.group_buy import SqliteGroupBuyRepository
 from core.community.joint_service import SqliteJointServiceRepository
 from core.inquiries import SqliteInquiryRepository
 from core.services import LifeServicesService
 from core.tools.catalog import build_registry
 from core.tools.registry import Tool, ToolContext, ToolRegistry
-from mcp_server.server import SERVER_NAME, SERVER_VERSION, create_server
+from mcp_server.server import PlatformApiRegistry, SERVER_NAME, SERVER_VERSION, create_server
 
 TODAY = date(2026, 7, 27)
+
+
+class UnusedLlm:
+    def complete(self, *args, **kwargs):  # pragma: no cover
+        raise AssertionError("MCP Platform API proxy must not invoke an LLM")
 
 
 @pytest.fixture
@@ -81,6 +88,22 @@ async def test_every_exposed_tool_carries_its_schema(registry):
 @pytest.mark.anyio
 async def test_a_read_only_tool_returns_real_data(registry):
     server = create_server(registry, ToolContext(account_id="A001", role="user"))
+    payload = await _call_tool(server, "list_services", {})
+
+    assert payload["ok"] is True
+    assert any(service["id"] == "service-aircon" for service in payload["result"])
+
+
+@pytest.mark.anyio
+async def test_compatibility_server_discovers_and_invokes_tools_only_over_platform_api(tmp_path):
+    platform = TestClient(create_app(
+        demo_db_path=tmp_path / "platform.sqlite3", llm_factory=UnusedLlm,
+    ))
+    registry = PlatformApiRegistry(
+        base_url="http://platform-api", api_key="aiwave", client=platform,
+    )
+    server = create_server(registry, ToolContext(account_id="ignored-by-http", role="user"))
+
     payload = await _call_tool(server, "list_services", {})
 
     assert payload["ok"] is True

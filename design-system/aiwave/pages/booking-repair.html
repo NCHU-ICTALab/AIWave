@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>預約水電修繕 — AIWave(原型)</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .step-panel[hidden] { display: none; }
+  .summary-table { width: 100%; border-collapse: collapse; }
+  .summary-table th, .summary-table td { text-align: left; padding: 6px 8px; border-bottom: 2px solid var(--lavender); vertical-align: top; }
+  .summary-table th { width: 38%; color: var(--muted); font-size: .9rem; }
+  .price-line { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; }
+  .price-line.total { border-top: var(--border); font-weight: 900; font-size: 1.15rem; margin-top: 6px; padding-top: 10px; }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 A・住:修繕閉環(TaskDraft)・<a href="index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<header class="site-header">
+  <a class="brand" href="dashboard.html"><span class="brand-mark" aria-hidden="true">AW</span>AIWave</a>
+  <span class="workspace-chip">林小圓・個人</span>
+  <nav class="main-nav" aria-label="主導覽">
+    <ul>
+      <li><a href="dashboard.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>首頁</a></li>
+      <li><a href="points.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5h5M9.5 13.5h5"/></svg>點數兌換</a></li>
+      <li><a href="ai.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg>AI</a></li>
+      <li><a href="services.html" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>服務</a></li>
+      <li><a href="member.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>會員中心</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+  <p><a href="service-detail.html">← 回水電修繕服務</a></p>
+  <h1>預約水電修繕</h1>
+  <p class="page-lead">共 5 步。填寫內容會自動存成草稿,重新整理或之後回來都能續填。<span id="draft-saved" role="status" aria-live="polite" class="demo-note" style="display:inline"></span></p>
+
+  <ol class="stepper" id="stepper">
+    <li data-step="1" aria-current="step">選擇店家</li>
+    <li data-step="2">方案與人員</li>
+    <li data-step="3">選擇時段</li>
+    <li data-step="4">需求內容</li>
+    <li data-step="5">確認送出</li>
+  </ol>
+
+  <form id="booking-form" novalidate>
+
+    <!-- 步驟 1:店家/據點(來自核准清單,不是隨機媒合) -->
+    <section class="step-panel card" id="step-1" aria-labelledby="s1-title" tabindex="-1">
+      <h2 id="s1-title">1・選擇店家與服務據點</h2>
+      <p class="demo-note">清單來自平台核准的合作據點(展示資料:partner-demo-v2 seed),依你的地址(台北市信義區)排序。</p>
+      <fieldset>
+        <legend>可服務你所在區域的據點</legend>
+        <ul class="choice-list">
+          <li><label><input type="radio" name="location" value="prince-xinyi" required>
+            <span>王子水電・信義區服務站
+              <span class="choice-meta">王子水電企業股份有限公司・評分 4.8(516 則)・支援急件</span></span></label></li>
+          <li><label><input type="radio" name="location" value="prince-neihu">
+            <span>王子水電・內湖區服務站
+              <span class="choice-meta">同品牌跨區據點・車程加價 NT$150</span></span></label></li>
+          <li><label><input type="radio" name="location" value="prince-property-xinyi">
+            <span>太子物業・信義區服務站
+              <span class="choice-meta">物業整合窗口・評分 4.7(862 則)・不支援急件</span></span></label></li>
+        </ul>
+      </fieldset>
+      <p class="error" id="err-location" hidden>請先選擇一個服務據點。</p>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button" data-goto="2">下一步:方案與人員</button>
+      </div>
+    </section>
+
+    <!-- 步驟 2:方案與資源 -->
+    <section class="step-panel card" id="step-2" aria-labelledby="s2-title" tabindex="-1" hidden>
+      <h2 id="s2-title">2・選擇方案與服務人員</h2>
+      <fieldset>
+        <legend>服務方案(價格由廠商提供)</legend>
+        <ul class="choice-list">
+          <li><label><input type="radio" name="offering" value="repair-basic" required>
+            <span>水電修繕・到府檢測 NT$1,200 / 次
+              <span class="choice-meta">含 30 分鐘檢測與簡易維修;零件另計並事前報價</span></span></label></li>
+          <li><label><input type="radio" name="offering" value="repair-urgent">
+            <span>急件修繕・4 小時內到府 NT$1,800 / 次
+              <span class="choice-meta">漏水、跳電等急件;夜間 22:00 後不提供</span></span></label></li>
+        </ul>
+      </fieldset>
+      <fieldset>
+        <legend>服務人員(由據點提供)</legend>
+        <ul class="choice-list">
+          <li><label><input type="radio" name="resource" value="team-a" required>
+            <span>信義站・水電一組(王師傅)
+              <span class="choice-meta">冷氣與給排水專長・本週還有 6 個空檔</span></span></label></li>
+          <li><label><input type="radio" name="resource" value="team-b">
+            <span>信義站・水電二組
+              <span class="choice-meta">電路與弱電專長・本週還有 2 個空檔</span></span></label></li>
+        </ul>
+      </fieldset>
+      <p class="error" id="err-offering" hidden>請選擇方案與服務人員。</p>
+      <div class="btn-row">
+        <button class="btn" type="button" data-goto="1">上一步</button>
+        <button class="btn btn-primary" type="button" data-goto="3">下一步:選擇時段</button>
+      </div>
+    </section>
+
+    <!-- 步驟 3:真實可預約時段 -->
+    <section class="step-panel card" id="step-3" aria-labelledby="s3-title" tabindex="-1" hidden>
+      <h2 id="s3-title">3・選擇時段</h2>
+      <p class="demo-note">只列出廠商回報的實際空檔;已滿時段無法選取。改期時會重新查詢一次。</p>
+      <fieldset>
+        <legend>8/1(六)</legend>
+        <div class="slot-grid">
+          <label><input type="radio" name="slot" value="0801-0900" required><strong>09:00–11:00</strong><span class="choice-meta">可預約</span></label>
+          <label><input type="radio" name="slot" value="0801-1400"><strong>14:00–16:00</strong><span class="choice-meta">可預約</span></label>
+          <label class="slot-full" aria-disabled="true"><input type="radio" disabled><strong>19:00–21:00</strong><span class="choice-meta">已滿</span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>8/2(日)</legend>
+        <div class="slot-grid">
+          <label class="slot-full" aria-disabled="true"><input type="radio" disabled><strong>09:00–11:00</strong><span class="choice-meta">已滿</span></label>
+          <label><input type="radio" name="slot" value="0802-1400"><strong>14:00–16:00</strong><span class="choice-meta">可預約</span></label>
+          <label><input type="radio" name="slot" value="0802-1600"><strong>16:00–18:00</strong><span class="choice-meta">可預約</span></label>
+        </div>
+      </fieldset>
+      <p class="error" id="err-slot" hidden>請選擇一個可預約時段。</p>
+      <div class="btn-row">
+        <button class="btn" type="button" data-goto="2">上一步</button>
+        <button class="btn btn-primary" type="button" data-goto="4">下一步:需求內容</button>
+      </div>
+    </section>
+
+    <!-- 步驟 4:需求表單(TaskDraft 欄位) -->
+    <section class="step-panel card" id="step-4" aria-labelledby="s4-title" tabindex="-1" hidden>
+      <h2 id="s4-title">4・需求內容</h2>
+      <div class="field">
+        <label for="f-problem">問題描述<span aria-hidden="true"> *</span></label>
+        <textarea id="f-problem" name="problem" required aria-describedby="f-problem-hint"></textarea>
+        <p class="hint" id="f-problem-hint">例:主臥冷氣不冷,上週開始滴水。</p>
+        <p class="error" id="err-problem" hidden>請描述要修繕的問題。</p>
+      </div>
+      <div class="field">
+        <label for="f-address">服務地址<span aria-hidden="true"> *</span></label>
+        <input id="f-address" name="address" type="text" value="台北市信義區松勤街 1 號 8 樓" required>
+        <p class="hint">已從會員資料帶入,可直接修改。<span class="badge badge-lavender" style="font-size:.75rem">來源:會員資料</span></p>
+      </div>
+      <div class="field">
+        <label for="f-phone">聯絡電話<span aria-hidden="true"> *</span></label>
+        <input id="f-phone" name="phone" type="tel" autocomplete="tel" value="0912-345-678" required>
+      </div>
+      <div class="field">
+        <label for="f-note">給師傅的補充(選填)</label>
+        <input id="f-note" name="note" type="text" aria-describedby="f-note-hint">
+        <p class="hint" id="f-note-hint">例:社區需在一樓管理室換證。</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn" type="button" data-goto="3">上一步</button>
+        <button class="btn btn-primary" type="button" data-goto="5">下一步:確認送出</button>
+      </div>
+    </section>
+
+    <!-- 步驟 5:確認(價格與點數試算、Demo 付款) -->
+    <section class="step-panel card" id="step-5" aria-labelledby="s5-title" tabindex="-1" hidden>
+      <h2 id="s5-title">5・確認預約內容</h2>
+      <table class="summary-table">
+        <tbody>
+          <tr><th scope="row">店家據點</th><td id="sum-location">—</td></tr>
+          <tr><th scope="row">方案</th><td id="sum-offering">—</td></tr>
+          <tr><th scope="row">服務人員</th><td id="sum-resource">—</td></tr>
+          <tr><th scope="row">時段</th><td id="sum-slot">—</td></tr>
+          <tr><th scope="row">問題描述</th><td id="sum-problem">—</td></tr>
+          <tr><th scope="row">服務地址</th><td id="sum-address">—</td></tr>
+        </tbody>
+      </table>
+
+      <h3>價格與點數</h3>
+      <div class="price-line"><span>方案價格</span><span id="price-base">NT$1,200</span></div>
+      <div class="price-line">
+        <label for="f-points" style="font-weight:800">點數折抵(可用 1,240 點,100 點 = NT$10)</label>
+        <span><input id="f-points" name="points" type="number" min="0" max="1200" step="100" value="0" style="width:120px; display:inline-block; margin:0"></span>
+      </div>
+      <div class="price-line total"><span>應付金額</span><span id="price-total">NT$1,200</span></div>
+      <p class="demo-note">付款使用 DemoPaymentAdapter:展示成功、失敗、取消與退款,不收集真實卡號。</p>
+
+      <fieldset>
+        <legend>取消規則</legend>
+        <p style="margin:0">預約時段 24 小時前可免費取消;之後取消收 NT$300 出勤準備費。點數折抵將原路退回。</p>
+      </fieldset>
+
+      <div class="btn-row">
+        <button class="btn" type="button" data-goto="4">上一步</button>
+        <button class="btn btn-primary" type="submit" id="submit-btn">確認並送出預約</button>
+      </div>
+      <p class="demo-note">重複點擊不會建立第二筆訂單(payload-bound idempotency)。</p>
+    </section>
+  </form>
+
+  <!-- 送出結果 -->
+  <section class="card" id="done-panel" tabindex="-1" hidden aria-labelledby="done-title" style="background:var(--mint)">
+    <h2 id="done-title">預約已送出</h2>
+    <p>訂單編號 <strong>BK-20260730-0031</strong>。王子水電確認接單後,你會收到通知,行程也會同步到行事曆。</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="order-detail.html">查看訂單進度</a>
+      <a class="btn" href="calendar.html">開啟行事曆</a>
+      <a class="btn btn-quiet" href="dashboard.html">回首頁</a>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="assets/aiwave.js"></script>
+<script>
+(function () {
+  var LABELS = {
+    location: { "prince-xinyi": "王子水電・信義區服務站", "prince-neihu": "王子水電・內湖區服務站", "prince-property-xinyi": "太子物業・信義區服務站" },
+    offering: { "repair-basic": "水電修繕・到府檢測(NT$1,200)", "repair-urgent": "急件修繕・4 小時內到府(NT$1,800)" },
+    resource: { "team-a": "信義站・水電一組(王師傅)", "team-b": "信義站・水電二組" },
+    slot: { "0801-0900": "8/1(六)09:00–11:00", "0801-1400": "8/1(六)14:00–16:00", "0802-1400": "8/2(日)14:00–16:00", "0802-1600": "8/2(日)16:00–18:00" }
+  };
+  var PRICES = { "repair-basic": 1200, "repair-urgent": 1800 };
+  var form = document.getElementById("booking-form");
+  var submitted = false;
+
+  AIWave.bindDraft("booking-form", "draft-repair");
+
+  function value(name) {
+    var el = form.querySelector('[name="' + name + '"]:checked') || form.querySelector('[name="' + name + '"]');
+    return el ? el.value : "";
+  }
+  function showError(id, show) {
+    var el = document.getElementById(id);
+    if (el) el.hidden = !show;
+    return !show;
+  }
+  function validateStep(step) {
+    if (step === 1) return showError("err-location", !value("location"));
+    if (step === 2) return showError("err-offering", !(value("offering") && value("resource")));
+    if (step === 3) return showError("err-slot", !value("slot"));
+    if (step === 4) {
+      var missing = !document.getElementById("f-problem").value.trim();
+      document.getElementById("f-problem").setAttribute("aria-invalid", missing ? "true" : "false");
+      return showError("err-problem", missing);
+    }
+    return true;
+  }
+  function goTo(step) {
+    document.querySelectorAll(".step-panel").forEach(function (panel) { panel.hidden = true; });
+    var target = document.getElementById("step-" + step);
+    target.hidden = false;
+    document.querySelectorAll("#stepper li").forEach(function (li) {
+      var n = Number(li.getAttribute("data-step"));
+      li.classList.toggle("done", n < step);
+      if (n === step) li.setAttribute("aria-current", "step");
+      else li.removeAttribute("aria-current");
+    });
+    if (step === 5) fillSummary();
+    target.focus();
+    AIWave.set("repair-step", step);
+  }
+  function fillSummary() {
+    ["location", "offering", "resource", "slot"].forEach(function (name) {
+      document.getElementById("sum-" + name).textContent = LABELS[name][value(name)] || "—";
+    });
+    document.getElementById("sum-problem").textContent = document.getElementById("f-problem").value || "—";
+    document.getElementById("sum-address").textContent = document.getElementById("f-address").value || "—";
+    updatePrice();
+  }
+  function updatePrice() {
+    var base = PRICES[value("offering")] || 1200;
+    var points = Math.min(Number(document.getElementById("f-points").value) || 0, 1240, base * 10);
+    var total = Math.max(0, base - Math.floor(points / 100) * 10);
+    document.getElementById("price-base").textContent = "NT$" + base.toLocaleString();
+    document.getElementById("price-total").textContent = "NT$" + total.toLocaleString() +
+      (points ? "(折抵 " + points + " 點)" : "");
+  }
+  document.getElementById("f-points").addEventListener("input", updatePrice);
+
+  document.querySelectorAll("[data-goto]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var next = Number(btn.getAttribute("data-goto"));
+      var current = Number(document.querySelector('#stepper li[aria-current="step"]').getAttribute("data-step"));
+      if (next > current && !validateStep(current)) return;
+      goTo(next);
+    });
+  });
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (submitted) { AIWave.toast("這筆預約已送出,不會重複建立。"); return; }
+    submitted = true;
+    document.getElementById("submit-btn").setAttribute("aria-disabled", "true");
+    form.closest("main").querySelectorAll(".step-panel").forEach(function (p) { p.hidden = true; });
+    document.getElementById("stepper").hidden = true;
+    var done = document.getElementById("done-panel");
+    done.hidden = false;
+    done.focus();
+    AIWave.clearDraft("draft-repair");
+    AIWave.set("repair-step", 1);
+  });
+
+  /* refresh 恢復:回到上次停留的步驟 */
+  goTo(AIWave.get("repair-step", 1));
+})();
+</script>
+</body>
+</html>

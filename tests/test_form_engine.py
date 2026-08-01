@@ -112,7 +112,7 @@ def _fill_repair(sess: FormSession) -> FormSession:
                            "county_name": "台北市", "district_name": "大同區"})
     sess.submit_answer(5, "2026-07-28")
     sess.submit_answer(6, 161)
-    sess.submit_answer(7, {"name": "陳阿姨", "mobile": "0912345678"})
+    sess.submit_answer(7, {"name": "陳阿姨", "mobile": "0912345678", "address": "臺北市大同區承德路一段 1 號"})
     return sess
 
 

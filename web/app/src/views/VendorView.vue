@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 
 import {
   createInquiryLifecycleClient,
@@ -7,11 +7,24 @@ import {
   type VendorWorkload,
 } from '@/api/inquiryLifecycleClient'
 import { createJointServiceClient, type JointServiceCampaign } from '@/api/jointServiceClient'
+import { ApiError } from '@/api/http'
+import {
+  getProviderAvailability,
+  getProviderSnapshot,
+  listBookings,
+  listCommerceOrders,
+  saveProviderAvailability,
+  transitionBooking,
+  transitionCommerceOrder,
+  type Booking,
+  type CatalogSlot,
+  type CommerceOrder,
+} from '@/api/platformClient'
 import { createVendorApiClient, type VendorApiInquiry, type VendorApiOrder } from '@/api/vendorApiClient'
 import { useSessionStore } from '@/stores/session'
 
-const client = createInquiryLifecycleClient()
 const session = useSessionStore()
+const client = createInquiryLifecycleClient({ accountId: session.accountId, role: 'partner' })
 const jointClient = createJointServiceClient({ accountId: session.accountId })
 const vendorApi = createVendorApiClient({ accountId: session.accountId })
 const workload = ref<VendorWorkload>({ pendingQuote: [], awaitingResident: [], scheduled: [] })
@@ -30,9 +43,231 @@ const externalDrafts = reactive<Record<string, number>>({})
 /** 每筆待報價各自的報價草稿（材料費＋施工費，對齊官方 order_items 的分項慣例）。 */
 const drafts = reactive<Record<string, { material: number; labour: number }>>({})
 
+// ── M4 平台案件(Booking / CommerceOrder;partner Bearer 下後端只回自家案件) ──
+
+/** Booking 狀態的顯示名稱;未知狀態原樣顯示,不假裝認得。 */
+const BOOKING_STATUS_LABEL: Record<string, string> = {
+  pending_provider: '待接單',
+  confirmed: '已預約',
+  in_service: '服務中',
+  completed: '已完成',
+  cancelled: '已取消',
+}
+
+/** 合法的廠商端 Booking 狀態轉移;不在表內就不顯示按鈕。 */
+const BOOKING_NEXT: Record<string, { to: string; label: string }> = {
+  pending_provider: { to: 'confirmed', label: '確認接單' },
+  confirmed: { to: 'in_service', label: '開始服務' },
+  in_service: { to: 'completed', label: '回報完成' },
+}
+
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  placed: '已下單',
+  accepted: '已接單',
+  preparing: '備貨中',
+  shipped: '已出貨',
+  ready_for_pickup: '到店可取',
+  delivered: '已送達',
+  cancelled: '已取消',
+}
+
+/** 合法的廠商端訂單狀態轉移(placed→accepted→preparing→shipped/ready_for_pickup→delivered)。 */
+const ORDER_NEXT: Record<string, Array<{ to: string; label: string }>> = {
+  placed: [{ to: 'accepted', label: '接受訂單' }],
+  accepted: [{ to: 'preparing', label: '開始備貨' }],
+  preparing: [
+    { to: 'shipped', label: '出貨' },
+    { to: 'ready_for_pickup', label: '到店可取' },
+  ],
+  shipped: [{ to: 'delivered', label: '完成配送' }],
+  ready_for_pickup: [{ to: 'delivered', label: '完成取貨' }],
+}
+
+/** booking.details 的履約必要欄位中文化對照;未知鍵原樣顯示,不假裝認得。 */
+const DETAIL_LABELS: Record<string, string> = {
+  problem: '問題描述',
+  address: '服務地址',
+  phone: '聯絡電話',
+  party_size: '人數',
+  contact_name: '聯絡人',
+  plate_number: '車牌',
+  car_type: '車型',
+  rx_type: '處方箋類型',
+  patient_name: '領藥人',
+  pickup_in_person: '本人領取',
+  package_size: '包裹尺寸',
+  pickup_address: '取件地址',
+  receiver_address: '送達地址',
+}
+
+const detailLabel = (key: string) => DETAIL_LABELS[key] ?? key
+const detailValue = (value: unknown) =>
+  typeof value === 'boolean' ? (value ? '是' : '否') : String(value ?? '')
+const detailEntries = (booking: Booking) => Object.entries(booking.details ?? {})
+
+interface ProviderSnapshotView {
+  providerId: string | null
+  seedVersion: string | null
+  bookingCount: number | null
+}
+
+const platformBookings = ref<Booking[]>([])
+const platformOrders = ref<CommerceOrder[]>([])
+const platformSnapshot = ref<ProviderSnapshotView | null>(null)
+const platformStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
+const platformError = ref('')
+const platformToast = ref('')
+
+// ── 本週可服務時段(provider availability) ──
+
+const availabilitySlots = ref<CatalogSlot[]>([])
+const availabilityStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
+const availabilityError = ref('')
+const availabilityToast = ref('')
+const editingAvailability = ref(false)
+const savingSlot = ref(false)
+const slotDraft = reactive({ date: '2026-08-02', start: '19:00', end: '21:00' })
+
+/** 依日期分組(startsAt 的日期部分),讓時段表和原型一樣按天呈現。 */
+const availabilityByDate = computed(() => {
+  const groups = new Map<string, CatalogSlot[]>()
+  for (const slot of availabilitySlots.value) {
+    const day = slot.startsAt.slice(0, 10)
+    if (!groups.has(day)) groups.set(day, [])
+    groups.get(day)!.push(slot)
+  }
+  return [...groups.entries()]
+})
+
+const slotTimeRange = (slot: CatalogSlot) => `${slot.startsAt.slice(11, 16)}–${slot.endsAt.slice(11, 16)}`
+const slotStatusLabel = (status: string) =>
+  status === 'available' ? '空檔' : status === 'booked' ? '已預約' : status
+
+async function loadAvailability() {
+  availabilityStatus.value = 'loading'
+  try {
+    availabilitySlots.value = await getProviderAvailability()
+    availabilityStatus.value = 'ready'
+  } catch {
+    availabilityStatus.value = 'unavailable'
+  }
+}
+
+/**
+ * 工作台接入廠商可整批回報時段;標準接入廠商(如王子水電)後端會回 409
+ * 「availability 由廠商系統維護」——那是正確行為,誠實顯示,不假裝成功。
+ */
+async function submitSlot() {
+  const providerId =
+    platformSnapshot.value?.providerId ?? availabilitySlots.value[0]?.providerId ?? ''
+  const offeringId =
+    availabilitySlots.value[0]?.offeringId ?? platformBookings.value[0]?.offeringId ?? ''
+  savingSlot.value = true
+  availabilityError.value = ''
+  availabilityToast.value = ''
+  try {
+    await saveProviderAvailability([{
+      id: `slot-manual-${Date.now()}`,
+      providerId,
+      offeringId,
+      startsAt: `${slotDraft.date}T${slotDraft.start}:00+08:00`,
+      endsAt: `${slotDraft.date}T${slotDraft.end}:00+08:00`,
+      status: 'available',
+      capacity: 1,
+    }])
+    availabilityToast.value = '可服務時段已更新,會員端下一次查詢就會看到這個空檔。'
+    editingAvailability.value = false
+    await loadAvailability()
+  } catch (reason) {
+    availabilityError.value =
+      reason instanceof Error ? reason.message : '可服務時段未更新,請稍後再試。'
+  } finally {
+    savingSlot.value = false
+  }
+}
+
+const bookingStatusLabel = (status: string) => BOOKING_STATUS_LABEL[status] ?? status
+const orderStatusLabel = (status: string) => ORDER_STATUS_LABEL[status] ?? status
+const slotRange = (booking: Booking) => `${booking.startsAt} — ${booking.endsAt}`
+
+async function loadPlatform() {
+  platformStatus.value = 'loading'
+  platformError.value = ''
+  try {
+    const [bookings, orders, snapshot] = await Promise.all([
+      listBookings(),
+      listCommerceOrders(),
+      getProviderSnapshot(),
+    ])
+    platformBookings.value = bookings
+    platformOrders.value = orders
+    const counts = (snapshot as { counts?: { bookings?: number } }).counts
+    platformSnapshot.value = {
+      providerId: typeof snapshot.providerId === 'string' ? snapshot.providerId : null,
+      seedVersion: typeof snapshot.seedVersion === 'string' ? snapshot.seedVersion : null,
+      bookingCount: typeof counts?.bookings === 'number' ? counts.bookings : bookings.length,
+    }
+    platformStatus.value = 'ready'
+  } catch (reason) {
+    platformStatus.value = 'unavailable'
+    platformError.value = reason instanceof Error ? reason.message : '無法取得平台案件。'
+  }
+}
+
+async function advanceBooking(booking: Booking, to: string) {
+  acting.value = `platform-${booking.id}`
+  platformError.value = ''
+  platformToast.value = ''
+  try {
+    const updated = await transitionBooking(
+      booking.id,
+      { expectedVersion: booking.version, status: to },
+      `${booking.id}-${to}`,
+    )
+    platformBookings.value = platformBookings.value.map((item) => (item.id === updated.id ? updated : item))
+    platformToast.value = '會員端進度/通知/行事曆同步更新'
+  } catch (reason) {
+    if (reason instanceof ApiError && reason.status === 409) {
+      platformError.value = '版本已更新，已重新載入最新狀態。'
+      await loadPlatform()
+    } else {
+      platformError.value = reason instanceof Error ? reason.message : '狀態未更新，請稍後再試。'
+    }
+  } finally {
+    acting.value = null
+  }
+}
+
+async function advanceOrder(order: CommerceOrder, to: string) {
+  acting.value = `platform-${order.id}`
+  platformError.value = ''
+  platformToast.value = ''
+  try {
+    const updated = await transitionCommerceOrder(
+      order.id,
+      { expectedVersion: order.version, status: to },
+      `${order.id}-${to}`,
+    )
+    platformOrders.value = platformOrders.value.map((item) => (item.id === updated.id ? updated : item))
+    platformToast.value = '會員端進度/通知/行事曆同步更新'
+  } catch (reason) {
+    if (reason instanceof ApiError && reason.status === 409) {
+      platformError.value = '版本已更新，已重新載入最新狀態。'
+      await loadPlatform()
+    } else {
+      platformError.value = reason instanceof Error ? reason.message : '狀態未更新，請稍後再試。'
+    }
+  } finally {
+    acting.value = null
+  }
+}
+
 const currency = (value: number) => `NT$ ${(value ?? 0).toLocaleString('zh-TW')}`
 /** 部分回應可能沒有摘要，畫面不該因此崩掉。 */
 const lines = (inquiry: Inquiry) => inquiry.summary ?? []
+const inquiryTitle = (inquiry: Inquiry) => inquiry.title
+  || lines(inquiry).find((line) => /服務/.test(line.label))?.value
+  || '服務需求'
 
 function draftFor(id: string) {
   if (!drafts[id]) drafts[id] = { material: 300, labour: 900 }
@@ -40,6 +275,8 @@ function draftFor(id: string) {
 }
 
 async function load() {
+  void loadPlatform()
+  void loadAvailability()
   try {
     workload.value = await client.vendorWorkload()
     status.value = 'ready'
@@ -188,6 +425,155 @@ onMounted(load)
     無法取得待處理需求，請確認後端服務是否啟動。
   </p>
 
+  <section class="panel" aria-labelledby="platform-bookings-title" data-testid="platform-bookings">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">平台案件（M4）・展示資料</p>
+        <h2 id="platform-bookings-title">平台案件</h2>
+      </div>
+      <button class="button" type="button" :disabled="platformStatus === 'loading'" @click="loadPlatform">
+        {{ platformStatus === 'loading' ? '載入中…' : '重新整理' }}
+      </button>
+    </div>
+    <p v-if="platformSnapshot" class="data-notice">
+      目錄版本 {{ platformSnapshot.seedVersion ?? '未知' }}・案件 {{ platformSnapshot.bookingCount ?? platformBookings.length }} 件（展示資料，非真實營運數字）
+    </p>
+    <p aria-live="polite" role="status" data-testid="platform-toast" :class="platformToast ? 'data-notice' : 'visually-hidden'">
+      {{ platformToast }}
+    </p>
+    <p v-if="platformError" class="need-error" role="alert">{{ platformError }}</p>
+
+    <p v-if="platformStatus === 'loading'" class="muted" role="status">正在取得平台案件…</p>
+    <template v-else-if="platformStatus === 'unavailable'">
+      <p class="result-notice" role="status">平台案件暫時無法取得，這是真實的連線失敗，不是沒有案件。</p>
+      <button class="button" type="button" data-testid="platform-retry" @click="loadPlatform">重試</button>
+    </template>
+    <template v-else>
+      <p v-if="!platformBookings.length" class="empty-state compact">目前沒有平台預約案件。</p>
+      <article
+        v-for="booking in platformBookings"
+        :key="booking.id"
+        class="queue-row"
+        :data-platform-booking="booking.id"
+      >
+        <div>
+          <strong>{{ booking.id }}</strong>
+          <p class="row-meta">{{ slotRange(booking) }}</p>
+          <details :data-testid="`booking-details-${booking.id}`">
+            <summary>查看需求</summary>
+            <template v-if="detailEntries(booking).length">
+              <dl class="summary-list compact">
+                <div v-for="[key, value] in detailEntries(booking)" :key="key">
+                  <dt>{{ detailLabel(key) }}</dt>
+                  <dd>{{ detailValue(value) }}</dd>
+                </div>
+              </dl>
+              <p class="data-notice">個資最小化:僅顯示履約必要資料,看不到會員的其他訂單、點數與個人檔案。</p>
+            </template>
+            <p v-else class="muted">此案件無補充需求資料。</p>
+          </details>
+        </div>
+        <div class="button-row">
+          <span class="status" :data-status="booking.status">{{ bookingStatusLabel(booking.status) }}</span>
+          <button
+            v-if="BOOKING_NEXT[booking.status]"
+            class="button primary"
+            type="button"
+            :data-testid="`booking-transition-${booking.id}`"
+            :disabled="acting === `platform-${booking.id}`"
+            @click="advanceBooking(booking, BOOKING_NEXT[booking.status]!.to)"
+          >{{ BOOKING_NEXT[booking.status]!.label }}</button>
+        </div>
+      </article>
+
+      <template v-if="platformOrders.length">
+        <h3 class="subhead">商城訂單</h3>
+        <article
+          v-for="order in platformOrders"
+          :key="order.id"
+          class="queue-row"
+          :data-platform-order="order.id"
+        >
+          <div>
+            <strong>{{ order.id }}</strong>
+            <p class="row-meta">{{ order.items.map((item) => `${item.name} ×${item.quantity}`).join('、') }}・NT$ {{ (order.total ?? 0).toLocaleString('zh-TW') }}</p>
+          </div>
+          <div class="button-row">
+            <span class="status" :data-status="order.status">{{ orderStatusLabel(order.status) }}</span>
+            <button
+              v-for="next in ORDER_NEXT[order.status] ?? []"
+              :key="next.to"
+              class="button"
+              type="button"
+              :data-testid="`order-transition-${order.id}-${next.to}`"
+              :disabled="acting === `platform-${order.id}`"
+              @click="advanceOrder(order, next.to)"
+            >{{ next.label }}</button>
+          </div>
+        </article>
+      </template>
+    </template>
+  </section>
+
+  <section class="panel" aria-labelledby="availability-title" data-testid="provider-availability">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">排程・展示資料</p>
+        <h2 id="availability-title">本週可服務時段</h2>
+      </div>
+      <button
+        class="button"
+        type="button"
+        data-testid="edit-availability"
+        @click="editingAvailability = !editingAvailability"
+      >{{ editingAvailability ? '收合編輯' : '編輯可用時段' }}</button>
+    </div>
+    <p class="data-notice">會員預約頁只會列出這裡的空檔;「已預約」時段在會員端不可選取。</p>
+    <p aria-live="polite" role="status" data-testid="availability-toast" :class="availabilityToast ? 'data-notice' : 'visually-hidden'">
+      {{ availabilityToast }}
+    </p>
+    <p v-if="availabilityError" class="need-error" role="alert" data-testid="availability-error">{{ availabilityError }}</p>
+
+    <p v-if="availabilityStatus === 'loading'" class="muted" role="status">正在取得可服務時段…</p>
+    <template v-else-if="availabilityStatus === 'unavailable'">
+      <p class="result-notice" role="status">可服務時段暫時無法取得，這是真實的連線失敗，不是沒有時段。</p>
+      <button class="button" type="button" @click="loadAvailability">重試</button>
+    </template>
+    <template v-else>
+      <p v-if="!availabilitySlots.length" class="empty-state compact">目前沒有已回報的可服務時段。</p>
+      <div v-for="[day, slots] in availabilityByDate" :key="day" :data-availability-day="day">
+        <h3 class="subhead">{{ day }}</h3>
+        <ul class="summary-list compact">
+          <li v-for="slot in slots" :key="slot.id" :data-availability-slot="slot.id">
+            {{ slotTimeRange(slot) }}
+            <span class="status" :data-status="slot.status">{{ slotStatusLabel(slot.status) }}</span>
+          </li>
+        </ul>
+      </div>
+    </template>
+
+    <form
+      v-if="editingAvailability"
+      class="quote-form"
+      data-testid="availability-form"
+      @submit.prevent="submitSlot"
+    >
+      <label class="field">日期
+        <input v-model="slotDraft.date" type="date" data-testid="slot-date" required />
+      </label>
+      <label class="field">開始時間
+        <input v-model="slotDraft.start" type="time" data-testid="slot-start" required />
+      </label>
+      <label class="field">結束時間
+        <input v-model="slotDraft.end" type="time" data-testid="slot-end" required />
+      </label>
+      <button class="button primary" type="submit" data-testid="save-availability" :disabled="savingSlot">
+        {{ savingSlot ? '送出中…' : '新增可服務空檔' }}
+      </button>
+      <p class="data-notice">標準接入(Partner API)廠商的時段由自家系統維護,平台不代管;此表單僅適用工作台接入廠商。</p>
+    </form>
+  </section>
+
   <section class="panel vendor-api-panel" aria-labelledby="vendor-api-title">
     <div class="section-heading">
       <div>
@@ -287,7 +673,7 @@ onMounted(load)
       <article v-for="inquiry in workload.pendingQuote" :key="inquiry.id" class="inquiry-card" :data-inquiry-id="inquiry.id">
         <div class="inquiry-head">
           <div>
-            <strong>{{ lines(inquiry)[0]?.value || '服務需求' }}</strong>
+            <strong>{{ inquiryTitle(inquiry) }}</strong>
             <div class="row-meta">{{ inquiry.id }}</div>
           </div>
           <span class="status warn">{{ inquiry.status_label }}</span>
@@ -327,7 +713,7 @@ onMounted(load)
       <p v-if="!workload.awaitingResident.length" class="muted">無</p>
       <div v-for="inquiry in workload.awaitingResident" :key="inquiry.id" class="queue-row">
         <div>
-          <strong>{{ lines(inquiry)[0]?.value || '服務需求' }}</strong>
+          <strong>{{ inquiryTitle(inquiry) }}</strong>
           <div class="row-meta">{{ inquiry.id }} · {{ inquiry.quote ? currency(inquiry.quote.amount) : '' }}</div>
         </div>
         <span class="status">已報價</span>
@@ -337,7 +723,7 @@ onMounted(load)
       <p v-if="!workload.scheduled.length" class="muted">無</p>
       <div v-for="inquiry in workload.scheduled" :key="inquiry.id" class="queue-row">
         <div>
-          <strong>{{ lines(inquiry)[0]?.value || '服務需求' }}</strong>
+          <strong>{{ inquiryTitle(inquiry) }}</strong>
           <div class="row-meta">{{ inquiry.id }}</div>
         </div>
         <button

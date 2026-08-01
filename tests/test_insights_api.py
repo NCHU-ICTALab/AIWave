@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from api.app import create_app
 from core.inquiries import SqliteInquiryRepository
+from tests.auth import MEMBER_HEADERS, NEW_MEMBER_HEADERS
 
 
 class UnusedLlm:
@@ -42,7 +43,7 @@ def test_accounts_endpoint_lists_the_three_demo_households(client: TestClient) -
 
 
 def test_me_resolves_to_the_demo_persona(client: TestClient) -> None:
-    summary = client.get("/api/v1/insights/me/summary").json()["data"]
+    summary = client.get("/api/v1/insights/me/summary", headers=MEMBER_HEADERS).json()["data"]
     assert summary["source"] == "official_order_record"
     assert summary["totalOrders"] > 0
     assert summary["openOrders"] > 0  # 展示 persona 有未完成訂單
@@ -50,19 +51,19 @@ def test_me_resolves_to_the_demo_persona(client: TestClient) -> None:
 
 def test_summary_supplies_real_dashboard_numbers(client: TestClient) -> None:
     """儀表板不再用寫死數字：金額、點數、服務分布都來自官方訂單。"""
-    summary = client.get("/api/v1/insights/me/summary").json()["data"]
+    summary = client.get("/api/v1/insights/me/summary", headers=MEMBER_HEADERS).json()["data"]
     assert set(summary) >= {"totalSpend", "earnedPoints", "distinctServices", "services", "lastActivity"}
     assert summary["totalSpend"] == sum(usage["totalAmount"] for usage in summary["services"])
 
 
 def test_trail_is_cross_service(client: TestClient) -> None:
-    trail = client.get("/api/v1/insights/me/trail").json()["data"]
+    trail = client.get("/api/v1/insights/me/trail", headers=MEMBER_HEADERS).json()["data"]
     assert len({event["serviceName"] for event in trail}) >= 2
     assert all(event["recordId"] > 0 for event in trail)
 
 
 def test_recommendations_expose_evidence_for_the_ui(client: TestClient) -> None:
-    recs = client.get("/api/v1/insights/me/recommendations").json()["data"]
+    recs = client.get("/api/v1/insights/me/recommendations", headers=MEMBER_HEADERS).json()["data"]
     assert recs
     top = recs[0]
     assert top["computedBy"] == "rules"
@@ -71,11 +72,21 @@ def test_recommendations_expose_evidence_for_the_ui(client: TestClient) -> None:
 
 
 def test_recommendation_limit_is_honoured(client: TestClient) -> None:
-    recs = client.get("/api/v1/insights/me/recommendations?limit=1").json()["data"]
+    recs = client.get(
+        "/api/v1/insights/me/recommendations?limit=1", headers=MEMBER_HEADERS,
+    ).json()["data"]
     assert len(recs) == 1
 
 
-def test_unknown_account_returns_empty_rather_than_failing(client: TestClient) -> None:
-    response = client.get("/api/v1/insights/no-such-account/summary")
-    assert response.status_code == 200
-    assert response.json()["data"]["totalOrders"] == 0
+def test_unknown_account_is_not_exposed_to_an_authenticated_member(client: TestClient) -> None:
+    response = client.get("/api/v1/insights/no-such-account/summary", headers=MEMBER_HEADERS)
+    assert response.status_code == 404
+
+
+def test_new_member_has_zero_ledger_balance_in_personalization(client: TestClient) -> None:
+    plan = client.get(
+        "/api/v1/personalization/me/restock-plan", headers=NEW_MEMBER_HEADERS,
+    ).json()["data"]
+    assert plan["wallet"]["openpointBalance"] == 0
+    assert plan["wallet"]["dataSource"] == "demo_points_ledger"
+    assert all("OPENPOINT 折抵" not in rule for rule in plan["bestOffer"]["applied"])

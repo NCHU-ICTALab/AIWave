@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>水電修繕服務詳情 — AIWave(原型)</title>
+<link rel="stylesheet" href="assets/aiwave.css">
+<style>
+  .site-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .site-list li { border: 2px solid var(--ink); border-radius: 14px; padding: 12px 16px; background: var(--surface); }
+  .site-list .site-name { font-weight: 800; }
+  .site-list .site-meta { display: block; font-size: .9rem; color: var(--muted); font-weight: 600; }
+  .price-table { border-collapse: collapse; width: 100%; }
+  .price-table th, .price-table td { text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--lavender); vertical-align: top; }
+  .price-table th { color: var(--muted); font-size: .9rem; width: 55%; }
+  .price-table td { font-weight: 900; }
+  details.faq { border: 2px solid var(--ink); border-radius: 14px; padding: 10px 16px; margin-bottom: 10px; background: var(--surface); }
+  details.faq > summary { cursor: pointer; font-weight: 800; min-height: 44px; display: flex; align-items: center; }
+  .status-preview { list-style: none; margin: 8px 0 0; padding: 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .status-preview li { display: inline-flex; align-items: center; gap: 8px; }
+  .status-preview li + li::before { content: "→"; font-weight: 900; margin-right: 8px; }
+</style>
+</head>
+<body>
+<div class="proto-bar">M4 HTML 原型・方向 A・住:服務詳情・<a href="index.html">回審閱目錄</a></div>
+<a class="skip-link" href="#main">跳到主要內容</a>
+
+<header class="site-header">
+  <a class="brand" href="dashboard.html"><span class="brand-mark" aria-hidden="true">AW</span>AIWave</a>
+  <span class="workspace-chip">林小圓・個人</span>
+  <nav class="main-nav" aria-label="主導覽">
+    <ul>
+      <li><a href="dashboard.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>首頁</a></li>
+      <li><a href="points.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5h5M9.5 13.5h5"/></svg>點數兌換</a></li>
+      <li><a href="ai.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg>AI</a></li>
+      <li><a href="services.html" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>服務</a></li>
+      <li><a href="member.html"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>會員中心</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+  <p><a href="services.html">← 回服務探索</a></p>
+  <h1>水電修繕(住)</h1>
+  <p class="page-lead">到府檢測給排水、電路與冷氣問題,先檢測、後報價,零件費用一律事前確認。</p>
+
+  <section class="card" aria-labelledby="about-title">
+    <h2 id="about-title">服務說明</h2>
+    <p>師傅到府後先做 30 分鐘檢測並口頭說明問題,簡易維修當場完成;需更換零件時會先提供報價,你確認後才進行,不會出現「修完才知道多少錢」。</p>
+    <p class="demo-note">服務內容為展示文案(partner-demo-v2 seed),正式版由廠商後台維護。</p>
+  </section>
+
+  <section class="card" aria-labelledby="sites-title">
+    <h2 id="sites-title">可選店家據點</h2>
+    <ul class="site-list">
+      <li>
+        <span class="site-name">王子水電・信義區服務站</span>
+        <span class="site-meta">評分 4.8(516 則)・可服務:信義區、大安區・支援急件</span>
+      </li>
+      <li>
+        <span class="site-name">王子水電・內湖區服務站</span>
+        <span class="site-meta">評分 4.8(516 則,同品牌)・可服務:內湖區、南港區;跨區車程加價 NT$150</span>
+      </li>
+      <li>
+        <span class="site-name">太子物業・信義區服務站</span>
+        <span class="site-meta">評分 4.7(862 則)・可服務:信義區・不支援急件(物業整合窗口)</span>
+      </li>
+    </ul>
+    <p class="demo-note">據點、評分與可服務區域:partner-demo-v2 seed。實際選擇在預約流程第 1 步進行。</p>
+  </section>
+
+  <section class="card" aria-labelledby="price-title">
+    <h2 id="price-title">價目</h2>
+    <table class="price-table">
+      <tbody>
+        <tr><th scope="row">到府檢測(含 30 分鐘檢測與簡易維修)</th><td>NT$1,200 / 次</td></tr>
+        <tr><th scope="row">急件修繕(4 小時內到府)</th><td>NT$1,800 / 次</td></tr>
+        <tr><th scope="row">零件更換</th><td>另計,事前報價</td></tr>
+      </tbody>
+    </table>
+    <p class="demo-note">價格由廠商提供(partner-demo-v2 seed)。</p>
+  </section>
+
+  <section class="card" aria-labelledby="cancel-title">
+    <h2 id="cancel-title">取消規則</h2>
+    <p>預約時段 <strong>24 小時前可免費取消</strong>;之後取消收 NT$300 出勤準備費。點數折抵會原路退回。</p>
+  </section>
+
+  <section class="card" aria-labelledby="faq-title">
+    <h2 id="faq-title">常見問題</h2>
+    <details class="faq">
+      <summary>急件多快會有人到?</summary>
+      <p>選擇急件方案並完成預約後,信義區服務站承諾 4 小時內到府;夜間 22:00 後不提供急件。</p>
+    </details>
+    <details class="faq">
+      <summary>檢測後不修,要收費嗎?</summary>
+      <p>到府檢測費 NT$1,200 仍會收取;若當場同意維修,檢測費併入維修總價,不重複收費。</p>
+    </details>
+    <details class="faq">
+      <summary>可以指定師傅嗎?</summary>
+      <p>可以。預約流程第 2 步會列出該據點的服務人員與空檔,由你自行選擇。</p>
+    </details>
+  </section>
+
+  <section class="card" aria-labelledby="progress-title">
+    <h2 id="progress-title">進度會如何呈現</h2>
+    <p>送出預約後,訂單詳情頁會用時間軸呈現每一步,狀態更新同步推送通知並寫入行事曆:</p>
+    <ol class="status-preview">
+      <li><span class="badge badge-mint">需求送出</span></li>
+      <li><span class="badge badge-blue">廠商回覆</span></li>
+      <li><span class="badge badge-peach">已預約</span></li>
+      <li><span class="badge badge-lavender">服務中</span></li>
+      <li><span class="badge">已完成</span></li>
+    </ol>
+    <p class="demo-note">可在 <a href="order-detail.html">訂單詳情示範頁</a> 看到完整時間軸。</p>
+  </section>
+
+  <section class="card" aria-labelledby="cta-title" style="background:var(--mint)">
+    <h2 id="cta-title">準備好了嗎?</h2>
+    <p>5 個步驟完成預約,填寫內容會自動存成草稿。</p>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="booking-repair.html">開始預約</a>
+      <a class="btn btn-quiet" href="services.html">再逛逛其他服務</a>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="assets/aiwave.js"></script>
+</body>
+</html>

@@ -31,20 +31,21 @@ class ServiceInfo:
     summary: str
     partner: str
     glyph: str
+    search_terms: tuple[str, ...] = ()
 
 
 # glyph 用 emoji：前端的服務磚對齊 uupm 教育平台 demo 的 icon tile 語彙
 # （demo 本身就在粉彩磚裡放 emoji：🎯📚⭐）。名稱旁另有文字，不構成 icon-only。
 SERVICES: tuple[ServiceInfo, ...] = (
-    ServiceInfo("service-washer", "洗衣機清洗", "居家維護", "到府拆洗與基礎檢測", "專業清潔夥伴", "🧺"),
-    ServiceInfo("service-aircon", "冷氣清洗", "居家維護", "壁掛式冷氣深層清潔", "專業清潔夥伴", "❄️"),
-    ServiceInfo("service-cleaning", "專業清潔", "居家維護", "居家空間重點清潔", "社區合作夥伴", "🧹"),
-    ServiceInfo("service-housework", "計時家事", "生活支援", "兩小時計時家事協助", "生活服務夥伴", "🧽"),
-    ServiceInfo("service-repair", "水電修繕", "生活支援", "初步判斷並安排到府", "安心修繕", "🔧"),
-    ServiceInfo("service-shipping", "寄件服務", "生活支援", "黑貓宅急便到店寄件", "黑貓宅急便", "📦"),
-    ServiceInfo("service-restaurant", "餐廳訂位", "餐飲購物", "依人數與時段媒合餐廳", "統一集團餐飲", "🍽️"),
-    ServiceInfo("service-delivery", "美食外送", "餐飲購物", "附近餐點與情境推薦", "外送合作夥伴", "🛵"),
-    ServiceInfo("service-shopping", "商城購物", "餐飲購物", "日用品補貨並套用優惠", "iOPEN Mall", "🛒"),
+    ServiceInfo("service-washer", "洗衣機清洗", "居家維護", "到府拆洗與基礎檢測", "專業清潔夥伴", "🧺", ("洗衣機", "洗衣槽")),
+    ServiceInfo("service-aircon", "冷氣清洗", "居家維護", "壁掛式冷氣深層清潔", "專業清潔夥伴", "❄️", ("冷氣", "空調", "不冷", "霉味")),
+    ServiceInfo("service-cleaning", "專業清潔", "居家維護", "居家空間重點清潔", "社區合作夥伴", "🧹", ("打掃", "清潔", "大掃除", "掃地", "浴室", "廚房", "居家清潔")),
+    ServiceInfo("service-housework", "計時家事", "生活支援", "兩小時計時家事協助", "生活服務夥伴", "🧽", ("打掃", "家事", "整理", "收納", "洗衣", "幫忙做家事")),
+    ServiceInfo("service-repair", "水電修繕", "生活支援", "初步判斷並安排到府", "安心修繕", "🔧", ("水電", "修理", "修繕", "漏水", "插座", "燈不亮", "馬桶")),
+    ServiceInfo("service-shipping", "寄件服務", "生活支援", "黑貓宅急便到店寄件", "黑貓宅急便", "📦", ("寄件", "寄包裹", "宅急便", "黑貓")),
+    ServiceInfo("service-restaurant", "餐廳訂位", "餐飲購物", "依人數與時段媒合餐廳", "統一集團餐飲", "🍽️", ("訂位", "餐廳", "聚餐", "幾位")),
+    ServiceInfo("service-delivery", "美食外送", "餐飲購物", "附近餐點與情境推薦", "外送合作夥伴", "🛵", ("外送", "送餐", "叫吃的", "餐點")),
+    ServiceInfo("service-shopping", "商城購物", "餐飲購物", "日用品補貨並套用優惠", "iOPEN Mall", "🛒", ("購物", "補貨", "衛生紙", "咖啡券", "日用品", "商城")),
 )
 
 # 到府服務共用的日期／時段題（可預約範圍：明日起 14 天內）
@@ -157,7 +158,7 @@ def _repair_form() -> Form:
     return _form(
         form_id=105, service_id="service-repair", name="水電修繕",
         action=ServiceAction.INQUIRY, action_label="建立修繕諮詢",
-        data_use="問題類型與說明只提供給媒合後的修繕夥伴判斷",
+        data_use="問題、服務地區、預約時間與聯絡資料只提供給媒合後的修繕夥伴估價及到府聯繫",
         topics=[
             Topic(id=1, key="repairType", type=TopicType.SINGLE, title="修繕項目",
                   is_required=True, sort=1,
@@ -171,6 +172,15 @@ def _repair_form() -> Form:
             Topic(id=3, key="urgency", type=TopicType.SINGLE, title="緊急程度",
                   is_required=True, sort=3,
                   options=_options((("normal", "一般，可安排時段"), ("soon", "希望 48 小時內")), 1080)),
+            Topic(id=4, key="region", type=TopicType.REGION, title="服務地區",
+                  is_required=True, sort=4, hint="請提供縣市與行政區，供系統媒合可服務的廠商"),
+            Topic(id=5, key="date", type=TopicType.DATE, title="希望日期",
+                  is_required=True, sort=5,
+                  start_date_offset_days=_VISIT_DATE_OFFSET[0], end_date_offset_days=_VISIT_DATE_OFFSET[1]),
+            Topic(id=6, key="slot", type=TopicType.SINGLE, title="希望時段",
+                  is_required=True, sort=6, options=_options(_SLOTS, 1090)),
+            Topic(id=7, key="contact", type=TopicType.CONTACT, title="聯絡資料與到府地址",
+                  is_required=True, sort=7, hint="請提供姓名、手機與完整服務地址；送出前會再次確認"),
         ],
     )
 

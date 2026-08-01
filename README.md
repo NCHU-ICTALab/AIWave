@@ -1,92 +1,178 @@
-# AI 生活服務平台
+# AIWave 生活服務作業系統
 
-2026 雲湧智生：臺灣生成式 AI 應用黑客松——統一資訊命題
-**「AI 生活管家：智慧社區服務需求理解與媒合平台」**
+2026 雲湧智生：臺灣生成式 AI 應用黑客松——統一資訊命題。
 
-用自然語言說出生活需求，AI 判讀後產生對應的**彈性留資表單**、引導填答，
-並依地區、時段、預算與評分**媒合合作廠商**；住戶、社區、廠商與平台端共用同一組服務契約。
+AIWave 以個人會員為主體，讓手動 Web、未來 Agent、MCP 與合作方工作台共用同一套
+Platform API、身分權限、交易狀態、點數、通知與行事曆。它不是第二個 OPENPOINT、純聊天
+機器人或只有畫面的 mock demo。
+
+目前已落地的 M0～M3 包含 Account／RoleMembership／Workspace、Group 與獨立 Community、
+共用交易核心、Demo points ledger、DemoPaymentAdapter、通知、行事曆、Partner OpenAPI、
+ProviderConnector 與可獨立執行的 Partner fake upstream。
+
+M4 完成了**六大生活場景的手動閉環**（不經 Agent）：後端有平台服務目錄投影（`core/catalog/`）、
+正式廠商 seed（`partner-demo-v5`，依產品負責人提供的 `廠商and表單.md` **兩層制**：12 家可
+交易 Provider＋34 個目錄陳列品牌，見[完成矩陣](docs/status/2026-07-31-direction-a-and-vendor-matrix.md)）、
+TaskDraft 送出銜接、價格與點數試算、會員取消＋自動退款與點數沖銷、付款失敗恢復與狀態未知
+安全重試（`tests/test_m4_scenarios.py` 端到端驗證）；前端依核准的方向 A 完成全部 11 項：
+公開首頁、登入、Dashboard、兩層服務探索與詳情頁、TaskDraft 預約精靈（重新整理續填）、
+訂單詳情（取消/改期/重付）、行事曆（月/週/列表）、Group、Community（公告＋審核）、
+廠商工作台（案件/需求/時段）與平台管理台（personas 重置/故障注入/健康）。價目與時段為
+展示資料，正式費率待產品負責人確認後替換。
 
 ## 快速開始
 
-需求：Python 3.13（透過 [uv](https://docs.astral.sh/uv/)）、Node.js 20+
+需求：Python 3.13、[uv](https://docs.astral.sh/uv/)、Node.js 20+。
+
+先安裝依賴：
 
 ```bash
-# 依賴
-uv sync
-
-# 獨立廠商 fake API（另開終端機，預設 http://localhost:8020）
-uv run python -m fake_upstreams.vendor_app
-
-# 後端 API（預設 http://localhost:8000）
-uv run main.py
-
-# 前端（另開終端機，預設 http://localhost:5173）
+uv sync --dev
 cd web/app
 npm install
+cd ../..
+```
+
+接著在四個 Bash 終端機啟動；這些命令不會由測試自動常駐。
+
+```bash
+# 終端機 1：現行 Partner API fake upstream，預設 http://127.0.0.1:8020
+export VENDOR_FAKE_CONTROL_KEY="local-demo-key"
+export VENDOR_FAKE_PORT="8020"
+export PARTNER_FAKE_API_KEY="aiwave-partner"
+uv run python -m fake_upstreams.partner_app
+```
+
+```bash
+# 終端機 2：既有 LifeTask 相容用 Vendor fake upstream，預設 http://127.0.0.1:8021
+export VENDOR_FAKE_CONTROL_KEY="local-demo-key"
+export VENDOR_FAKE_PORT="8021"
+uv run python -m fake_upstreams.vendor_app
+```
+
+```bash
+# 終端機 3：Platform API，預設 http://127.0.0.1:8000
+export PROVIDER_MODE="standard"
+export PARTNER_MODE="fake"
+export PARTNER_FAKE_URL="http://127.0.0.1:8020"
+export PARTNER_API_KEY="aiwave-partner"
+export VENDOR_MODE="fake"
+export VENDOR_FAKE_URL="http://127.0.0.1:8021"
+export VENDOR_FAKE_CONTROL_KEY="local-demo-key"
+export DEMO_RESET_ENABLED="true"
+uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
+```
+
+```bash
+# 終端機 4：Vue，預設 http://127.0.0.1:5173
+cd web/app
 npm run dev
 ```
 
-`.env` 需提供 LLM 設定（OpenAI 相容端點）：
+M0～M3 的確定性流程與自動測試不需要 LLM。若要測既有 AI 對話，再於 `.env` 提供 OpenAI
+相容端點：
 
 ```dotenv
-API_URL=...    # 例如 NCHC GenAI 的 /v1/ 端點
+API_URL=...
 API_KEY=...
-MODEL=...      # 例如 gemma-4-31B-it
-VENDOR_MODE=fake
-VENDOR_FAKE_URL=http://127.0.0.1:8020
+MODEL=...
 ```
+
+## 固定 Demo 身分
+
+Platform API 使用 Bearer token，不接受瀏覽器自行宣告 `X-Account-Id` 或 `X-Role`：
+
+| token | 身分 |
+| --- | --- |
+| `aiwave` | 會員小圓 |
+| `aiwave-chen` | 會員陳伯伯 |
+| `aiwave-vivian` | 會員 Vivian |
+| `aiwave-new` | 無歷史資料的新會員 |
+| `aiwave-partner` | 王子水電合作方人員 |
+| `aiwave-partner-duskin` | DUSKIN 樂清合作方人員 |
+| `aiwave-partner-21plus` | 21PLUS 餐廳合作方人員 |
+| `aiwave-partner-smile` | 速邁樂加油站合作方人員 |
+| `aiwave-partner-blackcat` | 黑貓宅急便合作方人員 |
+| `aiwave-partner-cosmed` | 康是美合作方人員 |
+| `aiwave-partner-711shop` | 7-ELEVEN 線上購物中心合作方人員 |
+| `aiwave-partner-resort` | 統一渡假村合作方人員 |
+| `aiwave-partner-foodomo` | foodomo 合作方人員 |
+| `aiwave-partner-711c2c` | 7-ELEVEN 交貨便合作方人員 |
+| `aiwave-partner-iopenmall` | iOPEN Mall 合作方人員 |
+| `aiwave-partner-ibonticket` | ibon 售票合作方人員 |
+| `aiwave-manager` | 社區管理者 |
+| `aiwave-admin` | 隔離 Demo 環境的平台營運者 |
+
+這些固定 key 僅用於競賽 Demo，不是正式驗證設計。
 
 ## 測試
 
 ```bash
-uv run pytest                     # 後端
-cd web/app && npm test            # 前端
-cd web/app && npm run typecheck   # 型別檢查
 uv run python -m openapi_spec_validator contracts/vendor-openapi.yaml
+uv run pytest -q
+
+cd web/app
+npm test
+npm run typecheck
+npm run build
+cd ../..
+
+bash -n run.sh
+git diff --check
 ```
+
+完整測試會使用臨時資料庫與 in-process HTTP client，不會替你留下背景服務。實際通過數量與
+驗收步驟以 [Demo 與測試手冊](docs/testing/demo-runbook.md) 的最新紀錄為準。
+
+## 重設 Demo 資料
+
+平台營運者可協調重設平台資料與 Partner fake；既有 Vendor fake 仍需以自己的控制端點重設：
+
+```bash
+curl --fail --silent --show-error \
+  -X POST \
+  -H "Authorization: Bearer aiwave-admin" \
+  http://127.0.0.1:8000/api/v1/platform/demo/reset
+
+curl --fail --silent --show-error \
+  -X POST \
+  -H "X-Fake-Control-Key: local-demo-key" \
+  http://127.0.0.1:8021/__fake__/reset
+```
+
+## 暫時分享給測試者
+
+安裝 `cloudflared` 並完成依賴安裝後，在專案根目錄使用 Git Bash：
+
+```bash
+bash run.sh
+```
+
+腳本會啟動兩個 fake upstream、Platform API、Vite 與 TryCloudflare Quick Tunnel；按
+`Ctrl+C` 會停止所有由腳本啟動的程序。腳本只用於短期公開測試，不會由 Codex 自動啟動。
 
 ## 專案結構
 
 ```text
-core/          業務核心——唯一碰資料與 LLM 的一層
-  forms/         題組引擎（確定性：跳題、驗證、官方 feedback_content）
-  data/          官方資料載入（訂單、地區、服務主檔）
-  insights/      行為軌跡與可解釋推薦（規則產生，附官方訂單證據）
-  services/      應用邊界（HTTP 與未來的 MCP 都經此層）
-  clients/       外部服務介面（LLM：地端 Gemma → AWS Bedrock 只換實作）
-  vendors/       VendorClient HTTP seam、媒合與履約上游整合
-agent/         LLM 上層：口語 → 結構化答案
-api/           FastAPI；由 create_app() 建構，可注入 repository 與 LLM
-contracts/     可供 fake／real 廠商共同實作的 OpenAPI 3.0 契約
-fake_upstreams/ 可獨立執行、重置與故障注入的 upstream servers
-web/app/       Vue 3 + Vite 前端
-docs/          規格與決策紀錄（source of truth）
-raw_data/      命題方提供的官方資料集
+api/             FastAPI Platform API 與 Bearer principal 邊界
+core/access/     Account、RoleMembership、Workspace、DemoWorkspace
+core/groups/     使用者自行命名的共享 Group
+core/communities/獨立 Community、加入申請、邀請與核准
+core/fulfillment/Booking、Order、StatusEvent 與正式 reschedule
+core/points/     Demo points ledger
+core/payments/   DemoPaymentAdapter
+core/notifications/持久化通知中心
+core/calendar/   AIWave Calendar projection
+core/providers/  Standard／Adapter／Workbench ProviderConnector
+contracts/       現行 Partner OpenAPI；舊契約位於 contracts/legacy/
+fake_upstreams/  可獨立執行、重設與故障注入的上游系統
+web/app/         Vue 3 + Vite 前端
+docs/            現行規格、ADR、狀態、測試證據與封存索引
 ```
-
-## 設計要點
-
-**題組定義是單一事實來源。** 可操作服務的表單定義放在後端（對齊官方
-`pms_form_topic` schema），Web 表單與 AI 對話讀同一份——新增服務只需新增定義，
-前端不必改程式。
-
-**AI 提議、規則把關。** LLM 只負責把口語抽成結構化答案；題目順序、驗證、金額試算
-與寫入一律由確定性規則決定。因此報價金額與必填欄位不會因模型出錯而失控。
-
-**畫面上的數字指得出來源。** 消費摘要與推薦皆由命題方提供的 `mms_order_record`
-算出，每則推薦都附得出對應的 `record_id`。
 
 ## 文件
 
-從 [docs/README.md](docs/README.md) 開始——規格、架構決策紀錄（ADR）與封存的歷程都在那裡。
-廠商 API 的手動啟動、reset、故障注入與正式 API 切換見
-[fake_upstreams/README.md](fake_upstreams/README.md)。
-開發前請先讀 [CLAUDE.md](CLAUDE.md)（常用指令與架構要點）與
-[CONTEXT.md](CONTEXT.md)（領域詞彙）。
-
-## 狀態
-
-競賽 P0 已完成：會員產品殼、成熟 AI 對話、跨服務 Hero、獨立 Vendor API、
-廠商履約回流、明確同意的群組聚合、Web／AI／MCP 同源與故障恢復均有自動化測試。
-自行啟動後的五分鐘操作順序見 [Demo 與測試手冊](docs/testing/demo-runbook.md)，
-完成證據見 [P0 工作地圖](docs/work-management/p0-map.md)。
+先讀 [產品與平台定案基線](docs/specs/15-agreed-product-and-platform-direction.md)、
+[領域詞彙](CONTEXT.md)、[M0 程式碼盤點](docs/status/2026-07-30-m0-code-audit.md)與
+[現況和差距](docs/status/2026-07-30-current-state-and-gap.md)。Partner fake、故障注入與正式
+API 切換見 [fake upstream 手冊](fake_upstreams/README.md)。

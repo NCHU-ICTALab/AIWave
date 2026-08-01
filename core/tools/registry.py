@@ -50,7 +50,14 @@ class Tool:
 
     def to_mcp(self) -> dict[str, Any]:
         """轉成 MCP `tools/list` 的描述格式。"""
-        return {"name": self.name, "description": self.description, "inputSchema": self.parameters}
+        return {
+            "name": self.name,
+            "description": self.description,
+            "inputSchema": self.parameters,
+            # Platform API transports need this policy bit to preserve the same
+            # confirmation boundary without importing the in-process registry.
+            "writes": self.writes,
+        }
 
 
 _TYPES: dict[str, type | tuple[type, ...]] = {
