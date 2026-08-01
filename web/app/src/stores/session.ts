@@ -27,6 +27,22 @@ export interface Identity {
   accessToken?: string
 }
 
+export type DemoRole = 'user' | 'manager'
+
+export const DEMO_RESIDENT_IDENTITY: Identity = {
+  role: 'user',
+  accountId: 'household-wang-xiaoming',
+  displayName: '王小明',
+  accessToken: 'aiwave-demo-resident',
+}
+
+export const DEMO_MANAGER_IDENTITY: Identity = {
+  role: 'manager',
+  accountId: 'demo-committee-chen',
+  displayName: '主委陳建華',
+  accessToken: 'aiwave-demo-manager',
+}
+
 const STORAGE_KEY = 'life-ai.identity'
 
 export const ROLE_HOME: Record<Role, string> = {
@@ -133,5 +149,21 @@ export const useSessionStore = defineStore('session', () => {
     persist(null)
   }
 
-  return { identity, isSignedIn, role, accountId, accessToken, displayName, isNewUser, signIn, signOut }
+  /** Demo 專用的明確身分切換；正式登入與既有 router guard 不受影響。 */
+  function switchDemoRole(nextRole: DemoRole) {
+    signIn(nextRole === 'user' ? { ...DEMO_RESIDENT_IDENTITY } : { ...DEMO_MANAGER_IDENTITY })
+  }
+
+  return {
+    identity,
+    isSignedIn,
+    role,
+    accountId,
+    accessToken,
+    displayName,
+    isNewUser,
+    signIn,
+    signOut,
+    switchDemoRole,
+  }
 })

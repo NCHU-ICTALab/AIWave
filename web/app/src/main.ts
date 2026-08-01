@@ -13,6 +13,7 @@ import '@fontsource/nunito/900.css'
 import App from './App.vue'
 import { createAppRouter } from './router'
 import './styles/main.css'
+import './styles/community-demo.css'
 
 const app = createApp(App)
 

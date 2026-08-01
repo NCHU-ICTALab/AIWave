@@ -54,6 +54,18 @@ const routes: RouteRecordRaw[] = [
   // 後續加分：不在登入選項與主導覽中
   { path: '/platform', name: 'platform', component: () => import('@/views/PlatformView.vue'), meta: { role: 'admin' } },
 
+  // Demo-first 社區團購走查：與既有後端串接頁隔離，方便簡報時重複操作。
+  { path: '/demo', name: 'demo-home', redirect: '/demo/resident' },
+  { path: '/demo/resident', name: 'demo-resident', component: () => import('@/views/DemoResidentView.vue'), meta: { role: 'user' } },
+  {
+    path: '/demo/resident/group-buy/:groupBuyId',
+    name: 'demo-group-buy',
+    component: () => import('@/views/DemoGroupBuyView.vue'),
+    meta: { role: 'user' },
+  },
+  { path: '/demo/committee', name: 'demo-committee', component: () => import('@/views/DemoCommitteeView.vue'), meta: { role: 'manager' } },
+  { path: '/demo/subscription', name: 'demo-subscription', component: () => import('@/views/DemoSubscriptionView.vue'), meta: { role: 'manager' } },
+
   { path: '/:pathMatch(.*)*', redirect: '/login' },
 ]
 
