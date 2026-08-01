@@ -2,7 +2,16 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { DEMO_PARTNER_ACCOUNTS, demoAccessToken, ROLE_HOME, useSessionStore, type Role } from '@/stores/session'
+import {
+  DEMO_MANAGER_IDENTITY,
+  DEMO_PARTNER_ACCOUNTS,
+  DEMO_RESIDENT_IDENTITY,
+  demoAccessToken,
+  ROLE_HOME,
+  useSessionStore,
+  type DemoRole,
+  type Role,
+} from '@/stores/session'
 
 /**
  * 展示住戶（不是原始通路帳號）。
@@ -80,6 +89,15 @@ async function enter(role: Role, accountId: string | null, displayName: string) 
   })
   await router.push(ROLE_HOME[role])
 }
+
+/**
+ * 競賽主展示的統一入口：住戶與主委共用同一個 Demo 殼層，登入後即可走完整閉環。
+ * 舊生活服務工作台仍由下方既有入口保留，方便回看原本的六大場景。
+ */
+async function enterCommunityDemo(role: DemoRole) {
+  session.signIn(role === 'user' ? { ...DEMO_RESIDENT_IDENTITY } : { ...DEMO_MANAGER_IDENTITY })
+  await router.push(role === 'user' ? '/demo/resident' : '/demo/committee')
+}
 </script>
 
 <template>
@@ -117,6 +135,25 @@ async function enter(role: Role, accountId: string | null, displayName: string) 
         </ol>
       </aside>
     </div>
+
+    <section class="panel login-demo-entry" aria-labelledby="community-demo-entry-title" data-testid="community-demo-entry">
+      <div class="login-demo-copy">
+        <p class="eyebrow">本次競賽主展示・統一入口</p>
+        <h2 id="community-demo-entry-title">AI 智慧社區 × 社區團購</h2>
+        <p>
+          從這裡登入後，住戶與主委會進入同一套介面；公告、問社區、開團、跟團、訂單彙總與訂閱效益都使用同一份 Demo 資料。
+        </p>
+        <span class="muted">進入後可在右上角切換角色，完整走一次住戶 → 管委會的展示流程。</span>
+      </div>
+      <div class="login-demo-actions">
+        <button class="button primary" type="button" data-testid="enter-community-demo-resident" @click="enterCommunityDemo('user')">
+          以住戶王小明進入
+        </button>
+        <button class="button" type="button" data-testid="enter-community-demo-manager" @click="enterCommunityDemo('manager')">
+          以主委陳建華進入
+        </button>
+      </div>
+    </section>
 
     <div class="login-panels">
       <section class="panel login-card" aria-labelledby="password-entry">
@@ -222,5 +259,44 @@ async function enter(role: Role, accountId: string | null, displayName: string) 
 }
 .password-form .button {
   margin-top: var(--space-2);
+}
+.login-demo-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+  border: var(--border-chunky) solid var(--ink);
+  background: var(--mint);
+  box-shadow: var(--shadow);
+}
+.login-demo-copy h2 {
+  margin: .25rem 0 .45rem;
+  font-size: clamp(1.45rem, 3vw, 2.15rem);
+}
+.login-demo-copy p:not(.eyebrow) {
+  max-width: 52rem;
+  margin: 0 0 .35rem;
+  color: var(--accent-ink);
+}
+.login-demo-copy > span {
+  display: block;
+  font-size: .82rem;
+}
+.login-demo-actions {
+  display: grid;
+  min-width: 15rem;
+  gap: .55rem;
+}
+@media (max-width: 720px) {
+  .login-demo-entry {
+    grid-template-columns: 1fr;
+  }
+  .login-demo-actions {
+    min-width: 0;
+  }
+  .login-demo-actions .button {
+    width: 100%;
+  }
 }
 </style>

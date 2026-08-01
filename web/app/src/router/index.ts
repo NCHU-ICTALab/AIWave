@@ -56,6 +56,7 @@ const routes: RouteRecordRaw[] = [
 
   // Demo-first 社區團購走查：與既有後端串接頁隔離，方便簡報時重複操作。
   { path: '/demo', name: 'demo-home', redirect: '/demo/resident' },
+  { path: '/demo/community', name: 'demo-community', component: () => import('@/views/DemoResidentView.vue'), meta: { role: 'user' } },
   { path: '/demo/resident', name: 'demo-resident', component: () => import('@/views/DemoResidentView.vue'), meta: { role: 'user' } },
   {
     path: '/demo/resident/group-buy/:groupBuyId',
@@ -63,6 +64,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/DemoGroupBuyView.vue'),
     meta: { role: 'user' },
   },
+  { path: '/demo/member', name: 'demo-member-center', component: () => import('@/views/MemberView.vue'), meta: { role: 'user' } },
   { path: '/demo/committee', name: 'demo-committee', component: () => import('@/views/DemoCommitteeView.vue'), meta: { role: 'manager' } },
   { path: '/demo/subscription', name: 'demo-subscription', component: () => import('@/views/DemoSubscriptionView.vue'), meta: { role: 'manager' } },
 

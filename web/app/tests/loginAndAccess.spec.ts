@@ -28,6 +28,21 @@ describe('entry points and identity', () => {
     expect(router.currentRoute.value.name).toBe('login')
   })
 
+  it('uses /login as the unified entry for the community Demo', async () => {
+    const resident = await mountApp('/login', { identity: null })
+
+    await resident.wrapper.get('[data-testid="enter-community-demo-resident"]').trigger('click')
+    await vi.waitFor(() => expect(resident.router.currentRoute.value.path).toBe('/demo/resident'))
+    expect(resident.session.identity?.displayName).toBe('王小明')
+    expect(resident.wrapper.text()).toContain('日光森林社區')
+
+    const manager = await mountApp('/login', { identity: null })
+    await manager.wrapper.get('[data-testid="enter-community-demo-manager"]').trigger('click')
+    await vi.waitFor(() => expect(manager.router.currentRoute.value.path).toBe('/demo/committee'))
+    expect(manager.session.identity?.displayName).toBe('主委陳建華')
+    expect(manager.wrapper.text()).toContain('社區營運工作台')
+  })
+
   it('starts a new account with no records at all', async () => {
     const { wrapper, router, session } = await mountApp('/login', { identity: null })
 

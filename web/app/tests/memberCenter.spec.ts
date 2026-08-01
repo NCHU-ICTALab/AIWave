@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 
 import { flushPromises } from '@vue/test-utils'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { DEMO_RESIDENT_IDENTITY } from '@/stores/session'
 
 import { stubCatalogFetch } from './fixtures/catalogClient'
 import { mountApp } from './fixtures/mountApp'
@@ -20,7 +22,20 @@ describe('member center', () => {
     expect(wrapper.get('[data-testid="member-identity"]').text()).toContain(session.displayName)
     expect(wrapper.get('a[href="/user/orders"]').text()).toContain('訂單')
     expect(wrapper.get('a[href="/user/community"]').text()).toContain('群組')
+    expect(wrapper.get('[data-testid="member-community-link"]').attributes('href')).toBe('/user/community')
     expect(wrapper.text()).toContain('模擬 uniopen 身分')
+  })
+
+  it('lets the unified Demo profile open the community page', async () => {
+    const { wrapper, router } = await mountApp('/demo/member', { identity: DEMO_RESIDENT_IDENTITY, attach: true })
+
+    expect(wrapper.get('h1').text()).toBe('會員中心')
+    await wrapper.get('[data-testid="member-community-link"]').trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/demo/community'))
+
+    expect(router.currentRoute.value.path).toBe('/demo/community')
+    expect(wrapper.text()).toContain('日光森林社區')
+    expect(wrapper.find('[data-testid="resident-group-buys"]').exists()).toBe(true)
   })
 
   it('requires a deliberate confirmation before restoring the demo', async () => {

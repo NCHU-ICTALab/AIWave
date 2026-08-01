@@ -2,16 +2,18 @@
 // 版面比照核准原型 design-system/aiwave/pages/member.html:
 // 個人資料 → 我的入口(entry list)→ Workspace 切換 → 重置 DemoWorkspace → 登出。
 // 後端沒有個人資料編輯 API,故不做假編輯按鈕;登出行為與 App.vue signOut 等價。
-import { nextTick, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { resetDemo } from '@/api/platformClient'
 import { useDemoStore } from '@/stores/demo'
 import { useSessionStore } from '@/stores/session'
 
+const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 const demo = useDemoStore()
+const communityLink = computed(() => route.path.startsWith('/demo') ? '/demo/community' : '/user/community')
 const showResetConfirm = ref(false)
 const resetStatus = ref<'idle' | 'resetting' | 'done' | 'error'>('idle')
 const resetMessage = ref('')
@@ -91,8 +93,8 @@ async function signOut() {
         </li>
         <li>
           <span class="badge badge-peach">社區</span>
-          <span class="grow">社區公告與聯合服務進度</span>
-          <RouterLink class="button" to="/user/community">我的社區 →</RouterLink>
+          <span class="grow">社區公告、問社區、團購與聯合服務進度</span>
+          <RouterLink class="button" data-testid="member-community-link" :to="communityLink">我的社區 →</RouterLink>
         </li>
         <li>
           <span class="badge badge-lilac">行事曆</span>

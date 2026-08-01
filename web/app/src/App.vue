@@ -20,8 +20,9 @@ const navItems = computed(() => {
   if (session.role !== 'user') return []
   if (route.path.startsWith('/demo')) {
     return [
-      { to: '/demo/resident', label: '住戶首頁', icon: 'home' },
+      { to: '/demo/community', label: '社區', icon: 'home' },
       { to: '/demo/resident#group-buys', label: '社區團購', icon: 'services' },
+      { to: '/demo/member', label: '個人檔案', icon: 'member' },
     ] satisfies Array<{ to: string; label: string; icon: AppIconName }>
   }
   return [
@@ -41,7 +42,7 @@ const showAgentDrawer = computed(
 )
 
 const homeLink = computed(() => {
-  if (route.path.startsWith('/demo')) return session.role === 'manager' ? '/demo/committee' : '/demo/resident'
+  if (route.path.startsWith('/demo')) return session.role === 'manager' ? '/demo/committee' : '/demo/community'
   return session.role ? ROLE_HOME[session.role] : '/login'
 })
 
