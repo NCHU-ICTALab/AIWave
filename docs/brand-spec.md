@@ -10,8 +10,11 @@
 
 ### 平台識別
 
-- 平台名稱：`生活 AI 管家`（暫名）
-- Logo：尚未提供；原型僅使用文字標籤「生活 AI 管家」與「名稱待定」，不仿製 Logo。
+- 平台名稱：`社區小統`（對外唯一稱呼；repo 內的 `AIWave`／`aiwave-*` 是內部代號與憑證 key，不改）
+- 品牌標記：`aiwave.ico`（產品負責人 2026-08-02 提供的**自有原創圖示**：房屋輪廓＋節點狀人形，深藍單色）。
+  用於瀏覽器 favicon（`web/app/public/aiwave.ico`）與畫面左上角 wordmark（`web/app/src/assets/aiwave.ico`，
+  走 bundler import——`public/` 路徑在 vitest 解析不到）。**不是統一集團的 Logo，也不衍生自任何合作品牌。**
+- 合作品牌：DUSKIN、7-ELEVEN、CITY CAFE、黑貓等僅以純文字名稱呈現。
 - 合作品牌：DUSKIN、7-ELEVEN、CITY CAFE、黑貓等僅以純文字名稱呈現。
 - 禁用：從官方簡報截取低解析 Logo、手繪仿製 Logo、把原型配色宣稱為品牌官方色。
 

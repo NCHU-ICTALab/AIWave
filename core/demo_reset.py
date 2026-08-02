@@ -18,7 +18,7 @@ import httpx
 
 from core.access import SqliteAccessRepository
 from core.communities import SqliteCommunityRepository
-from core.data.personas import PERSONAS
+from core.data.personas import DEMO_HOUSEHOLDS
 from core.groups import SqliteGroupRepository
 from core.points import SqlitePointsLedger
 
@@ -86,7 +86,9 @@ class DemoResetService:
         connection.execute(f'DELETE FROM "{table}" WHERE "{column}" IN ({placeholders})', ids)
 
     def _seed_points(self, *, demo_workspace_id: str, account_ids: list[str]) -> None:
-        persona_ids = {persona.id for persona in PERSONAS}
+        # DEMO_HOUSEHOLDS 而不是 PERSONAS:王小明也要拿到初始點數,否則按過
+        # 平台的 Demo 重設之後,主展示住戶的點數會掉回 0 直到重啟。
+        persona_ids = {persona.id for persona in DEMO_HOUSEHOLDS}
         for account_id in account_ids:
             if account_id not in persona_ids:
                 continue
@@ -308,7 +310,7 @@ class DemoResetService:
         self.access.seed_demo()
         self._seed_points(
             demo_workspace_id=demo_workspace_id,
-            account_ids=[persona.id for persona in PERSONAS],
+            account_ids=[persona.id for persona in DEMO_HOUSEHOLDS],
         )
         clear_sessions = getattr(self.session_store, "clear", None)
         if callable(clear_sessions):

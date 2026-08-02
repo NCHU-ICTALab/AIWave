@@ -31,7 +31,8 @@
 ## Demo 與驗收
 
 - [M0～M3 測試與操作手冊](testing/demo-runbook.md)：只證明既有里程碑與現行程式。
-- [v4 五分鐘 Demo runbook](testing/v4-five-minute-demo-runbook.md)：可執行的內部主線、外部 gate、預演檢查與備援；未通過的人工／外部項目會明確停在 blocker。
+- [Demo 影片錄製：九幕分鏡與自動駕駛](testing/demo-video-recording.md)：現行錄影腳本，搭配 `web/app/tools/demo-drive.mjs`；**取代 v4 runbook §3 作為錄影用逐秒腳本**。
+- [v4 五分鐘 Demo runbook](testing/v4-five-minute-demo-runbook.md)：可執行的內部主線、外部 gate、預演檢查與備援；未通過的人工／外部項目會明確停在 blocker。**§3 逐秒腳本已過時**（舊主線），其餘章節仍有效。
 - [v4 驗收矩陣](testing/v4-acceptance-matrix.md)：Agent、Wiki、生活圈、關懷、任務包、成果與前端的可失敗測試入口。
 - [前端與 WCAG 事實基線](product-facts.md)。
 

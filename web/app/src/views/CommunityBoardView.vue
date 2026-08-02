@@ -3,12 +3,19 @@ import { computed, onMounted, reactive, ref } from 'vue'
 
 import { createCommunityClient, type Campaign } from '@/api/communityClient'
 import { createGroupClient, type MemberGroup } from '@/api/groupClient'
-import { request } from '@/api/http'
+import { backendAnswered, request } from '@/api/http'
 import { createJointServiceClient, type JointServiceCampaign } from '@/api/jointServiceClient'
 import { listCommunityAnnouncements, type CommunityAnnouncement } from '@/api/platformClient'
 import { useSessionStore } from '@/stores/session'
 
-/** 住戶端的社區頁：社區是我所屬的範圍，不是另一種身分（ADR-0003）。 */
+/**
+ * 住戶端的社區頁：社區是我所屬的範圍，不是另一種身分（ADR-0003）。
+ *
+ * `groupBuyOnly` 給免費社區用：團購是免費方案唯一開放的功能，所以公告、群組與
+ * 共同需求收起來，但跟團／看自己跟的團必須留著——把整頁擋掉會連免費方案的核心
+ * 價值一起擋掉。
+ */
+const props = withDefaults(defineProps<{ groupBuyOnly?: boolean }>(), { groupBuyOnly: false })
 const session = useSessionStore()
 const client = createCommunityClient()
 const jointClient = createJointServiceClient({ accountId: session.accountId })
@@ -17,6 +24,12 @@ const groupClient = createGroupClient({ accountId: session.accountId })
 const open = ref<Campaign[]>([])
 const mine = ref<Campaign[]>([])
 const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
+/**
+ * 後端有沒有回應,決定我們可以講哪一句話。有 HTTP 狀態碼(401、403、500)就代表
+ * 服務在跑,叫使用者去啟動一個已經在跑的服務只會蓋掉真正的原因——王小明的公告
+ * 403 就是這樣被誤讀成「存取不到後端」的。
+ */
+const boardBackendAnswered = ref(false)
 const acting = ref<number | null>(null)
 const error = ref('')
 const quantities = reactive<Record<number, number>>({})
@@ -65,7 +78,8 @@ async function load() {
     jointCampaigns.value = sharedServices
     groups.value = memberGroups
     status.value = 'ready'
-  } catch {
+  } catch (reason) {
+    boardBackendAnswered.value = backendAnswered(reason)
     status.value = 'unavailable'
   }
 }
@@ -176,6 +190,7 @@ interface MemberCommunity {
 const announcements = ref<CommunityAnnouncement[]>([])
 const announcementCommunity = ref<MemberCommunity | null>(null)
 const announcementStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
+const announcementBackendAnswered = ref(false)
 
 /** 取會員社區:優先 default,其次第一個有 membership 的,最後第一個。 */
 function pickCommunity(rows: MemberCommunity[]): MemberCommunity | null {
@@ -199,7 +214,8 @@ async function loadAnnouncements() {
     const loaded = await listCommunityAnnouncements(community.id)
     announcements.value = Array.isArray(loaded) ? loaded : []
     announcementStatus.value = 'ready'
-  } catch {
+  } catch (reason) {
+    announcementBackendAnswered.value = backendAnswered(reason)
     announcementStatus.value = 'unavailable'
   }
 }
@@ -230,18 +246,20 @@ onMounted(() => {
 </script>
 
 <template>
-  <header class="page-heading">
+  <header v-if="!props.groupBuyOnly" class="page-heading">
     <div><p class="eyebrow">GROUPS & COMMUNITY</p><h1>群組與社區</h1></div>
     <span class="page-status">{{ groups.length }} 個群組</span>
   </header>
 
   <p v-if="error" class="need-error" role="alert">{{ error }}</p>
-  <p v-if="status === 'unavailable'" class="panel muted" role="status">
-    無法取得社區資訊，請確認後端服務是否啟動。
+  <p v-if="status === 'unavailable'" class="panel muted" role="status" :data-backend-answered="String(boardBackendAnswered)">
+    {{ boardBackendAnswered
+      ? '後端有回應但無法提供社區資訊（可能是登入憑證已失效），請重新登入再試。'
+      : '目前連不上後端服務，請確認 API 是否已啟動。' }}
   </p>
 
   <!-- 社區公告:管理者發布,住戶(社區成員)可讀 -->
-  <section class="panel" data-testid="community-announcements" aria-labelledby="announcements-title">
+  <section v-if="!props.groupBuyOnly" class="panel" data-testid="community-announcements" aria-labelledby="announcements-title">
     <div class="section-title-row">
       <div>
         <p class="eyebrow">COMMUNITY NEWS</p>
@@ -250,8 +268,10 @@ onMounted(() => {
       <span v-if="announcementCommunity" class="page-status">{{ announcementCommunity.name }}</span>
     </div>
     <p v-if="announcementStatus === 'loading'" class="muted" role="status">正在載入社區公告…</p>
-    <p v-else-if="announcementStatus === 'unavailable'" class="muted" role="status">
-      目前無法取得社區公告，請確認後端服務是否啟動；其他社區功能不受影響。
+    <p v-else-if="announcementStatus === 'unavailable'" class="muted" role="status" :data-backend-answered="String(announcementBackendAnswered)">
+      {{ announcementBackendAnswered
+        ? '後端有回應但沒有給你這個社區的公告（可能你還不是社區成員，或憑證已失效）；其他社區功能不受影響。'
+        : '目前連不上後端服務，請確認 API 是否已啟動；其他社區功能不受影響。' }}
     </p>
     <template v-else>
       <p v-if="!announcementCommunity" class="muted">你目前不屬於任何社區，加入社區後才會看到公告。</p>
@@ -270,7 +290,7 @@ onMounted(() => {
     </template>
   </section>
 
-  <section v-if="status === 'ready'" class="panel group-hub" data-testid="my-groups" aria-labelledby="my-groups-title">
+  <section v-if="status === 'ready' && !props.groupBuyOnly" class="panel group-hub" data-testid="my-groups" aria-labelledby="my-groups-title">
     <div class="section-title-row">
       <div>
         <p class="eyebrow">MY GROUPS</p>
@@ -365,7 +385,7 @@ onMounted(() => {
     </div>
   </section>
 
-  <section v-if="status === 'ready'" class="panel group-demand-panel" aria-labelledby="joint-demand-title">
+  <section v-if="status === 'ready' && !props.groupBuyOnly" class="panel group-demand-panel" aria-labelledby="joint-demand-title">
     <div class="section-title-row">
       <div><p class="eyebrow">SHARED NEED</p><h2 id="joint-demand-title">社區共同需求</h2></div>
       <span class="page-status">{{ collectingJointCampaigns.length }} 件募集</span>

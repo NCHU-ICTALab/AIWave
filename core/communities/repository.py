@@ -168,6 +168,10 @@ class SqliteCommunityRepository:
             ("community-sunshine", xiaoyuan.id, xiaoyuan.name, "resident", 1),
             ("community-sunshine", chen.id, chen.name, "resident", 1),
             ("community-sunshine", vivian.id, vivian.name, "resident", 1),
+            # 主要展示住戶。他不是官方訂單推導出來的 persona，但社區是「範圍」不是
+            # 「身分」（ADR-0003）——住戶端的社區頁一載入就會讀公告，沒有這筆
+            # membership 就會拿到 403，畫面顯示成「請確認後端服務是否啟動」。
+            ("community-sunshine", "household-wang-xiaoming", "王小明", "resident", 1),
             ("community-sunshine", "demo-community-manager", "陽光社區管理者", "manager", 0),
             ("community-greenfield", xiaoyuan.id, xiaoyuan.name, "resident", 0),
         )

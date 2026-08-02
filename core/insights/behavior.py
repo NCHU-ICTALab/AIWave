@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 
 from core.data.official_orders import OfficialOrder, orders_for
+from core.data.personas import composition_of
 
 
 @dataclass(frozen=True)
@@ -96,6 +97,9 @@ class BehaviorSummary:
             "lastActivity": self.last_activity.isoformat() if self.last_activity else None,
             "services": [usage.to_dict() for usage in self.services],
             "source": "official_order_record",
+            # 數字全部來自官方訂單（source），但「這些訂單為什麼算在這個人頭上」
+            # 可能是展示組合——是的話一併把標示送出去，不是的話為 None。
+            "composition": composition_of(self.account_id),
         }
 
 

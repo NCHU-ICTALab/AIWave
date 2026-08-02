@@ -2,7 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 
 import { createCommunityClient, type Campaign, type PurchaseOrder } from '@/api/communityClient'
-import { ApiError } from '@/api/http'
+import { ApiError, backendAnswered } from '@/api/http'
 import { createJointServiceClient, type JointProposal, type JointServiceCampaign } from '@/api/jointServiceClient'
 import {
   listCommunityAnnouncements, publishCommunityAnnouncement, type CommunityAnnouncement,
@@ -18,6 +18,8 @@ const session = useSessionStore()
 
 const campaigns = ref<Campaign[]>([])
 const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
+/** 後端有回應但這次失敗(401/500…)時,不能講成「後端沒啟動」。 */
+const backendAnsweredError = ref(false)
 const acting = ref<number | null>(null)
 const error = ref('')
 const purchaseOrder = ref<PurchaseOrder | null>(null)
@@ -61,7 +63,8 @@ async function load() {
     void loadSupport()
     void loadJointServices()
     void loadAnnouncements()
-  } catch {
+  } catch (reason) {
+    backendAnsweredError.value = backendAnswered(reason)
     status.value = 'unavailable'
   }
 }
@@ -249,8 +252,10 @@ onMounted(load)
   </header>
 
   <p v-if="error" class="need-error" role="alert">{{ error }}</p>
-  <p v-if="status === 'unavailable'" class="panel muted" role="status">
-    無法取得團購資料，請確認後端服務是否啟動。
+  <p v-if="status === 'unavailable'" class="panel muted" role="status" data-testid="community-unavailable">
+    {{ backendAnsweredError
+      ? '後端有回應但無法取得團購資料，請稍後再試或重新登入。'
+      : '無法取得團購資料，連不上後端服務，請確認後端是否啟動。' }}
   </p>
 
   <section v-if="jointStatus !== 'unavailable'" class="panel joint-hero" data-testid="joint-service-hero" aria-label="社區聯合服務管理">

@@ -11,6 +11,7 @@ from .contracts import ContractError, ProposedAction, TaskPatch, TurnIntent
 _PRODUCT_HELP = (
     "aiwave", "openpoint", "點數", "折抵", "取消", "退款", "通知", "行事曆",
     "taskdraft", "草稿", "授權", "生活圈", "到府服務範圍", "怎麼用", "如何操作",
+    "你能做什麼", "可以做什麼", "有什麼服務", "提供哪些服務", "功能有哪些",
 )
 _LIFE_GUIDE = ("中元", "普渡", "颱風", "防災", "搬家", "入厝", "祭拜")
 _PAUSE = ("先不要", "不要了", "不用了", "停止", "暫停", "撤回", "反悔", "取消這個")
@@ -90,6 +91,11 @@ def capability_descriptions() -> list[dict[str, Any]]:
 
     return [
         {"id": "catalog.search", "risk": "read", "schema": {"service": "string", "date": "string?"}},
+        {"id": "service.recommend", "risk": "read", "schema": {"domains": "string[]", "preferences": "object?"}},
+        {"id": "community.wiki", "risk": "read", "schema": {"query": "string"}},
+        {"id": "community.group_buy", "risk": "draft", "schema": {"product": "string", "quantity": "number?"}},
+        {"id": "life_circle.search", "risk": "read", "schema": {"category": "string?", "minutes": "number?"}},
+        {"id": "calendar.organize", "risk": "draft", "schema": {"title": "string", "date": "string"}},
         {"id": "task_draft.patch", "risk": "draft", "schema": {"targetId": "string", "operation": "string"}},
         {"id": "wiki.product_help", "risk": "read", "schema": {"query": "string"}},
         {"id": "wiki.life_guide", "risk": "read", "schema": {"query": "string"}},

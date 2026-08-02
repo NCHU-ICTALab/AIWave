@@ -85,3 +85,68 @@ describe('calendar month view', () => {
     expect(wrapper.findAll('[data-testid="calendar-event"]')).toHaveLength(0)
   })
 })
+
+/**
+ * 「後端回了空清單」與「後端連不上」是兩件事。畫面說錯會讓人以為 API 沒起來,
+ * 而實際上後端正回著 200——這裡把兩種說法釘住。
+ */
+describe('calendar demo fallback honesty', () => {
+  it('does not claim the backend is down when it answered 200 with an empty list', async () => {
+    stubCatalogFetch()
+    const { wrapper } = await mountApp('/user/calendar')
+
+    const notice = wrapper.get('[data-testid="calendar-offline-demo"]')
+    expect(notice.attributes('data-reason')).toBe('empty')
+    expect(notice.text()).toContain('沒有任何會員事件')
+    expect(notice.text()).not.toContain('連不上')
+    expect(notice.text()).not.toContain('未啟動')
+    expect(notice.attributes('role')).toBe('status')
+  })
+
+  it('says the backend is unreachable when the request actually fails', async () => {
+    stubCatalogFetch((url) => {
+      if (url.includes('/platform/calendar/events')) throw new TypeError('Failed to fetch')
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/calendar')
+
+    const notice = wrapper.get('[data-testid="calendar-offline-demo"]')
+    expect(notice.attributes('data-reason')).toBe('offline')
+    expect(notice.text()).toContain('連不上後端')
+    expect(notice.attributes('role')).toBe('status')
+  })
+
+  it('separates a backend error response from an unreachable backend', async () => {
+    stubCatalogFetch((url) => {
+      if (url.includes('/platform/calendar/events')) {
+        return new Response(JSON.stringify({ detail: '行事曆暫時無法讀取' }), { status: 500 })
+      }
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/calendar')
+
+    const notice = wrapper.get('[data-testid="calendar-offline-demo"]')
+    expect(notice.attributes('data-reason')).toBe('failed')
+    expect(notice.text()).toContain('後端有回應')
+    expect(notice.text()).toContain('行事曆暫時無法讀取')
+  })
+
+  it('reports a failed create instead of faking an offline event when the backend is up', async () => {
+    stubCatalogFetch((url, init) => {
+      if (url.includes('/platform/calendar/events') && init?.method === 'POST') {
+        return new Response(JSON.stringify({ detail: '結束時間必須晚於開始時間' }), { status: 400 })
+      }
+      return undefined
+    })
+    const { wrapper } = await mountApp('/user/calendar')
+
+    await wrapper.get('[data-testid="calendar-title"]').setValue('社區大掃除')
+    await wrapper.get('[data-testid="calendar-start"]').setValue('2026-08-09T14:00')
+    await wrapper.get('[data-testid="calendar-end"]').setValue('2026-08-09T15:00')
+    await wrapper.get('form.calendar-form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('結束時間必須晚於開始時間')
+    expect(wrapper.findAll('[data-testid="calendar-event"]').some((item) => item.text().includes('社區大掃除'))).toBe(false)
+  })
+})

@@ -171,6 +171,23 @@ describe('community group buy', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('新帳號')
   })
 
+  // 商業規則:免費社區只開放團購。訂閱閘門把公告與群組收起來時,絕不能連跟團一起收掉,
+  // 否則免費方案就沒有任何可用功能了。
+  it('lets a free resident still see and use group buying behind the subscription gate', async () => {
+    stubCommunity()
+    const { wrapper } = await mountApp('/user/community', {
+      identity: { role: 'user', accountId: null, displayName: '新使用者' },
+    })
+
+    expect(wrapper.find('[data-testid="community-subscription-gate"]').exists()).toBe(true)
+    expect(wrapper.get('[data-campaign-id="1"]').text()).toContain('愛文芒果')
+    expect(wrapper.find('[data-testid="join-1"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('我跟的團')
+    // 其餘社區功能才是訂閱解鎖的部分。
+    expect(wrapper.find('[data-testid="community-announcements"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="my-groups"]').exists()).toBe(false)
+  })
+
   it('shows the manager who joined and how much', async () => {
     stubCommunity()
     const { wrapper } = await mountApp('/community', { identity: MANAGER })

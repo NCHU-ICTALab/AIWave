@@ -3,7 +3,7 @@
 // 訂單來源的事件不在這裡改期——改期屬於訂單詳情的廠商流程,這裡只連過去。
 import { computed, onMounted, ref } from 'vue'
 
-import { ApiError } from '@/api/http'
+import { ApiError, backendAnswered } from '@/api/http'
 import { createCalendarEvent, listCalendarEvents, type CalendarEvent } from '@/api/platformClient'
 import { MEMBER_CALENDAR_HOLIDAYS, MEMBER_CALENDAR_ITEMS } from '@/data/memberDemoContent'
 
@@ -15,8 +15,15 @@ const DEMO_TODAY = '2026-08-02'
 const DEMO_HOLIDAYS = MEMBER_CALENDAR_HOLIDAYS
 
 const events = ref<CalendarEvent[]>([])
-const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
-const offlineDemo = ref(false)
+/** 失敗會退到 Demo 行事曆並在通知裡說明原因,所以沒有「整頁不可用」這個狀態。 */
+const status = ref<'loading' | 'ready'>('loading')
+/**
+ * 為什麼顯示固定 Demo 行事曆——三種原因必須分開講,不能都說成「後端未啟動」:
+ * `''` = 用的是後端實際事件;`empty` = 後端有回應但這個帳號還沒有任何事件;
+ * `failed` = 後端回了錯誤;`offline` = 真的連不上(ApiError.status === 0)。
+ */
+const demoReason = ref<'' | 'empty' | 'failed' | 'offline'>('')
+const demoDetail = ref('')
 const error = ref('')
 const selectedTypes = ref<string[]>([...SOURCE_TYPES])
 let offlineEventSequence = 0
@@ -48,15 +55,17 @@ function demoCalendarEvents(): CalendarEvent[] {
 
 async function load() {
   status.value = 'loading'
-  offlineDemo.value = false
+  demoReason.value = ''
+  demoDetail.value = ''
   error.value = ''
   try {
+    // 「回了空陣列」是後端有正常回應,不是後端沒起來——兩者的說法必須不一樣。
     const loaded = await listCalendarEvents()
     if (Array.isArray(loaded) && loaded.length) {
       events.value = loaded
     } else {
       events.value = demoCalendarEvents()
-      offlineDemo.value = true
+      demoReason.value = 'empty'
     }
     const first = events.value[0]?.startsAt.slice(0, 10)
     if (first) {
@@ -67,9 +76,10 @@ async function load() {
       }
     }
     status.value = 'ready'
-  } catch {
+  } catch (reason) {
     events.value = demoCalendarEvents()
-    offlineDemo.value = true
+    demoReason.value = backendAnswered(reason) ? 'failed' : 'offline'
+    demoDetail.value = backendAnswered(reason) && reason instanceof ApiError ? reason.message : ''
     status.value = 'ready'
   }
 }
@@ -147,7 +157,9 @@ async function submitEvent() {
     draftStart.value = ''
     draftEnd.value = ''
   } catch (reason) {
-    if (offlineDemo.value) {
+    // 只有「真的連不上」才在本機補一筆離線事件。後端有回應卻失敗(400/500…)時
+    // 假裝新增成功,等於騙使用者事件已經存進去了。
+    if (!backendAnswered(reason)) {
       offlineEventSequence += 1
       const created: CalendarEvent = {
         id: `offline-calendar-${offlineEventSequence}`,
@@ -155,13 +167,13 @@ async function submitEvent() {
         startsAt: draftStart.value,
         endsAt: draftEnd.value,
         allDay: false,
-        note: '王小明離線 Demo 手動事件',
+        note: '連不上後端時的本機事件,尚未寫入後端',
         status: 'demo',
         source: { type: 'manual', id: null },
         recurrence: null,
       }
       events.value = [...events.value, created]
-      createNotice.value = `已新增「${created.title}」（離線 Demo）。`
+      createNotice.value = `已在本機新增「${created.title}」;目前連不上後端,這筆還沒存到後端。`
       draftTitle.value = ''
       draftStart.value = ''
       draftEnd.value = ''
@@ -184,7 +196,7 @@ onMounted(load)
       <p class="muted">訂單行程與自己的事件放在同一份時間軸上。</p>
     </div>
     <span class="page-status">
-      {{ status === 'ready' ? `${visibleEvents.length} 筆${offlineDemo ? '・Demo' : ''}` : status === 'loading' ? '載入中…' : '離線' }}
+      {{ status === 'ready' ? `${visibleEvents.length} 筆${demoReason ? '・Demo' : ''}` : '載入中…' }}
     </span>
   </header>
 
@@ -213,10 +225,17 @@ onMounted(load)
     </fieldset>
 
     <p v-if="status === 'loading'" role="status">正在載入行事曆…</p>
-    <p v-else-if="status === 'unavailable'" class="muted" role="status">目前無法取得行事曆。</p>
     <section v-else :aria-label="`${monthLabel}月曆`">
-      <p v-if="offlineDemo" class="calendar-demo-notice" data-testid="calendar-offline-demo" role="status">
-        後端未啟動，目前顯示王小明的固定 Demo 行事曆；啟動 API 並有會員事件後會切換成實際資料。
+      <p v-if="demoReason" class="calendar-demo-notice" :data-reason="demoReason" data-testid="calendar-offline-demo" role="status">
+        <template v-if="demoReason === 'empty'">
+          後端行事曆目前沒有任何會員事件，因此顯示王小明的固定 Demo 行事曆；建立訂單或新增事件後就會換成實際資料。
+        </template>
+        <template v-else-if="demoReason === 'failed'">
+          後端有回應但取不到行事曆{{ demoDetail ? `（${demoDetail}）` : '' }}，先顯示王小明的固定 Demo 行事曆。
+        </template>
+        <template v-else>
+          目前連不上後端行事曆 API，先顯示王小明的固定 Demo 行事曆；連線恢復後會切換成實際資料。
+        </template>
       </p>
       <div class="month-grid">
         <span v-for="weekday in ['日', '一', '二', '三', '四', '五', '六']" :key="weekday" class="month-head">{{ weekday }}</span>

@@ -547,17 +547,26 @@ export function createPlatformStub() {
     if (path === '/api/v1/platform/reachability/area') {
       const mode = query.get('travelMode') ?? 'pedestrian'
       const threshold = Number(query.get('thresholdMinutes') ?? 10)
+      // id 與 data/reachability/demo.geojson 的信義區據點同一組;
+      // 後端 ReachabilityService 只會回傳目錄裡真的存在的 location。
+      const walkable = [
+        { id: 'loc-prince-electric-01', providerId: 'vendor-prince-electric', name: '王子水電 信義區服務點', address: '110臺北市信義區示範路 1 號' },
+        { id: 'loc-711-shop-01', providerId: 'vendor-711-shop', name: '7-ELEVEN 線上購物中心 信義區服務點', address: '110臺北市信義區示範路 1 號' },
+        { id: 'loc-711-c2c-01', providerId: 'vendor-711-c2c', name: '7-ELEVEN 交貨便 信義區服務點', address: '110臺北市信義區示範路 1 號' },
+        { id: 'loc-cosmed-01', providerId: 'vendor-cosmed', name: '康是美 信義區服務點', address: '110臺北市信義區示範路 1 號' },
+      ]
+      const wider = [
+        ...walkable,
+        { id: 'loc-duskin-01', providerId: 'vendor-duskin', name: 'DUSKIN 樂清 信義區服務點', address: '110臺北市信義區示範路 1 號' },
+        { id: 'loc-foodomo-01', providerId: 'vendor-foodomo', name: 'foodomo 信義區服務點', address: '110臺北市信義區示範路 1 號' },
+      ]
+      const locations = threshold === 10 ? walkable : wider
       return ok({
         originId: query.get('originId'), travelMode: mode, thresholdMinutes: threshold,
         geometry: { type: 'Polygon', coordinates: [[[121.562, 25.031], [121.569, 25.031], [121.570, 25.037], [121.563, 25.038], [121.562, 25.031]]] },
-        eligibleLocationIds: threshold === 10 ? ['loc-prince-01'] : ['loc-prince-01', 'loc-duskin-01'],
-        locations: threshold === 10
-          ? [{ id: 'loc-prince-01', providerId: 'vendor-prince-electric', name: '王子水電信義服務點', address: '示範路 1 號' }]
-          : [
-            { id: 'loc-prince-01', providerId: 'vendor-prince-electric', name: '王子水電信義服務點', address: '示範路 1 號' },
-            { id: 'loc-duskin-01', providerId: 'vendor-duskin', name: 'DUSKIN 樂清信義服務點', address: '示範路 2 號' },
-          ],
-        source: 'reviewed-demo-fixture', calculatedAt: '2026-08-01T10:00:00+08:00',
+        eligibleLocationIds: locations.map((item) => item.id),
+        locations,
+        source: '競賽 Demo 固定示意資料(非導航)', calculatedAt: '2026-08-01T10:00:00+08:00',
         isDemo: true, realTime: false, navigation: false,
       })
     }
@@ -579,7 +588,7 @@ export function createPlatformStub() {
       if (action === 'open_guide') message.guide = {
         status: 'published', title: '中元普渡準備・競賽 Demo 指南',
         message: '這是一份人工檢視過的競賽 Demo 指南，不是政府公告或採購清單；請依家庭與社區規範調整。',
-        source: 'AIWave 競賽 Demo 編寫資料', updatedAt: '2026-08-01', reviewedBy: 'AIWave Demo Editorial',
+        source: '社區小統競賽 Demo 編寫資料', updatedAt: '2026-08-01', reviewedBy: '社區小統 Demo Editorial',
         steps: [
           { id: 'confirm-context', title: '先確認情境', body: '確認家人是否參與、日期、地點與社區公共區域規則。' },
           { id: 'make-checklist', title: '建立可修改清單', body: '依人數、場地與保存方式建立準備清單。' },

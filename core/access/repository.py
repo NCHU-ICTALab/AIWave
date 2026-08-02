@@ -20,6 +20,8 @@ FIXED_DEMO_KEYS = {
     "aiwave-chen": f"membership-member-{PERSONAS[1].id}",
     "aiwave-vivian": f"membership-member-{PERSONAS[2].id}",
     "aiwave-new": "membership-member-new",
+    "aiwave-demo-resident": "membership-member-wang-xiaoming",
+    "aiwave-demo-manager": "membership-manager-sunshine",
     "aiwave-partner": "membership-partner-prince-electric",
     "aiwave-partner-duskin": "membership-partner-duskin",
     "aiwave-partner-21plus": "membership-partner-21plus",
@@ -249,6 +251,26 @@ class SqliteAccessRepository:
                 role=Role.MEMBER,
             )
 
+            # Primary community demo resident.  This is deliberately a real
+            # seeded principal rather than a frontend-only alias, so the Wang
+            # demo credential can read calendar, notifications and agent APIs.
+            self._upsert_account(connection, "household-wang-xiaoming", "王小明")
+            self._upsert_workspace(
+                connection,
+                workspace_id="workspace-personal-household-wang-xiaoming",
+                kind=WorkspaceKind.PERSONAL,
+                owner_ref="household-wang-xiaoming",
+                name="王小明的個人空間",
+                demo_workspace_id="demo-default",
+            )
+            self._upsert_membership(
+                connection,
+                membership_id="membership-member-wang-xiaoming",
+                account_id="household-wang-xiaoming",
+                workspace_id="workspace-personal-household-wang-xiaoming",
+                role=Role.MEMBER,
+            )
+
             # Stable aliases make the four public demo keys independent of long persona IDs.
             self._upsert_account(connection, "demo-partner-prince-electric", "王子水電人員")
             self._upsert_workspace(
@@ -312,13 +334,13 @@ class SqliteAccessRepository:
                 workspace_id="workspace-community-sunshine",
                 role=Role.COMMUNITY_MANAGER,
             )
-            self._upsert_account(connection, "demo-platform-operator", "AIWave 平台營運者")
+            self._upsert_account(connection, "demo-platform-operator", "社區小統平台營運者")
             self._upsert_workspace(
                 connection,
                 workspace_id="workspace-platform-demo",
                 kind=WorkspaceKind.PLATFORM,
                 owner_ref="platform-demo",
-                name="AIWave Demo 管理空間",
+                name="社區小統 Demo 管理空間",
                 demo_workspace_id="demo-default",
             )
             self._upsert_membership(
@@ -333,6 +355,9 @@ class SqliteAccessRepository:
                 "aiwave-chen": (f"membership-member-{PERSONAS[1].id}", ("personal:read", "personal:write", "platform:read")),
                 "aiwave-vivian": (f"membership-member-{PERSONAS[2].id}", ("personal:read", "personal:write", "platform:read")),
                 "aiwave-new": ("membership-member-new", ("personal:read", "personal:write", "platform:read")),
+                "aiwave-demo-resident": (
+                    "membership-member-wang-xiaoming", ("personal:read", "personal:write", "platform:read"),
+                ),
                 "aiwave-partner": ("membership-partner-prince-electric", ("partner:read", "partner:write")),
                 "aiwave-partner-duskin": ("membership-partner-duskin", ("partner:read", "partner:write")),
                 "aiwave-partner-21plus": ("membership-partner-21plus", ("partner:read", "partner:write")),
@@ -346,6 +371,7 @@ class SqliteAccessRepository:
                 "aiwave-partner-iopenmall": ("membership-partner-iopenmall", ("partner:read", "partner:write")),
                 "aiwave-partner-ibonticket": ("membership-partner-ibonticket", ("partner:read", "partner:write")),
                 "aiwave-manager": ("membership-manager-sunshine", ("community:read", "community:write")),
+                "aiwave-demo-manager": ("membership-manager-sunshine", ("community:read", "community:write")),
                 "aiwave-admin": ("membership-platform-operator", ("platform:*", "demo:reset", "demo:switch")),
             }
             for raw_key, (membership_id, scopes) in fixed.items():

@@ -6,11 +6,14 @@ import { resolve } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { stubCatalogFetch } from './fixtures/catalogClient'
-import { mountApp } from './fixtures/mountApp'
+import { mountApp, NEW_USER } from './fixtures/mountApp'
 
 const styles = readFileSync(resolve(process.cwd(), 'src/styles/main.css'), 'utf8')
 
-const residentRoutes = ['/user', '/user/services', '/user/orders', '/user/booking', '/user/calendar']
+const residentRoutes = [
+  '/user', '/user/services', '/user/orders', '/user/booking', '/user/calendar',
+  '/user/subscription',
+]
 
 function luminance(hex: string) {
   const normalized = hex.length === 4 ? `#${[...hex.slice(1)].map((value) => value.repeat(2)).join('')}` : hex
@@ -53,6 +56,26 @@ describe('WCAG AA baseline', () => {
     expect(wrapper.findAll('h1')).toHaveLength(1)
     expect(wrapper.get('.skip-link').attributes('href')).toBe('#main-content')
   })
+
+  // 免費社區走的是另一組 template 分支（霧面遮罩 + 只留團購），標題結構會整組換掉,
+  // 所以訂閱版過了不代表免費版也過——兩種身分都要驗。
+  it.each(['/user', '/user/community', '/user/assistant', '/user/life-circle'])(
+    'keeps one page heading and no orphan aria-labelledby at %s for a free resident',
+    async (path) => {
+      const { wrapper } = await mountApp(path, { identity: NEW_USER })
+
+      expect(wrapper.findAll('h1')).toHaveLength(1)
+
+      const ids = wrapper.findAll('[id]').map((node) => node.attributes('id'))
+      expect(new Set(ids).size).toBe(ids.length)
+
+      for (const node of wrapper.findAll('[aria-labelledby]')) {
+        for (const id of (node.attributes('aria-labelledby') ?? '').split(/\s+/).filter(Boolean)) {
+          expect(ids).toContain(id)
+        }
+      }
+    },
+  )
 
   it('reaches the assistant as a normal page and moves focus to its main landmark', async () => {
     const { wrapper, router } = await mountApp('/user', { attach: true })

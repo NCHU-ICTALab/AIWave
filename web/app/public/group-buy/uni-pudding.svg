@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" width="480" height="300" role="presentation">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fdf1cf"/><stop offset="1" stop-color="#f6d98d"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="300" fill="url(#bg)"/>
+  <circle cx="150" cy="168" r="118" fill="#ffffff" opacity=".34"/>
+  <path d="M18,272 L462,272" stroke="#2d3748" stroke-width="4" stroke-linecap="round" opacity=".18"/>
+
+    <path d="M94,104 L206,104 L192,246 C190,258 182,264 172,264
+             L128,264 C118,264 110,258 108,246 Z"
+          fill="#f7d154" stroke="#2d3748" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M98,128 L202,128" stroke="#a9662a" stroke-width="14" stroke-linecap="round"/>
+    <rect x="88" y="78" width="124" height="28" rx="10" fill="#eae4d8" stroke="#2d3748" stroke-width="4"/>
+    <text x="150" y="99" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="17" font-weight="900" fill="#2d3748">統一</text>
+    <rect x="106" y="164" width="88" height="56" rx="10" fill="#c0392b" stroke="#2d3748" stroke-width="4"/>
+    <text x="150" y="200" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="26" font-weight="900" fill="#ffffff">布丁</text>
+  <rect x="272" y="34" width="74" height="34" rx="17" fill="#ffffff" stroke="#2d3748" stroke-width="3"/>
+  <text x="309" y="57" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="19" font-weight="900" fill="#2d3748">統一</text>
+  <text x="272" y="132" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="34" font-weight="900" fill="#2d3748">統一布丁</text>
+  <text x="272" y="170" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="23" font-weight="800" fill="#2d3748" opacity=".82">雞蛋風味・焦糖醬</text>
+  <rect x="272" y="190" width="135" height="36" rx="18" fill="#ffffff" stroke="#2d3748" stroke-width="3"/>
+  <text x="339.5" y="215" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="20" font-weight="800" fill="#2d3748">100g／3 入</text>
+</svg>

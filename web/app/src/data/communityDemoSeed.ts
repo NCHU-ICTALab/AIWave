@@ -9,6 +9,7 @@ import type {
   DemoRepair,
   DemoServiceOffer,
   DemoSubscriptionSummary,
+  DemoSubscriptionTier,
   DemoUnansweredQuestion,
   DemoWikiEntry,
 } from '@/domain/communityDemo'
@@ -31,6 +32,32 @@ export interface CommunityDemoSeed {
 
 export const DEMO_NOW = '2026-08-02T10:00:00+08:00'
 
+/**
+ * 訂閱價目表（**competition_seed**：Demo 商業模型，不是統一集團的正式報價）。
+ * 月費依社區戶數分級，所以整份表才是資料來源；任何一頁要顯示某個社區的月費，
+ * 都必須走 `planForHouseholds()`，不可以在畫面上再寫一次金額。
+ */
+export const SUBSCRIPTION_TIERS: readonly DemoSubscriptionTier[] = [
+  { id: 'tier-1-30', minHouseholds: 1, maxHouseholds: 30, sizeLabel: '1–30 戶', monthlyFee: 999, perHouseholdLabel: '約 NT$ 33／戶' },
+  { id: 'tier-31-50', minHouseholds: 31, maxHouseholds: 50, sizeLabel: '31–50 戶', monthlyFee: 1499, perHouseholdLabel: '約 NT$ 30–48／戶' },
+  { id: 'tier-51-100', minHouseholds: 51, maxHouseholds: 100, sizeLabel: '51–100 戶', monthlyFee: 2499, perHouseholdLabel: '約 NT$ 25–49／戶' },
+  { id: 'tier-101-200', minHouseholds: 101, maxHouseholds: 200, sizeLabel: '101–200 戶', monthlyFee: 3999, perHouseholdLabel: '約 NT$ 20–40／戶' },
+  { id: 'tier-201-500', minHouseholds: 201, maxHouseholds: 500, sizeLabel: '201–500 戶', monthlyFee: 6999, perHouseholdLabel: '約 NT$ 14–35／戶' },
+  { id: 'tier-500-plus', minHouseholds: 501, maxHouseholds: null, sizeLabel: '500 戶以上', monthlyFee: null, perHouseholdLabel: '客製報價' },
+]
+
+/** 依戶數對照出社區適用的級距。戶數超出表格範圍時一律落到最高一級（客製報價）。 */
+export function planForHouseholds(householdCount: number): DemoSubscriptionTier {
+  const matched = SUBSCRIPTION_TIERS.find(
+    (tier) => householdCount >= tier.minHouseholds
+      && (tier.maxHouseholds === null || householdCount <= tier.maxHouseholds),
+  )
+  return matched ?? SUBSCRIPTION_TIERS[SUBSCRIPTION_TIERS.length - 1]!
+}
+
+/** 日光森林是小型社區，戶數同時決定社區資訊卡與訂閱級距，只能有一個來源。 */
+const SUNLIGHT_FOREST_HOUSEHOLDS = 28
+
 const community: CommunityProfile = {
   id: 'community-sunlight-forest',
   name: '日光森林社區',
@@ -38,8 +65,8 @@ const community: CommunityProfile = {
   builtYear: 2016,
   buildings: 'A、B 兩棟',
   floors: '地上 15 層、地下 2 層',
-  households: 112,
-  parking: '平面 78 席、機械 24 席',
+  households: SUNLIGHT_FOREST_HOUSEHOLDS,
+  parking: '平面 26 席、機械 8 席',
   evChargers: 4,
   facilities: ['交誼廳', '健身房', '閱覽室', '中庭花園', '頂樓曬衣場', '烤肉區'],
   propertyManager: '安宏物業管理股份有限公司',
@@ -290,6 +317,27 @@ const wiki: DemoWikiEntry[] = [
   },
 ]
 
+/**
+ * 本月社區優惠替住戶省下的金額（**competition_seed**：Demo 商業模型的示意值，
+ * 抓每戶每月約 NT$ 165）。淨效益一律由這個數字減月費算出，不另外寫死，
+ * 因為管委會頁面會把這個減法直接印在畫面上。
+ */
+const RESIDENT_SAVINGS_PER_HOUSEHOLD = 165
+const subscriptionTier = planForHouseholds(SUNLIGHT_FOREST_HOUSEHOLDS)
+const residentSavings = SUNLIGHT_FOREST_HOUSEHOLDS * RESIDENT_SAVINGS_PER_HOUSEHOLD
+
+const subscription: DemoSubscriptionSummary = {
+  householdCount: SUNLIGHT_FOREST_HOUSEHOLDS,
+  tier: subscriptionTier,
+  monthlyFee: subscriptionTier.monthlyFee,
+  residentSavings,
+  netBenefit: residentSavings - (subscriptionTier.monthlyFee ?? 0),
+  externalSupplierFeeRate: 0.03,
+  groupSupplierFeeRate: 0,
+  trialMonths: '可免費試用 3–6 個月',
+  hardware: '零硬體、免施工',
+}
+
 export const COMMUNITY_DEMO_SEED: CommunityDemoSeed = {
   community,
   announcements,
@@ -310,18 +358,7 @@ export const COMMUNITY_DEMO_SEED: CommunityDemoSeed = {
   unanswered: [
     { id: 'unanswered-001', query: '社區可以養鴿子嗎？', householdId: 'household-demo-a', askedAt: '2026-07-31', status: 'new' },
   ],
-  subscription: {
-    householdCount: 112,
-    standardPlanLabel: '標準方案：101–200 戶',
-    standardMonthlyFee: 12000,
-    trialMonthlyFee: 6000,
-    residentSavings: 18420,
-    netBenefit: 12420,
-    externalSupplierFeeRate: 0.03,
-    groupSupplierFeeRate: 0,
-    trialMonths: '可免費試用 3–6 個月',
-    hardware: '零硬體、免施工',
-  },
+  subscription,
 }
 
 /** Used by tests and the typed service; the answer shape stays in the domain boundary. */

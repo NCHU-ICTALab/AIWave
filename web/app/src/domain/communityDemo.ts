@@ -205,12 +205,32 @@ export interface DemoCommitteeDashboard {
   }
 }
 
+/**
+ * 訂閱級距。價目表是「依社區戶數分級」，所以級距本身才是資料，
+ * 個別社區的月費一律從戶數對照出來，不在畫面上手寫第二份價格。
+ */
+export interface DemoSubscriptionTier {
+  id: string
+  /** 級距戶數下限（含） */
+  minHouseholds: number
+  /** 級距戶數上限（含）；`null` 代表最高一級沒有上限 */
+  maxHouseholds: number | null
+  /** 價目表上的戶數欄位文字，例如「1–30 戶」 */
+  sizeLabel: string
+  /** 月費；`null` 代表客製報價——最高一級沒有固定價格，型別必須說得出這件事 */
+  monthlyFee: number | null
+  /** 價目表上的「平均每戶」欄位文字 */
+  perHouseholdLabel: string
+}
+
 export interface DemoSubscriptionSummary {
   householdCount: number
-  standardPlanLabel: string
-  standardMonthlyFee: number
-  trialMonthlyFee: number
+  /** 由 `householdCount` 對照級距表得出，不是另外寫死的方案名稱 */
+  tier: DemoSubscriptionTier
+  /** 社區實際負擔的月費（= `tier.monthlyFee`）；`null` 代表落在客製報價級距 */
+  monthlyFee: number | null
   residentSavings: number
+  /** = `residentSavings − monthlyFee`，在 seed 由程式算出，避免兩個數字各自漂移 */
   netBenefit: number
   externalSupplierFeeRate: number
   groupSupplierFeeRate: number

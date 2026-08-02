@@ -132,5 +132,10 @@ def test_admin_reset_clears_platform_and_partner_with_matching_seed(tmp_path, mo
         assert client.get(
             "/api/v1/platform/points", headers=bearer("aiwave"),
         ).json()["data"]["balance"] == 180
+        # 王小明是主展示住戶。點數種子若只跑 PERSONAS,按過重設之後他的餘額會掉回
+        # 0 直到重啟——正好會在彩排按下重設鍵時發生。
+        assert client.get(
+            "/api/v1/platform/points", headers=bearer("aiwave-demo-resident"),
+        ).json()["data"]["balance"] == 180
     finally:
         config.get_settings.cache_clear()

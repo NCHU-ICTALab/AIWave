@@ -36,8 +36,8 @@ DEMO_LIFE_GUIDE = {
     "status": "published",
     "title": "中元普渡準備・競賽 Demo 指南",
     "updatedAt": "2026-08-01",
-    "reviewedBy": "AIWave Demo Editorial",
-    "source": "AIWave 競賽 Demo 編寫資料",
+    "reviewedBy": "社區小統 Demo Editorial",
+    "source": "社區小統競賽 Demo 編寫資料",
     "message": "這是一份人工檢視過的競賽 Demo 指南，不是政府公告或採購清單；請依家庭與社區規範調整。",
     "steps": [
         {"id": "confirm-context", "title": "先確認情境", "body": "確認家人是否參與、日期、地點與社區公共區域規則。"},

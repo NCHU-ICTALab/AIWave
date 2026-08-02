@@ -4,6 +4,7 @@ import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { COMMUNITY_DEMO_SEED } from '@/data/communityDemoSeed'
 import { DEMO_HOUSEHOLD_ID } from '@/domain/communityDemo'
 import { communityDemoService } from '@/services/communityDemoService'
 import { useCommunityDemoStore } from '@/stores/communityDemo'
@@ -163,16 +164,21 @@ describe('AI 智慧社區 Demo', () => {
     expect(useCommunityDemoStore().lastAnswer).toBeNull()
   })
 
-  it('訂閱頁區分 112 戶標準月費與試辦優惠，並計算淨效益', async () => {
+  it('訂閱頁顯示戶數對應的級距月費與導入期免費，並計算淨效益', async () => {
     const { wrapper } = await mountApp('/demo/subscription', { identity: DEMO_MANAGER_IDENTITY })
 
+    // 金額一律從 seed 推導：月費是戶數對照級距表算出來的，淨效益 = 住戶省下 − 月費。
+    const plan = COMMUNITY_DEMO_SEED.subscription
+    const money = (value: number) => `NT$ ${value.toLocaleString('zh-TW')}`
+    expect(plan.monthlyFee).not.toBeNull()
+
     const pricing = wrapper.get('[data-testid="subscription-pricing"]').text()
-    expect(pricing).toContain('101–200 戶')
-    expect(pricing).toContain('NT$ 12,000／月')
-    expect(pricing).toContain('NT$ 6,000／月')
+    expect(pricing).toContain(plan.tier.sizeLabel)
+    expect(pricing).toContain(`${money(plan.monthlyFee!)}／月`)
+    expect(pricing).toContain('免費試用')
     expect(wrapper.text()).toContain('本月住戶累計省下')
-    expect(wrapper.text()).toContain('NT$ 18,420')
-    expect(wrapper.text()).toContain('+NT$ 12,420')
+    expect(wrapper.text()).toContain(money(plan.residentSavings))
+    expect(wrapper.text()).toContain(`+${money(plan.residentSavings - plan.monthlyFee!)}`)
     expect(wrapper.get('[data-testid="commission-rules"]').text()).toContain('外部廠商成交抽成')
     expect(wrapper.get('[data-testid="commission-rules"]').text()).toContain('統一集團商品抽成')
   })

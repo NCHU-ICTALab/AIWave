@@ -4,7 +4,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { ApiError } from '@/api/http'
+import { ApiError, backendAnswered } from '@/api/http'
 import {
   cancelBooking,
   cancelCommerceOrder,
@@ -48,6 +48,8 @@ const booking = ref<Booking | null>(null)
 const order = ref<CommerceOrder | null>(null)
 const offeringName = ref('')
 const status = ref<'loading' | 'ready' | 'not-found' | 'unavailable'>('loading')
+/** 後端有回應但這次失敗(401/500…)時,不能講成「後端沒啟動」。 */
+const backendAnsweredError = ref(false)
 const error = ref('')
 const notice = ref('')
 const acting = ref(false)
@@ -114,6 +116,7 @@ async function load() {
     refunds.value = found.refunds ?? refunds.value
     status.value = 'ready'
   } catch (reason) {
+    backendAnsweredError.value = backendAnswered(reason)
     status.value = reason instanceof ApiError && reason.status === 404 ? 'not-found' : 'unavailable'
   }
 }
@@ -333,8 +336,10 @@ onMounted(load)
     <p>它可能已被移除,或編號有誤。</p>
     <RouterLink class="button inline" to="/user/orders">回訂單列表</RouterLink>
   </div>
-  <p v-else-if="status === 'unavailable'" class="panel muted" role="status">
-    目前無法取得這筆訂單,請確認後端服務是否啟動。
+  <p v-else-if="status === 'unavailable'" class="panel muted" role="status" data-testid="order-detail-unavailable">
+    {{ backendAnsweredError
+      ? '後端有回應但無法取得這筆訂單,請稍後再試或重新登入。'
+      : '目前連不上後端服務,取不到這筆訂單,請確認後端是否啟動。' }}
   </p>
   <div v-else class="panel" role="status">正在載入訂單詳情…</div>
 

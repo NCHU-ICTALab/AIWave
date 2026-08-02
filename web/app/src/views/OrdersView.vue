@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { createInquiryLifecycleClient, type Inquiry, type PlatformOrder } from '@/api/inquiryLifecycleClient'
+import { backendAnswered } from '@/api/http'
 import { createLifeTaskClient, type LifeTask } from '@/api/lifeTaskClient'
 import { listBookings, listCommerceOrders, type Booking, type CommerceOrder } from '@/api/platformClient'
 import { createSupportClient, type SupportTicket } from '@/api/supportClient'
@@ -17,6 +18,8 @@ const lifeTaskClient = createLifeTaskClient()
 const inquiries = ref<Inquiry[]>([])
 const platformOrders = ref<PlatformOrder[]>([])
 const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
+/** 後端有回應但這次失敗(401/500…)時,不能講成「後端沒啟動」。 */
+const backendAnsweredError = ref(false)
 const acting = ref<string | null>(null)
 const error = ref('')
 const supportTickets = ref<SupportTicket[]>([])
@@ -89,7 +92,8 @@ async function load() {
       : []
     status.value = 'ready'
     void loadSupport()
-  } catch {
+  } catch (reason) {
+    backendAnsweredError.value = backendAnswered(reason)
     status.value = 'unavailable'
   }
 }
@@ -476,7 +480,9 @@ onMounted(() => {
     <RouterLink class="button primary inline" to="/user">回首頁描述需求</RouterLink>
   </div>
 
-  <p v-else-if="status === 'unavailable'" class="panel muted" role="status">
-    無法取得委託紀錄，請確認後端服務是否啟動。
+  <p v-else-if="status === 'unavailable'" class="panel muted" role="status" data-testid="orders-unavailable">
+    {{ backendAnsweredError
+      ? '後端有回應但無法取得委託紀錄，請稍後再試或重新登入。'
+      : '無法取得委託紀錄，連不上後端服務，請確認後端是否啟動。' }}
   </p>
 </template>

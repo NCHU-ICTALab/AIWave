@@ -35,10 +35,11 @@ _SYNONYMS: dict[str, tuple[str, ...]] = {
     ),
     "home_cleaning": (
         "清潔", "打掃", "掃除", "大掃除", "家事", "冷氣清洗", "洗冷氣", "洗衣機清洗",
-        "居家清潔", "全室",
+        "居家清潔", "全室", "整理家裡", "環境整理",
     ),
     "dining_reservation": (
         "訂位", "餐廳", "訂餐廳", "聚餐", "吃飯", "晚餐", "午餐", "訂桌", "慶生聚餐",
+        "家庭聚餐", "會餐", "圍爐",
     ),
     "food_delivery": ("外送", "外賣", "送餐", "點餐", "外帶"),
     "car_wash": ("洗車", "汽車美容", "鍍膜"),
@@ -87,6 +88,51 @@ _AMBIGUOUS: dict[str, dict[str, Any]] = {
 }
 
 
+#: 節慶／家庭場合 → 平台真的做得到的服務組合(確定性建議,不是 LLM 想像)。
+#:
+#: 住戶說「父親節那個交給你安排」時,句子裡沒有任何服務名詞,登錄表當然解析不出
+#: domain,舊行為就變成「我還不確定對應哪一類服務」——看起來像「找不到服務」。
+#: 這張表把常見場合對應到已存在的 domain,讓 Agent 能提出可確認的組合;它只決定
+#: **要提哪幾類服務**,日期、價格、店家一律仍由使用者與目錄決定。
+_OCCASION_BUNDLES: tuple[dict[str, Any], ...] = (
+    {
+        "keywords": ("父親節", "母親節", "爸媽來", "爸媽要來", "家人來訪", "親戚來",
+                     "爸爸來", "媽媽來", "長輩來"),
+        "label": "家人來訪／節日聚會",
+        "services": (("家裡先做一次清潔", "清潔"), ("家庭聚餐的餐廳", "餐廳")),
+    },
+    {
+        "keywords": ("過年", "春節", "除夕", "年夜飯", "圍爐"),
+        "label": "過年準備",
+        "services": (("年前大掃除", "大掃除"), ("年夜飯餐廳", "餐廳")),
+    },
+    {
+        "keywords": ("尾牙", "春酒", "謝師宴"),
+        "label": "聚餐活動",
+        "services": (("聚餐餐廳", "餐廳"),),
+    },
+    {
+        "keywords": ("生日", "慶生"),
+        "label": "生日慶祝",
+        "services": (("慶生餐廳", "餐廳"),),
+    },
+    {
+        "keywords": ("搬家", "入厝", "新家"),
+        "label": "搬家入厝",
+        "services": (("新居清潔", "清潔"), ("大件物品宅配", "宅配")),
+    },
+)
+
+
+@dataclass(frozen=True)
+class OccasionSuggestion:
+    """一個場合對應到的單一服務建議(仍需使用者確認)。"""
+
+    occasion: str
+    goal: str
+    service_hint: str
+
+
 class ServiceRegistry:
     """確定性詞彙解析。與目錄投影一起用:matched domain 再去查真實 offering。"""
 
@@ -97,6 +143,34 @@ class ServiceRegistry:
 
     def known_domains(self) -> tuple[str, ...]:
         return tuple(self._synonyms)
+
+    def vocabulary(self) -> dict[str, list[str]]:
+        """domain → 這個 domain 認得的說法。
+
+        給 LLM 當 bounded context 用:模型抽 serviceHint 時應該挑這裡出現過的詞,
+        它就不會產生一個登錄表解不開、最後看起來像「沒有這個服務」的關鍵詞。
+        """
+
+        return {domain: list(words) for domain, words in self._synonyms.items()}
+
+    def suggest_for_occasion(self, query: str) -> tuple[OccasionSuggestion, ...]:
+        """把「父親節那個交給你安排」這種只有場合、沒有服務名詞的句子接住。
+
+        只有在句子完全解析不出 domain 時才該呼叫;句中已經出現服務名詞時,
+        使用者說的永遠優先。
+        """
+
+        text = query.strip().lower()
+        if not text:
+            return ()
+        for bundle in _OCCASION_BUNDLES:
+            if not any(keyword in text for keyword in bundle["keywords"]):
+                continue
+            return tuple(
+                OccasionSuggestion(occasion=bundle["label"], goal=goal, service_hint=hint)
+                for goal, hint in bundle["services"]
+            )
+        return ()
 
     def resolve(self, query: str) -> RegistryResolution:
         text = query.strip().lower()

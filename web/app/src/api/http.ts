@@ -13,6 +13,21 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 區分「連不上後端」與「後端有回應但這次失敗」。
+ *
+ * 後者包含 401／403／500——那時候後端明明是活的。畫面若一律說
+ * 「請確認後端服務是否啟動」,會把人導去重開一個已經在跑的 API,
+ * 真正的原因(憑證過期、伺服器錯誤)反而被蓋掉。
+ *
+ * 各 client 的錯誤型別都帶 `status`;`request()` 把連線失敗正規化成 status 0,
+ * 沒有 `status` 的錯誤一律保守地當成連不上。
+ */
+export function backendAnswered(reason: unknown): boolean {
+  const status = (reason as { status?: unknown } | null | undefined)?.status
+  return typeof status === 'number' && status > 0
+}
+
 interface RequestOptions {
   method?: string
   body?: unknown

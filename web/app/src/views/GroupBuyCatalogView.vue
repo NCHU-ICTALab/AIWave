@@ -15,6 +15,8 @@ const router = useRouter()
 const demo = useCommunityDemoStore()
 const search = ref('')
 const selectedCategory = ref<GroupBuyCatalogCategory>('全部')
+/** 每張卡的圖片降級階段：0 = 通路商品照、1 = 自繪 SVG 示意圖、2 以上 = emoji。 */
+const imageStage = ref<Record<string, number>>({})
 
 const items = computed<GroupBuyCatalogItem[]>(() => {
   const history = demo.residentDashboard?.groupBuyHistory.map(catalogItemFromGroup) ?? []
@@ -37,6 +39,17 @@ const featuredItems = computed(() => filteredItems.value.slice(0, 3))
 const money = (value: number) => `NT$ ${value.toLocaleString('zh-TW')}`
 const dateLabel = (value: string) => value.slice(5, 10).replace('-', '/')
 const progressWidth = (item: GroupBuyCatalogItem) => `${Math.min(100, Math.round(((item.progressUnits ?? 0) / item.thresholdUnits) * 100))}%`
+
+/** 商品照掛掉時先退到自繪 SVG，SVG 也掛掉才退到 emoji，貨架不會突然只剩表情符號。 */
+function artImage(item: GroupBuyCatalogItem): string | undefined {
+  const stage = imageStage.value[item.id] ?? 0
+  const candidates = [item.imageUrl, item.fallbackImageUrl].filter((url): url is string => Boolean(url))
+  return candidates[stage]
+}
+
+function markImageFailure(item: GroupBuyCatalogItem) {
+  imageStage.value = { ...imageStage.value, [item.id]: (imageStage.value[item.id] ?? 0) + 1 }
+}
 
 function openGroup(item: GroupBuyCatalogItem) {
   void router.push({
@@ -101,11 +114,32 @@ onMounted(() => {
     <section v-if="featuredItems.length" class="group-buy-featured" aria-labelledby="group-buy-featured-title">
       <div class="group-buy-section-heading"><div><p class="eyebrow">HOT PICKS</p><h2 id="group-buy-featured-title">熱銷排行</h2></div><span class="demo-count-badge">社區價優先</span></div>
       <div class="group-buy-featured-grid">
-        <article v-for="(item, index) in featuredItems" :key="item.id" class="group-buy-featured-card" :data-testid="`group-buy-featured-${index}`">
+        <article
+          v-for="(item, index) in featuredItems"
+          :key="item.id"
+          class="group-buy-featured-card"
+          :data-testid="`group-buy-featured-${index}`"
+          :aria-labelledby="`${item.id}-featured-title`"
+        >
           <span class="group-buy-rank">{{ index + 1 }}</span>
-          <div class="group-buy-product-art" :data-visual="item.visual">{{ item.visual }}</div>
-          <div><span class="group-buy-product-badge">{{ item.badge }}</span><h3>{{ item.name }}</h3><p>{{ item.description }}</p></div>
+          <div class="group-buy-product-art" :data-visual="item.visual">
+            <!-- 商品名已在下方 h3，圖片視為裝飾性 -->
+            <img
+              v-if="artImage(item)"
+              :src="artImage(item)"
+              alt=""
+              aria-hidden="true"
+              width="480"
+              height="300"
+              loading="lazy"
+              decoding="async"
+              @error="markImageFailure(item)"
+            />
+            <span v-else aria-hidden="true">{{ item.visual }}</span>
+          </div>
+          <div><span class="group-buy-product-badge">{{ item.badge }}</span><h3 :id="`${item.id}-featured-title`">{{ item.name }}</h3><p>{{ item.description }}</p></div>
           <div class="group-buy-price-row"><del>{{ money(item.marketPrice) }}</del><strong>{{ money(item.communityPrice) }}</strong></div>
+          <a v-if="item.sourceUrl" class="group-buy-source-link" :href="item.sourceUrl" target="_blank" rel="noreferrer">查看原商品頁（開新分頁）</a>
           <button class="button primary" type="button" data-testid="featured-open-group" @click="openGroup(item)">我想開團</button>
         </article>
       </div>
@@ -114,16 +148,37 @@ onMounted(() => {
     <section class="panel group-buy-product-section" aria-labelledby="group-buy-product-title">
       <div class="group-buy-section-heading"><div><p class="eyebrow">ALL COMMUNITY PICKS</p><h2 id="group-buy-product-title">商品列表</h2></div><span class="muted">{{ filteredItems.length }} 項</span></div>
       <div v-if="filteredItems.length" class="group-buy-product-grid">
-        <article v-for="item in filteredItems" :key="item.id" class="group-buy-product-card" :data-testid="`group-buy-product-${item.id}`">
-          <div class="group-buy-product-art" :data-visual="item.visual">{{ item.visual }}</div>
+        <article
+          v-for="item in filteredItems"
+          :key="item.id"
+          class="group-buy-product-card"
+          :data-testid="`group-buy-product-${item.id}`"
+          :aria-labelledby="`${item.id}-title`"
+        >
+          <div class="group-buy-product-art" :data-visual="item.visual">
+            <!-- 商品名已在下方 h3，圖片視為裝飾性 -->
+            <img
+              v-if="artImage(item)"
+              :src="artImage(item)"
+              alt=""
+              aria-hidden="true"
+              width="480"
+              height="300"
+              loading="lazy"
+              decoding="async"
+              @error="markImageFailure(item)"
+            />
+            <span v-else aria-hidden="true">{{ item.visual }}</span>
+          </div>
           <div class="group-buy-product-body">
             <div class="group-buy-product-meta"><span>{{ item.category }}</span><span class="group-buy-product-badge">{{ item.badge }}</span></div>
-            <h3>{{ item.name }}</h3>
+            <h3 :id="`${item.id}-title`">{{ item.name }}</h3>
             <p>{{ item.description }}</p>
             <div class="group-buy-price-row"><span>社區價</span><strong>{{ money(item.communityPrice) }}</strong><del>{{ money(item.marketPrice) }}</del></div>
             <div v-if="item.progressUnits !== undefined" class="group-buy-progress-row"><span>{{ item.statusLabel }}</span><strong>{{ item.progressUnits }}/{{ item.thresholdUnits }}</strong></div>
-            <div v-if="item.progressUnits !== undefined" class="group-buy-progress" role="progressbar" :aria-valuenow="item.progressUnits" :aria-valuemin="0" :aria-valuemax="item.thresholdUnits"><span :style="{ width: progressWidth(item) }" /></div>
+            <div v-if="item.progressUnits !== undefined" class="group-buy-progress" role="progressbar" :aria-label="`${item.name} 成團進度`" :aria-valuenow="item.progressUnits" :aria-valuemin="0" :aria-valuemax="item.thresholdUnits"><span :style="{ width: progressWidth(item) }" /></div>
             <dl class="group-buy-product-facts"><div><dt>到貨</dt><dd>{{ dateLabel(item.expectedArrival) }}</dd></div><div><dt>取貨</dt><dd>{{ item.pickupLocation }}</dd></div></dl>
+            <a v-if="item.sourceUrl" class="group-buy-source-link" :href="item.sourceUrl" target="_blank" rel="noreferrer">查看原商品頁（開新分頁）</a>
             <div class="group-buy-card-actions">
               <RouterLink v-if="item.sourceGroupBuyId && item.status === 'open'" class="button" :to="{ name: 'community-group-buy', params: { groupBuyId: item.sourceGroupBuyId } }">查看跟團</RouterLink>
               <button class="button primary" type="button" data-testid="open-group-from-list" @click="openGroup(item)">{{ item.status === 'open' ? '也想開一團' : '帶入開團' }}</button>
@@ -134,7 +189,12 @@ onMounted(() => {
       <div v-else class="group-buy-empty"><strong>找不到符合的商品</strong><span>換個關鍵字或回到全部分類看看。</span></div>
     </section>
 
-    <p class="group-buy-catalog-note">這是日光森林社區的前端 Demo 目錄；商品、價格與取貨資訊是展示資料，任何住戶都能編輯條件並直接發起開團。</p>
+    <p class="group-buy-catalog-note">
+      統一企業商品的名稱、品牌與規格是真的，可從「查看原商品頁」對照。卡片上的商品照是<strong>零售通路（momo 購物網、全聯線上購）自己拍的商品照片</strong>，
+      我們一次下載後由本站提供、不在執行時連任何外部圖床，每張的出處與抓取日期記在 <code>web/app/public/group-buy/README.md</code>；
+      這些照片<strong>不是統一企業授權的官方素材，本專案也沒有與統一企業合作</strong>。商品照萬一載入失敗，會退回我們自己畫的 SVG 示意圖。
+      團購價格、庫存、到貨日與成團進度都是日光森林社區的 Demo 資料。任何住戶都能編輯條件並直接發起開團。
+    </p>
   </section>
 </template>
 
@@ -169,12 +229,15 @@ onMounted(() => {
 .group-buy-featured-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
 .group-buy-featured-card { position: relative; display: grid; gap: .55rem; min-width: 0; padding: 1rem; border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--surface); box-shadow: 3px 3px 0 var(--ink); }
 .group-buy-rank { position: absolute; top: .7rem; left: .7rem; display: grid; place-items: center; width: 2rem; height: 2rem; border: 2px solid var(--ink); border-radius: 50%; background: var(--yellow, #fde68a); font-weight: 900; }
-.group-buy-product-art { display: grid; place-items: center; min-height: 10rem; border: 2px solid var(--ink); border-radius: 14px; background: linear-gradient(135deg, var(--blue), var(--mint)); font-size: 5rem; }
+/* 固定 16:10 —— 與 public/group-buy/*.svg 的 viewBox 一致，圖片載入前後版面不跳動 */
+.group-buy-product-art { display: grid; place-items: center; aspect-ratio: 16 / 10; min-height: 8rem; overflow: hidden; border: 2px solid var(--ink); border-radius: 14px; background: linear-gradient(135deg, var(--blue), var(--mint)); font-size: 5rem; }
 .group-buy-featured-card:nth-child(2) .group-buy-product-art { background: linear-gradient(135deg, var(--lilac), var(--peach)); }
 .group-buy-featured-card:nth-child(3) .group-buy-product-art { background: linear-gradient(135deg, var(--yellow, #fde68a), var(--peach)); }
 .group-buy-product-art[data-visual='🍫'] { background: linear-gradient(135deg, #d9b59f, var(--peach)); }
 .group-buy-product-art[data-visual='🧼'], .group-buy-product-art[data-visual='🫧'] { background: linear-gradient(135deg, var(--blue), #d9f5ee); }
 .group-buy-product-art[data-visual='💧'] { background: linear-gradient(135deg, #cde7f7, var(--blue)); }
+/* 通路商品照是方形白底照，contain 才不會把瓶身裁掉；自繪 SVG 本身就是 16:10，contain 等同滿版 */
+.group-buy-product-art img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: inherit; background: #fff; }
 .group-buy-product-badge { display: inline-flex; width: fit-content; padding: .15rem .45rem; border: 1px solid var(--ink); border-radius: 999px; background: var(--mint); color: var(--ink); font-size: .68rem; font-weight: 900; }
 .group-buy-featured-card h3, .group-buy-featured-card p, .group-buy-product-card h3, .group-buy-product-card p { margin: 0; }
 .group-buy-featured-card h3, .group-buy-product-card h3 { margin-top: .35rem; font-size: 1.05rem; }
@@ -182,10 +245,11 @@ onMounted(() => {
 .group-buy-price-row { display: flex; align-items: baseline; gap: .45rem; flex-wrap: wrap; }
 .group-buy-price-row strong { color: var(--primary); font: 900 1.25rem/1 var(--font-mono); }
 .group-buy-price-row del { color: var(--muted); font-size: .75rem; }
+.group-buy-source-link { color: var(--accent-ink); font-size: .72rem; font-weight: 800; text-decoration: underline; }
 .group-buy-featured-card .button { width: 100%; }
 .group-buy-product-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; }
 .group-buy-product-card { display: grid; grid-template-rows: auto 1fr; min-width: 0; overflow: hidden; border: 2px solid var(--ink); border-radius: var(--radius-md); background: var(--surface-2); box-shadow: 3px 3px 0 var(--ink); }
-.group-buy-product-card .group-buy-product-art { min-height: 8.5rem; border: 0; border-bottom: 2px solid var(--ink); border-radius: 0; font-size: 4rem; }
+.group-buy-product-card .group-buy-product-art { min-height: 0; border: 0; border-bottom: 2px solid var(--ink); border-radius: 0; font-size: 4rem; }
 .group-buy-product-body { display: grid; align-content: start; gap: .55rem; padding: .85rem; }
 .group-buy-product-meta, .group-buy-progress-row { display: flex; justify-content: space-between; align-items: center; gap: .4rem; color: var(--muted); font-size: .72rem; font-weight: 800; }
 .group-buy-progress-row strong { color: var(--primary); font-family: var(--font-mono); }

@@ -7,6 +7,7 @@ import {
   DEMO_PARTNER_ACCOUNTS,
   DEMO_RESIDENT_IDENTITY,
   demoAccessToken,
+  demoCommunityMembership,
   ROLE_HOME,
   useSessionStore,
   type DemoRole,
@@ -35,18 +36,25 @@ const router = useRouter()
 const session = useSessionStore()
 const accounts = ref<AccountOption[]>([])
 const accountsStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
+/** 後端有回應但這次失敗(如 500)時,不能叫使用者去「確認後端已啟動」。 */
+const accountsErrorStatus = ref(0)
 const staffEntries = [
   { role: 'manager' as const, accountId: null, label: '社區管理者工作台', name: '社區管理者' },
-  { role: 'admin' as const, accountId: null, label: '平台營運管理台', name: 'AIWave 平台營運者' },
+  { role: 'admin' as const, accountId: null, label: '平台營運管理台', name: '社區小統平台營運者' },
 ]
 
 onMounted(async () => {
   try {
     const response = await fetch('/api/v1/insights/accounts', { headers: { Accept: 'application/json' } })
-    if (!response.ok) throw new Error('unavailable')
+    if (!response.ok) {
+      accountsErrorStatus.value = response.status
+      accountsStatus.value = 'unavailable'
+      return
+    }
     accounts.value = ((await response.json()) as { data: AccountOption[] }).data
     accountsStatus.value = 'ready'
   } catch {
+    accountsErrorStatus.value = 0
     accountsStatus.value = 'unavailable'
   }
 })
@@ -85,6 +93,7 @@ async function enter(role: Role, accountId: string | null, displayName: string) 
   const normalizedAccount = role === 'user' && accountId === null ? 'demo-new-member' : accountId
   session.signIn({
     role, accountId: normalizedAccount, displayName,
+    communityMembership: demoCommunityMembership(role, normalizedAccount),
     accessToken: demoAccessToken(role, normalizedAccount),
   })
   await router.push(ROLE_HOME[role])
@@ -104,7 +113,7 @@ async function enterCommunityDemo(role: DemoRole) {
   <main id="main-content" class="login-page" tabindex="-1">
     <div class="login-hero">
       <section class="login-intro">
-        <p class="eyebrow">AI 生活服務平台</p>
+        <p class="eyebrow">社區小統・AI 生活服務平台</p>
         <h1>說一句話，<br />生活的事就有人接手</h1>
         <p class="login-lede">
           描述你的需求，平台會判讀該用哪項服務、引導你填好必要資訊，並媒合能服務你的合作夥伴。
@@ -194,8 +203,10 @@ async function enterCommunityDemo(role: DemoRole) {
         <div class="login-divider" role="separator"><span>或使用既有帳號</span></div>
 
         <p v-if="accountsStatus === 'loading'" class="muted" role="status">載入帳號中…</p>
-        <p v-else-if="accountsStatus === 'unavailable'" class="muted" role="status">
-          目前無法取得帳號清單，請確認後端服務已啟動。
+        <p v-else-if="accountsStatus === 'unavailable'" class="muted" role="status" data-testid="account-list-unavailable">
+          {{ accountsErrorStatus
+            ? `後端有回應但取不到帳號清單（HTTP ${accountsErrorStatus}）；可以先用上方的入口進入 Demo。`
+            : '連不上後端服務，取不到帳號清單，請確認後端是否啟動。' }}
         </p>
         <ul v-else class="account-list" data-testid="account-list">
           <li v-for="account in accounts" :key="account.accountId">

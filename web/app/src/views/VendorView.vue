@@ -7,7 +7,7 @@ import {
   type VendorWorkload,
 } from '@/api/inquiryLifecycleClient'
 import { createJointServiceClient, type JointServiceCampaign } from '@/api/jointServiceClient'
-import { ApiError } from '@/api/http'
+import { ApiError, backendAnswered } from '@/api/http'
 import {
   getProviderAvailability,
   getProviderSettlement,
@@ -31,6 +31,8 @@ const jointClient = createJointServiceClient({ accountId: session.accountId })
 const vendorApi = createVendorApiClient({ accountId: session.accountId })
 const workload = ref<VendorWorkload>({ pendingQuote: [], awaitingResident: [], scheduled: [] })
 const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
+/** 後端有回應但這次失敗(401/500…)時,不能講成「後端沒啟動」。 */
+const backendAnsweredError = ref(false)
 const acting = ref<string | null>(null)
 const error = ref('')
 const jointCampaigns = ref<JointServiceCampaign[]>([])
@@ -287,7 +289,8 @@ async function load() {
     status.value = 'ready'
     void loadJointServices()
     void loadVendorApi()
-  } catch {
+  } catch (reason) {
+    backendAnsweredError.value = backendAnswered(reason)
     status.value = 'unavailable'
   }
 }
@@ -426,8 +429,10 @@ onMounted(load)
   </header>
 
   <p v-if="error" class="need-error" role="alert">{{ error }}</p>
-  <p v-if="status === 'unavailable'" class="panel muted" role="status">
-    無法取得待處理需求，請確認後端服務是否啟動。
+  <p v-if="status === 'unavailable'" class="panel muted" role="status" data-testid="vendor-workload-unavailable">
+    {{ backendAnsweredError
+      ? '後端有回應但無法取得待處理需求，請稍後再試或重新登入。'
+      : '無法取得待處理需求，連不上後端服務，請確認後端是否啟動。' }}
   </p>
 
   <section class="panel" aria-labelledby="platform-bookings-title" data-testid="platform-bookings">

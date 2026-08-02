@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" width="480" height="300" role="presentation">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e4f3e6"/><stop offset="1" stop-color="#b5ddc2"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="300" fill="url(#bg)"/>
+  <circle cx="150" cy="168" r="118" fill="#ffffff" opacity=".34"/>
+  <path d="M18,272 L462,272" stroke="#2d3748" stroke-width="4" stroke-linecap="round" opacity=".18"/>
+
+    <rect x="125" y="28" width="50" height="26" rx="7" fill="#f2c14e" stroke="#2d3748" stroke-width="4"/>
+    <rect x="131" y="52" width="38" height="18" fill="#f2c14e" stroke="#2d3748" stroke-width="4"/>
+    <path d="M131,68 C131,88 96,92 96,116 L94,238
+             C94,254 106,262 122,262 L178,262
+             C194,262 206,254 206,238 L204,116
+             C204,92 169,88 169,68 Z"
+          fill="#cfe8b8" stroke="#2d3748" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M110,120 L108,246" stroke="#ffffff" stroke-width="7" stroke-linecap="round" opacity=".38"/>
+    <rect x="95" y="142" width="110" height="80" rx="9" fill="#0f6b3a" stroke="#2d3748" stroke-width="4"/>
+    <text x="150" y="176" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="27" font-weight="900" fill="#ffffff">茶裏王</text>
+    <text x="150" y="205" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="17" font-weight="800" fill="#ffffff" opacity=".92">日式無糖綠茶</text>
+  <rect x="272" y="34" width="74" height="34" rx="17" fill="#ffffff" stroke="#2d3748" stroke-width="3"/>
+  <text x="309" y="57" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="19" font-weight="900" fill="#2d3748">統一</text>
+  <text x="272" y="132" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="34" font-weight="900" fill="#2d3748">茶裏王</text>
+  <text x="272" y="170" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="21" font-weight="800" fill="#2d3748" opacity=".82">日式無糖綠茶</text>
+  <rect x="272" y="190" width="92" height="36" rx="18" fill="#ffffff" stroke="#2d3748" stroke-width="3"/>
+  <text x="318" y="215" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="20" font-weight="800" fill="#2d3748">600ml</text>
+</svg>

@@ -28,10 +28,11 @@ const routes: RouteRecordRaw[] = [
     path: '/user/services/:serviceSlug?',
     name: 'services',
     component: () => import('@/views/ServicesView.vue'),
-    meta: { role: 'user' },
+    meta: { role: 'user', subscriberOnly: true },
   },
-  { path: '/user/assistant', name: 'assistant', component: () => import('@/views/AssistantView.vue'), meta: { role: 'user' } },
+  { path: '/user/assistant', name: 'assistant', component: () => import('@/views/AssistantView.vue'), meta: { role: 'user', subscriberOnly: true } },
   { path: '/user/member', name: 'member-center', component: () => import('@/views/MemberView.vue'), meta: { role: 'user' } },
+  { path: '/user/subscription', name: 'subscription', component: () => import('@/views/SubscriptionView.vue'), meta: { role: 'user' } },
   { path: '/user/orders', name: 'orders', component: () => import('@/views/OrdersView.vue'), meta: { role: 'user' } },
   { path: '/user/orders/:orderId', name: 'order-detail', component: () => import('@/views/OrderDetailView.vue'), meta: { role: 'user' } },
   { path: '/user/community', name: 'community-board', component: () => import('@/views/CommunityHubView.vue'), meta: { role: 'user' } },
@@ -48,14 +49,14 @@ const routes: RouteRecordRaw[] = [
     path: '/user/services/provider/:providerId',
     name: 'provider-detail',
     component: () => import('@/views/ProviderDetailView.vue'),
-    meta: { role: 'user' },
+    meta: { role: 'user', subscriberOnly: true },
   },
 
   // M4 六場景手動閉環:booking wizard 由服務探索進入;行事曆由首頁卡片進入(不佔主導覽)
-  { path: '/user/booking', name: 'booking-wizard', component: () => import('@/views/BookingWizardView.vue'), meta: { role: 'user' } },
-  { path: '/user/calendar', name: 'calendar', component: () => import('@/views/CalendarView.vue'), meta: { role: 'user' } },
-  { path: '/user/life-circle', name: 'life-circle', component: () => import('@/views/ReachabilityView.vue'), meta: { role: 'user' } },
-  { path: '/user/wellbeing', name: 'wellbeing', component: () => import('@/views/WellbeingView.vue'), meta: { role: 'user' } },
+  { path: '/user/booking', name: 'booking-wizard', component: () => import('@/views/BookingWizardView.vue'), meta: { role: 'user', subscriberOnly: true } },
+  { path: '/user/calendar', name: 'calendar', component: () => import('@/views/CalendarView.vue'), meta: { role: 'user', subscriberOnly: true } },
+  { path: '/user/life-circle', name: 'life-circle', component: () => import('@/views/ReachabilityView.vue'), meta: { role: 'user', subscriberOnly: true } },
+  { path: '/user/wellbeing', name: 'wellbeing', component: () => import('@/views/WellbeingView.vue'), meta: { role: 'user', subscriberOnly: true } },
 
   // 管委會／合作廠商的管理工作台
   { path: '/community', name: 'community-home', component: () => import('@/views/CommunityView.vue'), meta: { role: 'manager' } },
@@ -92,6 +93,10 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     // 身分不符時導回自己的首頁，而不是顯示別人的工作台
     const required = to.meta.role as Role | undefined
     if (required && session.role !== required) return ROLE_HOME[session.role as Role]
+    // `subscriberOnly` 刻意**不擋導覽**：免費社區照樣進得來，只是內容會被
+    // `SubscriptionLock` 霧面遮起來（App.vue）。直接導走的話住戶永遠不知道
+    // 訂閱換到什麼，也就沒有升級的理由。遮罩本身會把內容設成 inert，
+    // 所以「看得到、用不到」是真的用不到，不是只有視覺上模糊。
     return true
   })
 

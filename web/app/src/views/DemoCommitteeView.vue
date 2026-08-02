@@ -154,7 +154,7 @@ onMounted(() => {
     </header>
 
     <section class="demo-kpi-grid" aria-label="管委會 KPI">
-      <article class="demo-kpi-card demo-kpi-blue" data-testid="committee-household-kpi"><span class="demo-kpi-icon" aria-hidden="true">🏢</span><div><strong>{{ dashboard.community.households }}</strong><span>社區戶數</span></div><small>標準方案落在 101–200 戶</small></article>
+      <article class="demo-kpi-card demo-kpi-blue" data-testid="committee-household-kpi"><span class="demo-kpi-icon" aria-hidden="true">🏢</span><div><strong>{{ dashboard.community.households }}</strong><span>社區戶數</span></div><small>月費依戶數分級</small></article>
       <article class="demo-kpi-card demo-kpi-peach" data-testid="committee-open-kpi"><span class="demo-kpi-icon" aria-hidden="true">🛒</span><div><strong>{{ dashboard.kpis.openGroupBuys }}</strong><span>檔團購進行中</span></div><small>進度與門檻即時同步</small></article>
       <article class="demo-kpi-card demo-kpi-mint" data-testid="committee-revenue-kpi"><span class="demo-kpi-icon" aria-hidden="true">💰</span><div><strong>{{ money(dashboard.kpis.groupBuyRevenue) }}</strong><span>團購成交額</span></div><small>本檔杜拜巧克力 {{ money(chocolateRevenue) }}</small></article>
       <article class="demo-kpi-card demo-kpi-lilac" data-testid="committee-savings-kpi"><span class="demo-kpi-icon" aria-hidden="true">✨</span><div><strong>{{ money(dashboard.kpis.savedForResidents) }}</strong><span>本月住戶省下</span></div><small>訂閱回饋的可見成果</small></article>
@@ -241,7 +241,7 @@ onMounted(() => {
     </section>
 
     <section class="demo-business-cta" data-testid="subscription-cta">
-      <div><p class="eyebrow">STEP 4・SUBSCRIPTION</p><h2>最後用一張帳務卡，說清楚這個模式</h2><p>112 戶社區適用標準月費 NT$12,000；Demo 試辦優惠是另一個清楚標示的價格。</p></div>
+      <div><p class="eyebrow">STEP 4・SUBSCRIPTION</p><h2>最後用一張帳務卡，說清楚這個模式</h2><p>月費依社區戶數分級，{{ dashboard.community.households }} 戶的日光森林落在最小的級距；導入期還可以先免費試用。</p></div>
       <RouterLink class="button primary" to="/demo/subscription">查看訂閱與帳務 →</RouterLink>
     </section>
   </section>

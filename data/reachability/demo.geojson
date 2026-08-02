@@ -8,7 +8,8 @@
     "venueAddress": "華南銀行國際會議中心（臺北市信義區松仁路 123 號）",
     "isDemo": true,
     "realTime": false,
-    "navigation": false
+    "navigation": false,
+    "locationIdSource": "fake_upstreams/partner_seed.py（partner-demo-v5）的信義區據點；tests/test_v4_reachability.py 會驗證每個 id 都在目錄投影中存在"
   },
   "features": [
     {
@@ -18,7 +19,12 @@
         "travelMode": "pedestrian",
         "thresholdMinutes": 10,
         "label": "步行 10 分鐘・固定示意範圍",
-        "eligibleLocationIds": ["loc-02-01"]
+        "eligibleLocationIds": [
+          "loc-711-shop-01",
+          "loc-711-c2c-01",
+          "loc-cosmed-01",
+          "loc-prince-electric-01"
+        ]
       },
       "geometry": {
         "type": "Polygon",
@@ -32,7 +38,14 @@
         "travelMode": "pedestrian",
         "thresholdMinutes": 15,
         "label": "步行 15 分鐘・固定示意範圍",
-        "eligibleLocationIds": ["loc-02-01", "loc-03-01"]
+        "eligibleLocationIds": [
+          "loc-711-shop-01",
+          "loc-711-c2c-01",
+          "loc-cosmed-01",
+          "loc-prince-electric-01",
+          "loc-duskin-01",
+          "loc-foodomo-01"
+        ]
       },
       "geometry": {
         "type": "Polygon",
@@ -46,7 +59,16 @@
         "travelMode": "scooter",
         "thresholdMinutes": 10,
         "label": "機車 10 分鐘・固定示意範圍",
-        "eligibleLocationIds": ["loc-02-01", "loc-03-01", "loc-08-01"]
+        "eligibleLocationIds": [
+          "loc-711-shop-01",
+          "loc-711-c2c-01",
+          "loc-cosmed-01",
+          "loc-prince-electric-01",
+          "loc-duskin-01",
+          "loc-foodomo-01",
+          "loc-21plus-01",
+          "loc-blackcat-01"
+        ]
       },
       "geometry": {
         "type": "Polygon",
@@ -60,7 +82,19 @@
         "travelMode": "scooter",
         "thresholdMinutes": 15,
         "label": "機車 15 分鐘・固定示意範圍",
-        "eligibleLocationIds": ["loc-01-01", "loc-02-01", "loc-03-01", "loc-08-01", "loc-09-01"]
+        "eligibleLocationIds": [
+          "loc-711-shop-01",
+          "loc-711-c2c-01",
+          "loc-cosmed-01",
+          "loc-prince-electric-01",
+          "loc-duskin-01",
+          "loc-foodomo-01",
+          "loc-21plus-01",
+          "loc-blackcat-01",
+          "loc-smile-01",
+          "loc-iopenmall-01",
+          "loc-ibon-ticket-01"
+        ]
       },
       "geometry": {
         "type": "Polygon",

@@ -31,7 +31,7 @@ from core.forms.service_catalog import list_services as list_catalog_services
 from core.agent_core import ServiceRegistry, SqliteGrantRepository, TimeResolver
 from core.agent_core.orchestrator import AgentOrchestrator
 from core.agent_core.sessions import SqliteAgentSessionStore
-from core.data.personas import PERSONAS, get_persona
+from core.data.personas import DEMO_HOUSEHOLDS, get_persona
 from core.demo_reset import DemoResetService
 from core.groups import GroupError, GroupPermissionError, GroupRepository, SqliteGroupRepository
 from core.community import (
@@ -381,7 +381,9 @@ def create_app(
     # M8 Agent:守門模組與對話持久化;LLM 一律走 llm_factory(正式=.env 的真實模型)
     agent_grants = SqliteGrantRepository(demo_db, now=demo_now)
     agent_sessions_store = SqliteAgentSessionStore(demo_db, now=demo_now)
-    for persona in PERSONAS:
+    # 每位展示住戶都要有起始點數——包含主要展示住戶王小明（DEMO_HOUSEHOLDS 而非
+    # PERSONAS，後者只涵蓋官方帳號分割的三位，會讓王小明的錢包停在 0）。
+    for persona in DEMO_HOUSEHOLDS:
         demo_points.post(
             demo_workspace_id="demo-default",
             workspace_id=f"workspace-personal-{persona.id}",
@@ -1824,8 +1826,8 @@ def create_app(
         """API 根路徑。使用者介面在 Vue 應用（`web/app`），不由此服務。"""
         return (
             "<!doctype html><meta charset='utf-8'>"
-            "<title>AI 生活服務平台 API</title>"
-            "<h1>AI 生活服務平台 API</h1>"
+            "<title>社區小統 API</title>"
+            "<h1>社區小統 API</h1>"
             "<p>這是後端 API。使用者介面請執行 <code>web/app</code>（<code>npm run dev</code>）。</p>"
             "<p><a href='/docs'>API 文件</a></p>"
         )

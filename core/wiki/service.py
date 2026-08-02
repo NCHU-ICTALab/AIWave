@@ -7,6 +7,7 @@ unknown content returns an explicit no-evidence response.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -215,13 +216,53 @@ class WikiService:
             })
         return validated
 
+    #: 詞彙切分只用來挑文章,不參與答案生成 — 命中的文章原文仍是唯一答案來源。
+    _TERM_SPLIT = re.compile(r"[\s,，。、!！?？:：;；「」『』()（）\[\]【】/]+")
+    _CJK_RUN = re.compile(r"[㐀-鿿]{2,}")
+    _MIN_TERM_LENGTH = 2
+
+    @classmethod
+    def _query_terms(cls, query: str) -> list[str]:
+        """Turn a natural-language query into candidate lookup terms.
+
+        Chinese queries have no whitespace, so splitting on spaces alone made a
+        whole sentence a single token that almost never appeared verbatim in an
+        article.  We additionally slide a 2–4 character window over each CJK run
+        so a sentence like「父親節可以幫我安排什麼」can still reach the article
+        that documents 父親節.  Terms are only a retrieval hint; the article body
+        remains the sole source of the answer.
+        """
+
+        normalized = query.casefold().strip()
+        if not normalized:
+            return []
+        terms: list[str] = []
+        seen: set[str] = set()
+
+        def add(term: str) -> None:
+            if len(term) >= cls._MIN_TERM_LENGTH and term not in seen:
+                seen.add(term)
+                terms.append(term)
+
+        for chunk in cls._TERM_SPLIT.split(normalized):
+            add(chunk)
+        for run in cls._CJK_RUN.findall(normalized):
+            for size in (4, 3, 2):
+                for start in range(0, len(run) - size + 1):
+                    add(run[start:start + size])
+        return terms
+
     def answer(self, domain: str, query: str) -> dict[str, Any]:
         articles = self.published(domain)
-        normalized = query.casefold()
-        matches = [article for article in articles if any(
-            token and token in (article.title + article.body).casefold()
-            for token in normalized.split()
-        )]
+        terms = self._query_terms(query)
+        # Rank by how many distinct query terms an article covers; ties keep the
+        # published (path-sorted) order so the same query always picks the same
+        # article.
+        scored = [
+            (sum(term in (article.title + article.body).casefold() for term in terms), index, article)
+            for index, article in enumerate(articles)
+        ]
+        matches = [article for score, _, article in sorted(scored, key=lambda row: (-row[0], row[1])) if score]
         if not matches:
             return {
                 "answer": self.no_evidence(), "citations": [],

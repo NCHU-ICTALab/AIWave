@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" width="480" height="300" role="presentation">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe8d3"/><stop offset="1" stop-color="#fbc79c"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="300" fill="url(#bg)"/>
+  <circle cx="150" cy="168" r="118" fill="#ffffff" opacity=".34"/>
+  <path d="M18,272 L462,272" stroke="#2d3748" stroke-width="4" stroke-linecap="round" opacity=".18"/>
+
+    <rect x="88" y="60" width="124" height="196" rx="12" fill="#e8541f" stroke="#2d3748" stroke-width="4"/>
+    <path d="M88,66 L94,72 L100,66 L106,72 L112,66 L118,72 L124,66 L130,72 L136,66 L142,72 L148,66 L154,72 L160,66 L166,72 L172,66 L178,72 L184,66 L190,72 L196,66 L202,72 L208,66 L214,72 L220,66" fill="none" stroke="#2d3748" stroke-width="3" opacity=".55"/>
+    <path d="M88,244 L94,250 L100,244 L106,250 L112,244 L118,250 L124,244 L130,250 L136,244 L142,250 L148,244 L154,250 L160,244 L166,250 L172,244 L178,250 L184,244 L190,250 L196,244 L202,250 L208,244 L214,250 L220,244" fill="none" stroke="#2d3748" stroke-width="3" opacity=".55"/>
+    <rect x="100" y="96" width="100" height="30" rx="15" fill="#f6c445" stroke="#2d3748" stroke-width="4"/>
+    <rect x="100" y="140" width="100" height="80" rx="10" fill="#a8320c" stroke="#2d3748" stroke-width="4"/>
+    <text x="150" y="174" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="26" font-weight="900" fill="#ffffff">統一麵</text>
+    <text x="150" y="203" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="18" font-weight="800" fill="#ffffff" opacity=".92">肉燥風味</text>
+  <rect x="272" y="34" width="74" height="34" rx="17" fill="#ffffff" stroke="#2d3748" stroke-width="3"/>
+  <text x="309" y="57" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="19" font-weight="900" fill="#2d3748">統一</text>
+  <text x="272" y="132" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="34" font-weight="900" fill="#2d3748">統一麵</text>
+  <text x="272" y="170" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="23" font-weight="800" fill="#2d3748" opacity=".82">肉燥風味特大號</text>
+  <rect x="272" y="190" width="124" height="36" rx="18" fill="#ffffff" stroke="#2d3748" stroke-width="3"/>
+  <text x="334" y="215" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="20" font-weight="800" fill="#2d3748">85g／5 入</text>
+</svg>

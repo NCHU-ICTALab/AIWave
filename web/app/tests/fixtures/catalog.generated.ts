@@ -942,7 +942,19 @@ export const insightSummary: BehaviorSummary = {
       "totalAmount": 248
     }
   ],
-  "source": "official_order_record"
+  "source": "official_order_record",
+  "composition": {
+    "id": "019a52d3-7f6b-7da3-b48d-9c9e2522d616",
+    "name": "小圓",
+    "roleSummary": "雙薪家庭，家電清洗、水電修繕與外食都會用",
+    "identityIds": [
+      "019a52d3-7f6b-7da3-b48d-9c9e2522d616"
+    ],
+    "composedFrom": 1,
+    "compositionNote": "展示組合：底下 3 個官方帳號是 member_*_hash 真的認回來的同一人，把這個身分指派給「小圓」則是我們為了 demo 指定的。",
+    "source": "demo_composition",
+    "resolvedByHash": 3
+  }
 } as unknown as BehaviorSummary
 
 export const insightRecommendations: Recommendation[] = [

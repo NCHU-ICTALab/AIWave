@@ -172,7 +172,7 @@ onMounted(() => {
 
 <template>
   <header class="page-heading">
-    <div><p class="eyebrow">AIWave 平台營運</p><h1>平台營運管理台</h1></div>
+    <div><p class="eyebrow">社區小統・平台營運</p><h1>平台營運管理台</h1></div>
     <span class="page-status">展示資料（partner-demo-v5）</span>
   </header>
 

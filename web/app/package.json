@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "audit:ui": "node tools/audit-ui.mjs",
-    "audit:assistant-scroll": "node tools/audit-assistant-scroll.mjs"
+    "audit:assistant-scroll": "node tools/audit-assistant-scroll.mjs",
+    "demo:drive": "node tools/demo-drive.mjs"
   },
   "dependencies": {
     "@fontsource/nunito": "^5.3.0",

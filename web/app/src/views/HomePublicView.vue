@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // 公開首頁(spec 15 §9.1、方向 A 原型 home-public.html):
 // 未登入者先看懂產品價值;右上角登入入口。不顯示任何個人資料。
+// 品牌標記走 bundler import;`public/` 路徑在 vitest 解析不到（見 App.vue 的說明）。
+import brandMark from '@/assets/aiwave.ico'
 const scenes = [
   { name: '食・餐廳訂位', desc: '21PLUS 合作餐廳線上訂位' },
   { name: '醫・處方箋領藥', desc: '處方箋辨識與康是美門市領藥(辨識展示,非醫療建議)' },
@@ -21,8 +23,8 @@ const pillars = [
   <a class="skip-link" href="#main-content">跳至主要內容</a>
   <header class="public-header">
     <span class="wordmark">
-      <span class="wordmark-mark" aria-hidden="true">生</span>
-      <span>AI 生活服務平台</span>
+      <img class="wordmark-mark" :src="brandMark" alt="" width="32" height="32" aria-hidden="true" />
+      <span>社區小統</span>
     </span>
     <RouterLink class="button primary" to="/login" data-testid="public-sign-in">登入</RouterLink>
   </header>

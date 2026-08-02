@@ -15,7 +15,7 @@
 
 ## 0. 三十秒版
 
-AIWave 是一個**會員優先的生活服務平台**：住戶用自然語言講出生活需求 → 平台理解並拆成任務 → 對到真實服務目錄 → 走完預約／購買／付款／取消的完整閉環，並在會員授權後主動提醒與關懷。
+**社區小統**（產品對外名稱；程式與憑證裡的 `aiwave*` 識別碼刻意不改名）是一個**會員優先的生活服務平台**：住戶用自然語言講出生活需求 → 平台理解並拆成任務 → 對到真實服務目錄 → 走完預約／購買／付款／取消的完整閉環，並在會員授權後主動提醒與關懷。
 
 四種角色各有獨立入口（ADR-0015）：**住戶 `/user`**、**管委會 `/community`**、**合作廠商 `/partner`**、**平台營運 `/platform`**。
 
@@ -25,8 +25,8 @@ AIWave 是一個**會員優先的生活服務平台**：住戶用自然語言講
 | --- | --- |
 | `core/` 業務模組 | 33 個套件、104 個 Python 檔 |
 | HTTP 端點 | 158（`api/app.py` 85 + `platform_core` 60 + `platform_access` 13） |
-| 後端測試檔 | 53 |
-| 前端頁面（Vue view） | 22；前端測試檔 32 |
+| 後端測試檔 | 57 |
+| 前端頁面（Vue view） | 28；前端測試檔 38 |
 | ADR | 17 份現行 |
 
 ---
@@ -116,7 +116,9 @@ AIWave 是一個**會員優先的生活服務平台**：住戶用自然語言講
 | --- | --- | --- | --- | --- |
 | Agent 協調器 | 理解 → 拆解 → 查真目錄 → 提案 → 預填 TaskDraft；LLM 解析失敗重試一次，再失敗誠實降級為追問 | `core/agent_core/orchestrator.py` | `POST /agent/messages`、`/agent/messages/stream` | `test_agent_m8.py`、`test_agent_guardrails.py` |
 | Turn／Action／ToolResult／TaskPatch 契約 | stable ID、`expectedVersion`、capability 的 risk／schema／principal 邊界；grounded 第二階段對正式 LLM 可用；模型失敗或 facts 矛盾時保留安全摘要 | `core/agent_core/contracts.py`、`turns.py` | — | `test_agent_v4_contracts.py`、`test_v4_acceptance_matrix.py` |
-| Service Registry | 口語需求詞 → domain 與 offering 候選；模糊需求（如「洗衣服」）回釐清選項，**不硬答也不回「沒有服務」** | `core/agent_core/registry.py` | — | `test_agent_guardrails.py` |
+| Service Registry | 口語需求詞 → domain 與 offering 候選；模糊需求（如「洗衣服」）回釐清選項，**不硬答也不回「沒有服務」**；`vocabulary()` 把同一份字彙交給需求理解器當 bounded context，模型才不會抽出解不開的 serviceHint | `core/agent_core/registry.py` | — | `test_agent_guardrails.py`、`test_demo_capabilities.py` |
+| 場合展開（只說場合、沒說服務） | 「父親節那個交給你安排」「爸媽要來」「過年前先弄一下」句中沒有服務名詞，登錄表解不開就會停在追問，住戶讀起來像「平台沒有這個服務」。`_OCCASION_BUNDLES` 是確定性對照表，把場合展開成**真的存在的** domain（父親節／母親節→清潔＋餐廳、過年→大掃除＋餐廳、搬家→清潔＋宅配…）。它只決定「提哪幾類服務」，**日期、價格、店家一律不填**；句中已有服務名詞時完全不介入 | `core/agent_core/registry.py::suggest_for_occasion`、`orchestrator.py::_occasion_decomposition` | — | `test_demo_capabilities.py` |
+| 對應不到時說得出自己會什麼 | 真的無法解析時，追問句會列出平台現在做得到的服務清單，而不是只說「不確定對應哪一類服務」 | `core/agent_core/orchestrator.py::_capability_menu_clarify` | — | `test_demo_capabilities.py` |
 | TimeResolver | 日期片語的確定性解析 | `core/agent_core/time_resolver.py` | — | `test_agent_m8.py` |
 | ExecutionGrant | 產生交易前的有範圍授權（服務商、時間範圍、預算／點數上限、到期時間）；送單前必須 consume 涵蓋該交易的已核准 Grant，超範圍或過期就擋下（ADR-0008） | `core/agent_core/grants.py` | `GET /agent/grants/{id}` | `test_agent_guardrails.py`、`test_agent_m8.py` |
 | ConversationSession | create／list／get／rename／archive／restore、metadata、pending grant、active task package、OCC、workspace／account 隔離；**封存保留資料，不宣稱永久刪除**；持久化於 SQLite 而非行程記憶體 | `core/agent_core/sessions.py` | `/agent/sessions*`、`/agent/sessions/latest` | `test_session_store.py`、`web/app/tests/agentSessions.spec.ts` |
@@ -129,6 +131,8 @@ AIWave 是一個**會員優先的生活服務平台**：住戶用自然語言講
 | --- | --- | --- | --- | --- |
 | 兩個隔離知識域 | 生活指南與產品 FAQ 完全隔離；依 domain、locale、region、app version 選文；引用與 action allowlist；**無證據時明確回答「沒有依據」，不會誤配第一篇文章**；Wiki body 只是資料，不能變成工具 action | `core/wiki/service.py` | Agent 回合內引用 | `test_v4_wiki.py` |
 | 已發布語料 | `docs/knowledge/product-help/` 加上內部編寫的 `life-guides/zhongyuan-preparation.md`；都只描述已核對或明確標示的 Demo 能力 | `docs/knowledge/` | — | `test_v4_wiki.py` |
+| 能力條目（AI 知道自己會什麼） | `product-help.ai-capabilities` 列出 Service Registry 的 11 個 domain、住戶常見說法、服務以外的能力,以及「只說場合沒說服務」的展開規則；同一份字彙也注入需求理解器的 bounded context | `docs/knowledge/product-help/ai-capabilities.md`、`core/agent_core/orchestrator.py::_service_vocabulary` | Agent 回合內引用 | `test_demo_capabilities.py` |
+| 中文檢索 | 查詢先切成詞與 CJK 2–4 字滑動視窗再依命中數排序;中文沒有空白,舊的整句比對幾乎命中不了任何條目 | `core/wiki/service.py::_query_terms` | — | `test_v4_wiki.py`、`test_demo_capabilities.py` |
 | 正式資料邊界 | 中元文章是 `published` 的內部 Demo 內容，不是官方／授權建議；颱風、搬家與正式指南仍待外部來源與人工審核 | 同上 | — | `test_v4_wiki.py` |
 
 ### H. 生活圈（Reachability）
@@ -176,6 +180,7 @@ AIWave 是一個**會員優先的生活服務平台**：住戶用自然語言講
 | 官方資料讀取 | 處理原始檔「多個 top-level JSON 物件串接」的怪癖（`json.load` 會噴 `Extra data`）；normalize 99 筆 `mms_order_record`／10 個帳號；官方 `service_id` → 9 項服務目錄 | `core/data/official_source.py`、`official_orders.py` | — | `test_insights.py` |
 | 行為指紋（身分解析） | 用官方 `member_*_hash` 把 10 個通路帳號真實合併成 8 個身分（hash 確實跨帳號重複，這是真的、不是編的） | `core/data/identity.py` | `GET /api/v1/insights/accounts` | `test_identity.py` |
 | Demo 家庭 | 小圓／陳伯伯／Vivian 三個家庭是**明確標示 `source: demo_composition` 的組合**，絕不當成推論結果呈現 | `core/data/personas.py` | — | `test_identity.py` |
+| 主展示住戶王小明 | 走同一條 `orders_for()` → `accounts_for_persona()` 展開，對到 4 個官方帳號（30 筆訂單、6 種服務）；**訂單與小圓／陳伯伯重疊**，所以 summary 一定附帶 `composition` 區塊寫明 `demo_composition` 與重用說明。`PERSONAS` 仍維持 3 個（它是 10 個官方帳號的分割），需要涵蓋王小明的種子改用 `DEMO_HOUSEHOLDS` | `core/data/personas.py`、`core/insights/behavior.py` | `/api/v1/insights/{id}/summary` | `test_wang_demo_data.py`、`test_identity.py` |
 | 行為軌跡與消費摘要 | 時間序事件與消費統計（注意：行為指紋 ≠ 行為軌跡） | `core/insights/behavior.py` | `/api/v1/insights/{id}/summary`、`/trail` | `test_insights_api.py` |
 | 可解釋推薦 | 確定性規則決定「推什麼、為什麼」，附 `evidence` 指向真實 `record_id`；**LLM 不參與**。回訪規則刻意排除事件驅動服務（修繕／餐廳／寄件）——「該再修一次水管了」是廢話 | `core/insights/recommendations.py` | `/api/v1/insights/{id}/recommendations` | `test_insights_api.py` |
 | 今日摘要 | 由真實待辦算出、不是 LLM 生成；排序依據是「誰在等誰」（卡在使用者身上的最優先） | `core/insights/today.py` | `GET /api/v1/today/{account_id}` | `test_today_briefing.py` |
@@ -189,6 +194,9 @@ AIWave 是一個**會員優先的生活服務平台**：住戶用自然語言講
 | 社區團購 | 住戶或管委會發起 → 社區住戶跟團 → 管理者到期結單；`open` → `closed`（產出給廠商的彙總）→ `fulfilled`。同一檔活動住戶與管委會看到不同視角，**資料只有一份**（ADR-0003） | `core/community/group_buy.py` | `/api/v1/community/campaigns*` | `test_group_buy.py` |
 | 社區聯合服務 | 匿名需求、方案決策與廠商履約放在同一筆可稽核資料；種子帶 `competition_seed` 來源標記 | `core/community/joint_service.py` | `/api/v1/community/joint-services*`、`/api/v1/vendor/joint-services*` | `test_joint_service.py` |
 | 社區公告 | 公告發布與閱讀 | `core/communities/` | `/platform/communities/{id}/announcements` | `test_communities.py` |
+| 社區方案身分（免費／訂閱） | 商業模式是**社區訂閱**，不是個人付費。免費社區只開放團購（瀏覽、跟團、開團），其餘住戶功能霧面顯示；訂閱社區解鎖全部。身分放在 Identity 的 `communityMembership`；沒帶這欄的身分（含舊 localStorage）由 `demoCommunityMembership()` 依帳號推導，展示上**王小明的社區已訂閱、陳伯伯的社區還沒**，兩種狀態都看得到。姓名旁顯示 VIP／免費徽章 | `web/app/src/stores/session.ts`、`views/SubscriptionView.vue` | 前端狀態（後端未建模） | `web/app/tests/subscriptionAndTicker.spec.ts` |
+| 付費功能的霧面遮罩 | `subscriberOnly` 路由**不導走**免費住戶——內容照常渲染，再由 `SubscriptionLock` 蓋上霧面與解鎖卡片，住戶才看得到訂閱換到什麼。關鍵是模糊只是視覺：被鎖的內容一律 `inert` + `aria-hidden`，鍵盤與螢幕閱讀器都進不去，否則就是「看得到、唸得出、Tab 進得去」的假鎖，還會踩到 WCAG 2.4.11。`prefers-reduced-motion` 與 `prefers-contrast: more` 下改用低透明度而非模糊。**區塊級的閘門用同一個元件**：首頁的主動關懷卡、近期行程、生活圈、AI 管家與個人化建議都是同一份內容加 `:locked`，不是「訂閱版＋免費替代卡」兩份會漂移的 markup；住戶社區頁也把訂閱後的實際畫面霧面放出來，取代原本的「🔒 功能條列」 | `web/app/src/components/SubscriptionLock.vue`、`App.vue`、`views/TodayView.vue`、`views/CommunityHubView.vue`、`router/index.ts` | — | `web/app/tests/subscriptionAndTicker.spec.ts` |
+| 社區快訊跑馬燈 | 首頁與住戶社區頁的橫向跑馬燈，公告與熱銷團購交錯輪播；有暫停／播放按鈕（`aria-pressed`），並在 `prefers-reduced-motion` 下停止動畫。**團購推播由 `GROUP_BUY_CATALOG` 算出**（取成團進度最高的兩檔、算出還差幾件），不是另寫一份文案，所以不會跟商品頁的價格與進度漂移 | `web/app/src/components/CommunityTicker.vue` | 前端 Demo 內容 | `web/app/tests/subscriptionAndTicker.spec.ts` |
 
 ### N. 客服與訂單異常
 
@@ -235,7 +243,9 @@ AIWave 是一個**會員優先的生活服務平台**：住戶用自然語言講
 | `/user/calendar` | `CalendarView` | 行事曆（由首頁卡片進入，不佔主導覽）：月／列表切換、日期分組、來源篩選 | `calendarView.spec.ts` |
 | `/user/points` | `PointsView` | 點數帳本（與首頁讀同一份 ledger） | `pointsView.spec.ts` |
 | `/user/member` | `MemberView` | 會員中心 | `memberCenter.spec.ts` |
-| `/user/community` | `CommunityBoardView` | 住戶端社區看板：團購與公設 | `communityAnnouncements.spec.ts`、`communityGroupBuy.spec.ts` |
+| `/user/subscription` | `SubscriptionView` | 住戶端社區方案：免費／訂閱兩張方案卡、功能比較表、Demo 模擬啟用 VIP。**未訂閱者存取 `subscriberOnly` 路由時會被導向這裡**；完整六級距以真正的 `<table>` 呈現，社區月費一律由 `planForHouseholds(householdCount)` 對照 `SUBSCRIPTION_TIERS`（日光森林 28 戶 → NT$999），導入期優惠是免費試用 3–6 個月而不是第二個價格；與管委會端 `/demo/subscription` 讀同一份 `COMMUNITY_DEMO_SEED.subscription` | `subscriptionAndTicker.spec.ts` |
+| `/user/community` | `CommunityHubView` | 住戶端社區入口：訂閱社區看完整看板；免費社區看到訂閱說明＋可用的團購區塊（`CommunityBoardView` 的 `groupBuyOnly` 模式收起公告／群組／共同需求，但保留跟團），再把訂閱後的社區首頁整個霧面（`SubscriptionLock` + `DemoResidentView`）放在下方，讓住戶直接看到訂閱換到什麼 | `communityAnnouncements.spec.ts`、`communityGroupBuy.spec.ts`、`subscriptionAndTicker.spec.ts` |
+| `/user/community/group-buys` | `GroupBuyCatalogView` | 團購商品目錄：真實統一企業商品名稱、規格與原商品頁連結；商品照是**零售通路（momo／全聯線上）拍的商品照片**，一次下載後放在 `web/app/public/group-buy/` 由本站提供（執行時不連外部 CDN），逐張出處記在同資料夾的 `README.md`，**不是統一企業授權的官方素材**，載入失敗時退回自繪 SVG；價格、庫存、到貨日與成團進度是 Demo 資料 | `groupBuyCatalog.spec.ts` |
 | `/user/life-circle` | `ReachabilityView` | 生活圈：步行／機車切換、單次定位不保存 | `reachability.spec.ts` |
 | `/user/wellbeing` | `WellbeingView` | 生活成果、成就、關懷卡、Demo 回饋 | `wellbeing.spec.ts` |
 | `/community` | `CommunityView` | 管委會工作台 | `communityAnnouncements.spec.ts` |
@@ -243,7 +253,9 @@ AIWave 是一個**會員優先的生活服務平台**：住戶用自然語言講
 | `/platform` | `PlatformView` | 平台管理台：目錄健康表、重新同步、demo reset 確認（不在登入選項與主導覽） | `platformAdmin.spec.ts` |
 | `/demo/*` | `Demo*View` | Demo-first 社區團購走查頁，與既有串接頁隔離，方便簡報重複操作 | `communityDemoFlow.spec.ts`、`demoStore.spec.ts` |
 
-**共用元件**：`AgentConversation`、`AgentDrawer`、`AgentSessionHistory`（獨立 AI 頁與側欄共享同一段對話與草稿）、`ServiceIntakeForm`、`LifeTaskCard`、`SupportIssuePanel`、`ConfirmDialog`、`StepIndicator`、`AppIcon`、`DemoRoleSwitcher`。
+**共用元件**：`AgentConversation`、`AgentDrawer`、`AgentSessionHistory`（獨立 AI 頁與側欄共享同一段對話與草稿）、`CommunityTicker`（首頁／社區頁的社區快訊跑馬燈）、`ServiceIntakeForm`、`LifeTaskCard`、`SupportIssuePanel`、`ConfirmDialog`、`StepIndicator`、`AppIcon`、`DemoRoleSwitcher`。
+
+**「後端沒啟動」是一句很貴的話**：使用者看到就會去重開一個其實正在跑的 API，真正的原因反而被蓋掉——住戶 王小明 的公告 403（他當時不是社區成員）就是這樣被讀成「存取不到後端」的。因此 `web/app/src/api/http.ts` 匯出 `backendAnswered(reason)`（有 HTTP 狀態碼＝後端有回應；連線失敗會被正規化成 `status 0`），前端必須把三件事分開講：**成功但空**、**後端回了錯誤／拒絕**、**真的連不上**，只有最後一種可以叫使用者去確認服務是否啟動。由 `tests/backendUnavailableHonesty.spec.ts` 守住。
 
 **前端鐵律**：前端**不持有**任何服務或表單定義——目錄、表單定義、報價全部來自後端；`domain/serviceIntake.ts` 只保留型別與即時回饋用的鏡像驗證器。測試 fixture 由後端產生（`uv run python tools/dump_catalog_fixture.py`），所以不會偷偷漂移。WCAG 2.2 AA 由 `tests/accessibilityBaseline.spec.ts` 強制。
 
@@ -262,6 +274,7 @@ AIWave 是一個**會員優先的生活服務平台**：住戶用自然語言講
 | `placeholder: true` | 可替換的佔位 Provider | 「樂」場景的 Provider |
 | `draft` / `not_published` | 內容未取得授權來源或未經人工審核，**系統會誠實擋下** | 尚未發布的颱風／搬家指南與正式生活資料 |
 | `demo-only` | 競賽固定示意資料，只能用來展示互動，必須同時標示限制 | 中元內部 Demo 指南、`data/reachability/demo.geojson` |
+| **真實品牌／通路商品照** | 商品名稱、品牌與規格是真的（附原商品頁連結可查），商品照是零售通路自己拍的商品照片、下載後在本機提供並逐張標註出處，**不是品牌授權的官方素材**（備援才是自繪 SVG）；價格與庫存仍是 Demo | 團購目錄的統一企業商品、`web/app/public/group-buy/*.jpg` 與其 `README.md`（備援 `*.svg`） |
 
 品牌名單來自產品負責人 2026-07-30 提供的正式名單（`廠商and表單.md`）；`partner-demo-v5` seed 有 7 個 Provider（住×2／食 21PLUS／行 速邁樂＋黑貓／醫 康是美／預 7-ELEVEN／樂 統一渡假村）。
 
@@ -282,8 +295,10 @@ AIWave 是一個**會員優先的生活服務平台**：住戶用自然語言講
 - **會場官方精確座標與外部人工檢查過的 GeoJSON**：尚未取得；目前固定檔案只作 Demo approximation，Amazon Location adapter 未接。
 - **正式 AWS 部署**：`infra/` 只是探索性腳本，production verification／secrets 未具備。
 - **MCP Streamable HTTP Gateway（mcp==2.0.0）**：現有只是 stdio 相容代理。
-- **系統化 browser E2E 與全站 WCAG 深度稽核**（含鍵盤逐頁走查）、**五分鐘實站彩排與錄影備援**：屬 M10，未完成。元件測試與 production build 不替代人工 gate。
+- **系統化 browser E2E 與全站 WCAG 深度稽核**（含鍵盤逐頁走查）：屬 M10，未完成。元件測試與 production build 不替代人工 gate。
+- **Demo 錄影備援**：驅動腳本已可用（`web/app/tools/demo-drive.mjs`，九幕、可單幕重錄、輸出配音分軌表，見 [錄製文件](testing/demo-video-recording.md)），且已實跑通過；**但影片本身尚未錄製、旁白尚未配音**。腳本只涵蓋 `/demo/*` 前端 Demo 主線，不含 `/user/*` 的真後端與真 LLM 走查。
 - **Session 永久刪除與 retention policy**：需要產品／法務決策。
+- **訂閱的後端建模與計費**：社區方案身分目前**只存在於前端 Identity**（`communityMembership`），沒有訂閱資料表、沒有計費、沒有伺服器端授權檢查。訂閱頁的「模擬啟用 VIP」只改前端狀態；方案價格是商業模型示意，不是報價。
 
 ---
 
@@ -301,6 +316,9 @@ uv run pytest tests/test_form_engine.py::test_skip_ac_type_when_not_choosing_ac
 uv run pytest -q tests/test_agent_m8.py tests/test_agent_v4_contracts.py \
   tests/test_v4_task_packages.py tests/test_v4_care.py tests/test_v4_care_policy.py \
   tests/test_v4_wiki.py tests/test_v4_outcomes.py tests/test_platform_core_api.py
+
+# 王小明 Demo 憑證與 AI 能力邊界（場合展開、能力選單、服務字彙）
+uv run pytest -q tests/test_wang_demo_credential.py tests/test_demo_capabilities.py
 
 # 前端（於 web/app）
 npm test -- --run

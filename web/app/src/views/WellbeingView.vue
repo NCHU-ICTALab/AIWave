@@ -91,7 +91,7 @@ onMounted(() => { void load() })
 <template>
   <main class="member-page wellbeing-page" data-testid="wellbeing-page">
     <header class="page-heading">
-      <p class="eyebrow">AIWave v4</p>
+      <p class="eyebrow">社區小統・生活關懷</p>
       <h1>生活關懷與成果</h1>
       <p class="page-lead">把明確授權的情境、可編輯安排與已完成的結果放在同一頁。</p>
     </header>

@@ -1,0 +1,763 @@
+<title>AIWave 系統流程圖</title>
+<style>
+  :root {
+    --fig-scale: 1;
+    --ink: #17211F;
+    --ink-soft: #46534F;
+    --ink-faint: #6B7873;
+    --ground: #FBFAF7;
+    --surface: #FFFFFF;
+    --rule: #DAD6CB;
+    --plate: #F2F0E9;
+    --plate-rule: #D6D2C4;
+    --accent: #1F6F63;
+    --accent-ink: #14554B;
+    --accent-soft: #DFEDE8;
+    --clay: #A94E2B;
+    --clay-soft: #F6E5DC;
+    --focus: #1F6F63;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #EDEEEA;
+      --ink-soft: #B5BDB9;
+      --ink-faint: #8B948F;
+      --ground: #111716;
+      --surface: #1C2523;
+      --rule: #313D3A;
+      --plate: #161E1C;
+      --plate-rule: #2B3634;
+      --accent: #74C8B4;
+      --accent-ink: #9BDCCB;
+      --accent-soft: #1C3A34;
+      --clay: #E89469;
+      --clay-soft: #3A2419;
+      --focus: #74C8B4;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #EDEEEA;
+    --ink-soft: #B5BDB9;
+    --ink-faint: #8B948F;
+    --ground: #111716;
+    --surface: #1C2523;
+    --rule: #313D3A;
+    --plate: #161E1C;
+    --plate-rule: #2B3634;
+    --accent: #74C8B4;
+    --accent-ink: #9BDCCB;
+    --accent-soft: #1C3A34;
+    --clay: #E89469;
+    --clay-soft: #3A2419;
+    --focus: #74C8B4;
+  }
+  :root[data-theme="light"] {
+    --ink: #17211F;
+    --ink-soft: #46534F;
+    --ink-faint: #6B7873;
+    --ground: #FBFAF7;
+    --surface: #FFFFFF;
+    --rule: #DAD6CB;
+    --plate: #F2F0E9;
+    --plate-rule: #D6D2C4;
+    --accent: #1F6F63;
+    --accent-ink: #14554B;
+    --accent-soft: #DFEDE8;
+    --clay: #A94E2B;
+    --clay-soft: #F6E5DC;
+    --focus: #1F6F63;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Hiragino Sans GB", system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4rem;
+  }
+
+  /* ---------- 字級控制列 ---------- */
+  .zoombar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    padding: 0.6rem 0.9rem;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 1120px;
+    background: color-mix(in srgb, var(--ground) 92%, transparent);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+  }
+  .zoombar button {
+    font: inherit;
+    font-weight: 700;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.25rem 0.8rem;
+    cursor: pointer;
+    min-width: 2.4rem;
+  }
+  .zoombar button:hover { border-color: var(--accent); color: var(--accent-ink); }
+  .zoombar output { font-variant-numeric: tabular-nums; min-width: 3.4rem; text-align: right; }
+
+  /* ---------- 頁首 ---------- */
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding-bottom: 2rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .eyebrow {
+    font-size: 0.78rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 800;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(2.1rem, 4.6vw, 3.2rem);
+    line-height: 1.14;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .standfirst { margin: 0; max-width: 62ch; font-size: 1.08rem; color: var(--ink-soft); }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem;
+    font-size: 0.85rem; color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  section { display: flex; flex-direction: column; gap: 1.15rem; }
+  .sec-head { display: flex; flex-direction: column; gap: 0.3rem; }
+  .sec-tag {
+    font-size: 0.76rem; letter-spacing: 0.16em; text-transform: uppercase;
+    font-weight: 800; color: var(--accent-ink);
+  }
+  h2 {
+    margin: 0;
+    font-size: clamp(1.5rem, 2.8vw, 2rem);
+    font-weight: 800; letter-spacing: -0.005em; text-wrap: balance;
+  }
+  .lede { margin: 0; max-width: 68ch; color: var(--ink-soft); }
+  .caption { margin: 0; font-size: 0.88rem; color: var(--ink-faint); }
+  code {
+    font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, monospace;
+    font-size: 0.92em;
+  }
+
+  /* ---------- 圖版 ---------- */
+  .plate {
+    background: var(--plate);
+    border: 1px solid var(--plate-rule);
+    border-radius: 4px;
+    padding: 1.6rem 1.4rem;
+    overflow-x: auto;
+  }
+  .diagram {
+    font-size: calc(1rem * var(--fig-scale));
+    display: flex;
+    flex-direction: column;
+    gap: 0.55em;
+    min-width: min(100%, 34em);
+  }
+
+  .band {
+    border: 1px solid var(--plate-rule);
+    border-left: 4px solid var(--accent);
+    background: color-mix(in srgb, var(--surface) 45%, transparent);
+    border-radius: 3px;
+    padding: 0.75em 0.85em 0.85em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6em;
+  }
+  .band.muted { border-left-color: var(--ink-faint); }
+  .band.warm { border-left-color: var(--clay); }
+  .band-tag {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5em;
+    font-size: 0.82em; font-weight: 800; letter-spacing: 0.06em;
+    color: var(--ink);
+  }
+  .band-tag span { font-weight: 500; letter-spacing: 0; color: var(--ink-faint); font-size: 0.94em; }
+
+  .nodes { display: flex; flex-wrap: wrap; gap: 0.5em; }
+  .nodes.grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(11em, 1fr)); }
+
+  .node {
+    flex: 1 1 10em;
+    min-width: 9.5em;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.55em 0.7em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15em;
+    line-height: 1.45;
+  }
+  .n-title { font-weight: 700; font-size: 1em; }
+  .n-sub { font-size: 0.82em; color: var(--ink-faint); }
+  .node.core { border-color: var(--accent); background: var(--accent-soft); }
+  .node.core .n-sub { color: var(--accent-ink); }
+  .node.llm { border-color: var(--clay); background: var(--clay-soft); }
+  .node.llm .n-sub { color: var(--clay); }
+  .node.gate { border: 2px dashed var(--clay); background: var(--surface); }
+  .node.term { border-radius: 999px; text-align: center; align-items: center; flex: 0 1 auto; }
+
+  .link {
+    display: flex; align-items: center; gap: 0.6em;
+    padding-left: 0.5em;
+    color: var(--ink-faint);
+    font-size: 0.86em;
+  }
+  .link::before {
+    content: "";
+    width: 2px; height: 1.6em;
+    background: var(--ink-faint);
+    flex: none;
+    margin-left: 0.6em;
+  }
+  .link::after {
+    content: "▼";
+    margin-left: -1.25em;
+    margin-top: 1em;
+    font-size: 0.75em;
+    color: var(--ink-faint);
+  }
+  .link em { font-style: normal; margin-left: 1em; }
+
+  .fork { display: grid; grid-template-columns: repeat(auto-fit, minmax(15em, 1fr)); gap: 0.6em; }
+  .branch {
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.6em 0.7em;
+    background: color-mix(in srgb, var(--surface) 55%, transparent);
+    display: flex; flex-direction: column; gap: 0.45em;
+  }
+  .branch-tag {
+    font-size: 0.8em; font-weight: 800; letter-spacing: 0.05em;
+    color: var(--accent-ink);
+  }
+  .branch.alt .branch-tag { color: var(--clay); }
+
+  .rowflow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0.45em; }
+  .rowflow .arrow {
+    align-self: center; color: var(--ink-faint); font-weight: 700; flex: none;
+  }
+
+  .note {
+    border-left: 3px solid var(--clay);
+    background: var(--clay-soft);
+    color: var(--ink);
+    padding: 0.5em 0.75em;
+    border-radius: 0 3px 3px 0;
+    font-size: 0.9em;
+  }
+
+  /* ---------- 序列圖（階梯） ---------- */
+  .ladder { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4em; }
+  .ladder li {
+    display: grid;
+    grid-template-columns: 2em minmax(8em, 11em) 1fr;
+    gap: 0.75em;
+    align-items: start;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 0.55em 0.7em;
+    line-height: 1.5;
+  }
+  .ladder li.turn { border-left: 4px solid var(--clay); }
+  .ladder li.gatestep { border-left: 4px solid var(--accent); }
+  .step-n {
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    color: var(--ink-faint);
+    text-align: right;
+    font-size: 0.95em;
+  }
+  .step-hop { font-weight: 700; font-size: 0.92em; color: var(--accent-ink); }
+  .ladder li.turn .step-hop { color: var(--clay); }
+  .step-body { margin: 0; }
+  .step-body small { display: block; color: var(--ink-faint); font-size: 0.85em; }
+
+  /* ---------- 表格與卡片 ---------- */
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+  th, td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-faint); border-bottom: 1px solid var(--ink-soft); white-space: nowrap;
+  }
+  td:first-child { font-weight: 700; }
+
+  .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1rem; }
+  .card {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 1.1rem 1.25rem; display: flex; flex-direction: column; gap: 0.5rem;
+  }
+  .card.accent { border-left: 3px solid var(--accent); }
+  .card.warm { border-left: 3px solid var(--clay); }
+  .card h3 { margin: 0; font-size: 1rem; font-weight: 800; }
+  .card ul { margin: 0; padding-left: 1.15rem; color: var(--ink-soft); font-size: 0.95rem; }
+  .card li { margin-bottom: 0.25rem; }
+
+  footer { border-top: 1px solid var(--rule); padding-top: 1.5rem; font-size: 0.9rem; color: var(--ink-faint); }
+  a { color: var(--accent-ink); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+
+  @media (max-width: 640px) {
+    .ladder li { grid-template-columns: 1.6em 1fr; }
+    .ladder .step-hop { grid-column: 2; }
+    .ladder .step-body { grid-column: 2; }
+  }
+</style>
+
+<div class="zoombar">
+  <span>圖表字級</span>
+  <button type="button" id="zoom-out" aria-label="縮小圖表字級">−</button>
+  <output id="zoom-val" for="zoom-out zoom-in">100%</output>
+  <button type="button" id="zoom-in" aria-label="放大圖表字級">＋</button>
+</div>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">2026 雲湧智生 · 統一資訊命題</div>
+    <h1>AIWave 系統流程圖</h1>
+    <p class="standfirst">一句生活話語，如何穿過前端、Agent、確定性核心與服務商上游，變成一筆真正被履約的訂單。以下五張圖以<strong>程式模組</strong>切分，每個框都對應 repo 裡實際存在的套件。</p>
+    <div class="meta">
+      <span>基線 2026-08-02</span>
+      <span>core/ 33 套件 · 104 檔</span>
+      <span>HTTP 端點 158</span>
+      <span>後端測試 53 檔 · 前端 32 檔</span>
+    </div>
+  </header>
+
+  <!-- 圖 1 -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-tag">圖 1 · 模組總覽</div>
+      <h2>四層架構：只有 core/ 碰得到資料與 LLM</h2>
+      <p class="lede">前端與 MCP 都只是傳輸層，不得自行實作業務規則（ADR-0004）。LLM 位於智慧層，負責理解與規劃；所有會產生副作用的決策都落在確定性核心。</p>
+    </div>
+    <div class="plate">
+      <div class="diagram">
+
+        <div class="band muted">
+          <div class="band-tag">接觸點 <span>web/app · Vue 3 + Pinia，四個工作區共用一個 router</span></div>
+          <div class="nodes grid4">
+            <div class="node"><span class="n-title">住戶</span><span class="n-sub">/user</span></div>
+            <div class="node"><span class="n-title">管委會</span><span class="n-sub">/community</span></div>
+            <div class="node"><span class="n-title">合作廠商</span><span class="n-sub">/partner</span></div>
+            <div class="node"><span class="n-title">平台營運</span><span class="n-sub">/platform</span></div>
+          </div>
+        </div>
+
+        <div class="link"><em>HTTP</em></div>
+
+        <div class="band muted">
+          <div class="band-tag">傳輸層 <span>不含任何業務規則</span></div>
+          <div class="nodes">
+            <div class="node"><span class="n-title">Platform API</span><span class="n-sub">api/app.py · create_app() · 158 端點</span></div>
+            <div class="node"><span class="n-title">MCP stdio 相容層</span><span class="n-sub">mcp_server/ · 只透過 Platform API，自己不碰 DB</span></div>
+          </div>
+        </div>
+
+        <div class="link"><em>自然語言回合 → 智慧層；一般操作 → 直接進核心</em></div>
+
+        <div class="band warm">
+          <div class="band-tag">智慧層 <span>LLM 規劃，只產生語意，不產生事實</span></div>
+          <div class="nodes">
+            <div class="node llm"><span class="n-title">Agent 協調器</span><span class="n-sub">core/agent_core/</span></div>
+            <div class="node llm"><span class="n-title">答案抽取</span><span class="n-sub">agent/form_agent.py</span></div>
+            <div class="node llm"><span class="n-title">隔離知識庫 Wiki</span><span class="n-sub">core/wiki/</span></div>
+          </div>
+        </div>
+
+        <div class="link"><em>只讀 facts、只寫草稿；副作用一律回到核心</em></div>
+
+        <div class="band">
+          <div class="band-tag">確定性核心 core/ <span>規則執行，唯一碰資料的一層</span></div>
+          <div class="nodes grid4">
+            <div class="node core"><span class="n-title">題組引擎</span><span class="n-sub">forms/</span></div>
+            <div class="node core"><span class="n-title">服務目錄</span><span class="n-sub">catalog/</span></div>
+            <div class="node core"><span class="n-title">任務草稿</span><span class="n-sub">task_drafts/</span></div>
+            <div class="node core"><span class="n-title">交易履約</span><span class="n-sub">fulfillment/</span></div>
+            <div class="node core"><span class="n-title">點數・付款</span><span class="n-sub">points/ · payments/</span></div>
+            <div class="node core"><span class="n-title">洞察・推薦</span><span class="n-sub">insights/</span></div>
+            <div class="node core"><span class="n-title">主動關懷</span><span class="n-sub">proactive_care/</span></div>
+            <div class="node core"><span class="n-title">身分・權限</span><span class="n-sub">access/ · communities/</span></div>
+          </div>
+        </div>
+
+        <div class="link"><em>全部走 Protocol 介面，換 AWS 只換實作</em></div>
+
+        <div class="band muted">
+          <div class="band-tag">資料與外部</div>
+          <div class="nodes grid4">
+            <div class="node"><span class="n-title">官方樣本資料</span><span class="n-sub">raw_data/ · 零修改</span></div>
+            <div class="node"><span class="n-title">SQLite</span><span class="n-sub">Protocol 後可換 RDS</span></div>
+            <div class="node"><span class="n-title">Provider 上游</span><span class="n-sub">ProviderConnector</span></div>
+            <div class="node"><span class="n-title">LLM 服務</span><span class="n-sub">OpenAI 相容端點 · core/clients/llm.py</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <p class="caption">鐵律：前端不持有任何服務或表單定義，目錄／表單／報價一律由後端下發；測試 fixture 以 <code>tools/dump_catalog_fixture.py</code> 由後端產生，前後端不會悄悄漂移。</p>
+  </section>
+
+  <!-- 圖 2 -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-tag">圖 2 · 主線</div>
+      <h2>一句話到一筆訂單</h2>
+      <p class="lede">Demo 的主幹，依序發生。橘色是 LLM 參與的回合，綠色是授權閘門——中間這道 ExecutionGrant 就是「AI 不會自己亂下單」的證據。</p>
+    </div>
+    <div class="plate">
+      <div class="diagram">
+        <ol class="ladder">
+          <li><span class="step-n">1</span><span class="step-hop">住戶 → Web</span><p class="step-body">「陳伯伯下週要回診，順便叫個車」</p></li>
+          <li><span class="step-n">2</span><span class="step-hop">Web → Agent</span><p class="step-body"><code>POST /agent/messages</code><small>Session 持久化於 SQLite，可重開、重命名、封存</small></p></li>
+          <li class="turn"><span class="step-n">3</span><span class="step-hop">Agent → LLM</span><p class="step-body">拆子任務、抽服務關鍵詞與日期片語<small>LLM 只回語意草案，不含任何事實</small></p></li>
+          <li><span class="step-n">4</span><span class="step-hop">Agent → 註冊表・目錄</span><p class="step-body">服務是否存在？有沒有時段？價格多少？<small>模糊需求（例如「洗衣服」）回釐清選項，不硬答也不回「沒有服務」</small></p></li>
+          <li><span class="step-n">5</span><span class="step-hop">目錄 → Agent</span><p class="step-body">真實 offering、slot 與報價<small>服務有無、日期、價格全由規則裁決，LLM 說了不算</small></p></li>
+          <li><span class="step-n">6</span><span class="step-hop">Agent → TaskDraft</span><p class="step-body">預填草稿，逐欄標記來源（AI 填的還是使用者填的）</p></li>
+          <li><span class="step-n">7</span><span class="step-hop">Agent → 住戶</span><p class="step-body">提案卡：模板理由 + evidence<small>理由是模板文字，永遠可驗證，不是模型自由發揮</small></p></li>
+          <li class="gatestep"><span class="step-n">8</span><span class="step-hop">住戶 → ExecutionGrant</span><p class="step-body">確認範圍：服務商、時間範圍、預算／點數上限、到期時間</p></li>
+          <li class="gatestep"><span class="step-n">9</span><span class="step-hop">送單 → Grant 檢核</span><p class="step-body">consume 涵蓋該筆交易的已核准授權<small>超範圍或過期直接擋下（ADR-0008）</small></p></li>
+          <li><span class="step-n">10</span><span class="step-hop">平台 → Provider</span><p class="step-body">connector 現場驗證後建單<small>探索讀投影不依賴上游存活，但下單一定即時驗證</small></p></li>
+          <li><span class="step-n">11</span><span class="step-hop">平台 → 住戶</span><p class="step-body">StatusEvent 時間軸、通知、行事曆事件同時到位</p></li>
+        </ol>
+        <div class="note">任何一步的 LLM 解析失敗都重試一次，再失敗就誠實降級為追問——不會崩潰，也不會憑空生出服務。測試：<code>tests/test_agent_m8.py</code>、<code>tests/test_agent_guardrails.py</code></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 圖 3 -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-tag">圖 3 · 需求理解模組</div>
+      <h2>問題是模板，答案抽取才交給 LLM</h2>
+      <p class="lede">留資表單完全對齊官方 <code>pms_form</code> 四張表，題型只用官方 1–10 碼，跳題邏輯寫在官方 JSONB 欄位裡——零 DDL 變更。引擎本身沒有 LLM，所以可以逐條單元測試。</p>
+    </div>
+    <div class="plate">
+      <div class="diagram">
+
+        <div class="nodes">
+          <div class="node term"><span class="n-title">住戶口語回覆</span></div>
+        </div>
+
+        <div class="link"></div>
+
+        <div class="band warm">
+          <div class="band-tag">答案抽取 <span>agent/form_agent.py · interpret()</span></div>
+          <div class="fork">
+            <div class="branch">
+              <div class="branch-tag">answer</div>
+              <div class="node"><span class="n-title">填入答案</span><span class="n-sub">地名先經 regions.py 解成官方 county／district code</span></div>
+            </div>
+            <div class="branch">
+              <div class="branch-tag">skip</div>
+              <div class="node"><span class="n-title">跳過本題</span><span class="n-sub">交回引擎重新排序</span></div>
+            </div>
+            <div class="branch alt">
+              <div class="branch-tag">unclear ／ 解析失敗</div>
+              <div class="node"><span class="n-title">重新追問</span><span class="n-sub">不猜、不崩潰</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="link"></div>
+
+        <div class="band">
+          <div class="band-tag">題組引擎 <span>core/forms/engine.py · 純確定性、無 LLM</span></div>
+          <div class="rowflow">
+            <div class="node core"><span class="n-title">題目排序</span></div>
+            <span class="arrow">→</span>
+            <div class="node core"><span class="n-title">跳題</span><span class="n-sub">feature.skipLogic</span></div>
+            <span class="arrow">→</span>
+            <div class="node core"><span class="n-title">欄位驗證</span></div>
+            <span class="arrow">→</span>
+            <div class="node core"><span class="n-title">progress()</span></div>
+            <span class="arrow">→</span>
+            <div class="node gate"><span class="n-title">is_complete()？</span></div>
+          </div>
+          <div class="fork">
+            <div class="branch alt">
+              <div class="branch-tag">尚未完成</div>
+              <div class="node"><span class="n-title">下一題</span><span class="n-sub">模板文案，回到住戶</span></div>
+            </div>
+            <div class="branch">
+              <div class="branch-tag">完成</div>
+              <div class="node"><span class="n-title">to_feedback_content()</span><span class="n-sub">輸出官方 answerList 形狀</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="link"></div>
+
+        <div class="rowflow">
+          <div class="node core"><span class="n-title">諮詢單</span><span class="n-sub">INQ-YYYYMMDD-NNN · core/inquiries/ · inquiry_events 稽核</span></div>
+          <span class="arrow">→</span>
+          <div class="node core"><span class="n-title">服務媒合</span><span class="n-sub">core/matching/ · 命題七項條件各一條可解釋規則 → reasons</span></div>
+        </div>
+
+        <div class="note">種子表單：F1 修繕／F2 團購／F3 公設。媒合分數由規則算出，LLM 不參與評分。測試：<code>tests/test_form_engine.py</code>、<code>tests/test_matching.py</code></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 圖 4 -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-tag">圖 4 · 交易閉環</div>
+      <h2>住・食・行・醫・預・樂，六場景共用同一條路</h2>
+      <p class="lede">domain registry 決定每個 offering 的必填欄位、走預約還是商城、以及該用哪一組狀態名稱（訂位是「店家確認」，宅配是「理貨」）。分岔只在這一處，後面完全共用。</p>
+    </div>
+    <div class="plate">
+      <div class="diagram">
+
+        <div class="nodes">
+          <div class="node"><span class="n-title">入口 A：預約精靈</span><span class="n-sub">/user/booking · 手動操作</span></div>
+          <div class="node llm"><span class="n-title">入口 B：Agent 提案</span><span class="n-sub">對話產生</span></div>
+        </div>
+
+        <div class="link"><em>兩個入口共用同一份 TaskDraft</em></div>
+
+        <div class="nodes">
+          <div class="node core"><span class="n-title">TaskDraft</span><span class="n-sub">core/task_drafts/ · 持久化草稿 · OCC 版本控制 · 欄位來源標記</span></div>
+        </div>
+
+        <div class="link"></div>
+
+        <div class="band">
+          <div class="band-tag">domain registry <span>core/catalog/domains.py · 唯一的分岔點</span></div>
+          <div class="fork">
+            <div class="branch">
+              <div class="branch-tag">booking</div>
+              <div class="node"><span class="n-title">Booking</span><span class="n-sub">據點 → 方案 → 真實時段</span></div>
+            </div>
+            <div class="branch">
+              <div class="branch-tag">commerce</div>
+              <div class="node"><span class="n-title">CommerceOrder</span><span class="n-sub">品項 → 數量 → 配送</span></div>
+            </div>
+            <div class="branch alt">
+              <div class="branch-tag">必填欄位不足</div>
+              <div class="node"><span class="n-title">退回草稿補齊</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="link"><em>兩條分支在此匯流</em></div>
+
+        <div class="nodes">
+          <div class="node core"><span class="n-title">確定性試算</span><span class="n-sub">catalog/pricing.py · 價格由目錄決定不信任 client · 讀真實點數餘額與折抵上限</span></div>
+          <div class="node core"><span class="n-title">submit</span><span class="n-sub">重複提交回同一筆</span></div>
+        </div>
+
+        <div class="link"></div>
+
+        <div class="band muted">
+          <div class="band-tag">ProviderConnector <span>Standard／Adapter／Workbench 三種接入共用同一介面</span></div>
+          <div class="fork">
+            <div class="branch">
+              <div class="branch-tag">上游成立</div>
+              <div class="node"><span class="n-title">進入付款</span></div>
+            </div>
+            <div class="branch alt">
+              <div class="branch-tag">503 ／ 狀態未知</div>
+              <div class="node"><span class="n-title">誠實回報 + 安全重試</span><span class="n-sub">payload-bound idempotency</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="link"></div>
+
+        <div class="band">
+          <div class="band-tag">付款 <span>core/payments/ · 付款主體所有權驗證（IDOR 防護）</span></div>
+          <div class="fork">
+            <div class="branch alt">
+              <div class="branch-tag">失敗</div>
+              <div class="node"><span class="n-title">payment_failed</span><span class="n-sub">可重付，成功後回 placed</span></div>
+            </div>
+            <div class="branch">
+              <div class="branch-tag">成功</div>
+              <div class="node"><span class="n-title">placed</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="link"></div>
+
+        <div class="band">
+          <div class="band-tag">履約與後續 <span>core/fulfillment/ · StatusEvent 時間軸，per-domain 狀態名稱</span></div>
+          <div class="nodes grid4">
+            <div class="node core"><span class="n-title">通知</span><span class="n-sub">notifications/ · 安靜時段 · deep link</span></div>
+            <div class="node core"><span class="n-title">行事曆</span><span class="n-sub">calendar/</span></div>
+            <div class="node core"><span class="n-title">生活成果・成就</span><span class="n-sub">outcomes/ · Provider 結算</span></div>
+            <div class="node core"><span class="n-title">取消</span><span class="n-sub">自動全額退款 + 點數沖銷</span></div>
+            <div class="node core"><span class="n-title">改期</span><span class="n-sub">廠商審核 → 行事曆跟著新時段</span></div>
+          </div>
+        </div>
+
+        <div class="note">任務包（LifeTaskPackage）可逐項編輯、跨 Provider 逐項執行，但<strong>永遠不直接建立 booking 或 order</strong>——一律回到上面這條路。測試：<code>tests/test_m4_scenarios.py</code>、<code>tests/test_v4_task_packages.py</code></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 圖 5 -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-tag">圖 5 · 資料與主動性</div>
+      <h2>儀表板上的每個數字，都算得出來源</h2>
+      <p class="lede">洞察區沒有任何硬編碼數字，全部由官方 <code>mms_order_record</code> 計算。主動關懷刻意拆成三個狀態，讀取訊息不產生任何副作用。</p>
+    </div>
+    <div class="plate">
+      <div class="diagram">
+
+        <div class="band muted">
+          <div class="band-tag">官方資料 <span>core/data/ · 零修改</span></div>
+          <div class="rowflow">
+            <div class="node"><span class="n-title">mms_order_record</span><span class="n-sub">99 筆 ／ 10 個通路帳號</span></div>
+            <span class="arrow">→</span>
+            <div class="node"><span class="n-title">行為指紋</span><span class="n-sub">identity.py · member_*_hash 合併成 8 個身分</span></div>
+            <span class="arrow">→</span>
+            <div class="node"><span class="n-title">Demo 家庭</span><span class="n-sub">personas.py · 明確標記 demo_composition</span></div>
+          </div>
+        </div>
+
+        <div class="link"></div>
+
+        <div class="band">
+          <div class="band-tag">洞察 <span>core/insights/ · 全部由官方訂單算出</span></div>
+          <div class="nodes">
+            <div class="node core"><span class="n-title">行為軌跡・消費摘要</span><span class="n-sub">behavior.py</span></div>
+            <div class="node core"><span class="n-title">可解釋推薦</span><span class="n-sub">recommendations.py · 規則決定推什麼與為什麼，evidence 指向真實 record_id</span></div>
+            <div class="node core"><span class="n-title">今日摘要</span><span class="n-sub">today.py · 依「誰在等誰」排序</span></div>
+          </div>
+        </div>
+
+        <div class="link"><em>行為軌跡與生活圈事件送進關懷流程</em></div>
+
+        <div class="band">
+          <div class="band-tag">主動關懷 <span>core/proactive_care/ · 三個狀態刻意分離</span></div>
+          <div class="rowflow">
+            <div class="node"><span class="n-title">白名單情境事件</span><span class="n-sub">不做背景定位、不刮行事曆</span></div>
+            <span class="arrow">→</span>
+            <div class="node"><span class="n-title">確定性候選</span></div>
+            <span class="arrow">→</span>
+            <div class="node gate"><span class="n-title">送達政策</span><span class="n-sub">policy.py · quiet／balanced／caring · 頻率上限 · 安靜時段</span></div>
+            <span class="arrow">→</span>
+            <div class="node core"><span class="n-title">可操作訊息</span><span class="n-sub">顯示原因與用了哪些資料 · ignore／snooze／開啟指南</span></div>
+          </div>
+          <div class="nodes">
+            <div class="node"><span class="n-title">生活圈</span><span class="n-sub">core/reachability/ · 步行／機車 10・15 分鐘可達範圍 · 單次定位不保存</span></div>
+            <div class="node llm"><span class="n-title">LLM Wiki</span><span class="n-sub">core/wiki/ · 生活指南與產品 FAQ 兩個隔離知識域，無證據時明確說「沒有依據」</span></div>
+          </div>
+        </div>
+
+        <div class="link"></div>
+
+        <div class="nodes">
+          <div class="node term core"><span class="n-title">住戶首頁 /user</span></div>
+        </div>
+
+        <div class="note">名詞別混：<strong>行為指紋</strong>是用 hash 合併通路帳號的身分解析，<strong>行為軌跡</strong>是時間序事件。Provider 到府服務範圍是獨立決策，絕不退化成「離會員多遠」的距離推算。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 一頁總結 -->
+  <section>
+    <div class="sec-head">
+      <div class="sec-tag">簡報用一頁</div>
+      <h2>職責邊界：LLM 規劃，規則執行</h2>
+      <p class="lede">這是評審最常追問的一題。若只留一張投影片，留這張。</p>
+    </div>
+    <div class="split">
+      <div class="card warm">
+        <h3>LLM 只做這三件事</h3>
+        <ul>
+          <li>把一句話拆成子任務</li>
+          <li>抽服務關鍵詞與日期片語</li>
+          <li>抽表單欄位值</li>
+        </ul>
+      </div>
+      <div class="card accent">
+        <h3>全部由確定性模組裁決</h3>
+        <ul>
+          <li>服務是否存在、時段是否可訂</li>
+          <li>日期解析、價格與點數折抵</li>
+          <li>授權範圍與所有副作用</li>
+        </ul>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>設計選擇</th><th>為什麼這樣切</th><th>依據</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>官方表結構零修改</td><td>新功能一律外掛擴充表，跳題邏輯放官方 JSONB 欄位，交付方導入不需改 DDL</td><td>ADR-0002</td></tr>
+          <tr><td>個人／家庭／社區同一機制</td><td>共用 <code>owner_scope</code> 加 <code>grp</code>／<code>group_member</code>，不是三套子系統；同一檔團購住戶與管委會看到不同視角，資料只有一份</td><td>ADR-0003</td></tr>
+          <tr><td>外部依賴都在 Protocol 後面</td><td>LLM 與持久化可換成 Bedrock 與 RDS，呼叫端一行不動</td><td>ADR-0004</td></tr>
+          <tr><td>ExecutionGrant 有界授權</td><td>產生交易前必須有涵蓋該筆的已核准授權，超範圍或過期直接擋下</td><td>ADR-0008</td></tr>
+          <tr><td>目錄投影與上游分離</td><td>探索讀投影，不依賴上游存活；但下單前仍由 connector 現場驗證</td><td>ADR-0007</td></tr>
+          <tr><td>推薦可解釋</td><td>規則決定推什麼與為什麼並附 evidence，LLM 不參與評分</td><td>ADR-0011 / 0017</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    每個框都對得回 <a href="../feature-inventory.md">docs/feature-inventory.md</a> 的「功能 → 程式碼 → 端點 → 測試」對照表。資料真實性分級（官方／真實推導／<code>demo_composition</code>／<code>competition_seed</code>／<code>placeholder</code>／<code>draft</code>）見該文件第 4 節。
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var scale = 1;
+    var root = document.documentElement;
+    var out = document.getElementById('zoom-val');
+    function apply() {
+      root.style.setProperty('--fig-scale', String(scale));
+      out.textContent = Math.round(scale * 100) + '%';
+    }
+    document.getElementById('zoom-in').addEventListener('click', function () {
+      scale = Math.min(2, Math.round((scale + 0.15) * 100) / 100);
+      apply();
+    });
+    document.getElementById('zoom-out').addEventListener('click', function () {
+      scale = Math.max(0.7, Math.round((scale - 0.15) * 100) / 100);
+      apply();
+    });
+    apply();
+  })();
+</script>

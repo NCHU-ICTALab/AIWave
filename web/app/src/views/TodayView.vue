@@ -2,10 +2,13 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { backendAnswered } from '@/api/http'
 import { createInsightsClient, type BehaviorSummary, type BriefingItem } from '@/api/insightsClient'
 import { createLifeTaskClient, type LifeTask } from '@/api/lifeTaskClient'
 import { createLifestyleClient } from '@/api/lifestyleClient'
+import CommunityTicker from '@/components/CommunityTicker.vue'
 import FatherDayPushCard from '@/components/FatherDayPushCard.vue'
+import SubscriptionLock from '@/components/SubscriptionLock.vue'
 import {
   listCalendarEvents, listNotifications, markNotificationRead,
   type CalendarEvent, type NotificationRecord,
@@ -28,6 +31,8 @@ const briefing = ref<BriefingItem[]>([])
 const lifeTasks = ref<LifeTask[]>([])
 const wallet = ref<PointsWallet | null>(null)
 const status = ref<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
+/** 為什麼取不到資料：後端回了錯 / 形狀不對 / 真的連不上，三者不可以講成同一句話。 */
+const unavailableReason = ref<'' | 'failed' | 'malformed' | 'offline'>('')
 const need = ref('')
 const feedbackStatus = ref('')
 const matching = ref(false)
@@ -136,6 +141,8 @@ async function load() {
       pointsClient.wallet().catch(() => null),
     ])
     if (!isSummary(loadedSummary)) {
+      // 後端有回,只是內容不是預期的形狀。這不是「後端沒起來」。
+      unavailableReason.value = 'malformed'
       status.value = 'unavailable'
       return
     }
@@ -144,7 +151,10 @@ async function load() {
     lifeTasks.value = Array.isArray(loadedLifeTasks) ? loadedLifeTasks : []
     wallet.value = loadedWallet
     status.value = 'ready'
-  } catch {
+  } catch (reason) {
+    // 有 HTTP 狀態碼就代表後端有回應(例如 401 憑證過期);叫使用者去啟動一個
+    // 已經在跑的服務,只會讓真正的原因更難找。
+    unavailableReason.value = backendAnswered(reason) ? 'failed' : 'offline'
     status.value = 'unavailable'
   }
 }
@@ -224,8 +234,20 @@ async function submitNeed(text: string) {
       </p>
     </header>
 
-    <!-- 一般住戶與王小明共用同一個主動關懷卡片：推薦服務，也說清楚可以買什麼。 -->
-    <FatherDayPushCard />
+    <CommunityTicker />
+
+    <!--
+      一般住戶與王小明共用同一個主動關懷卡片：推薦服務，也說清楚可以買什麼。
+      免費社區看到的是同一張卡片的霧面版本——看得到訂閱換到什麼，但點不到。
+    -->
+    <SubscriptionLock
+      :locked="!session.isSubscriber"
+      title="AI 主動關懷提醒"
+      description="訂閱社區後，AI 會依節日與你的生活紀錄主動整理可以安排的服務；免費社區仍可使用社區團購。"
+      :heading-level="2"
+    >
+      <FatherDayPushCard />
+    </SubscriptionLock>
 
     <!-- 1. 點數與本月消費 -->
     <section class="home-card" data-home-section="overview" aria-labelledby="points-title">
@@ -253,7 +275,13 @@ async function submitNeed(text: string) {
         <strong>尚無消費與點數紀錄</strong>
         <p class="muted">新會員不會看到其他人的展示數字；完成第一件服務後才開始累積。</p>
       </div>
-      <p v-else-if="status === 'unavailable'" class="panel muted" role="status">目前無法取得你的使用紀錄，請確認後端服務是否啟動。</p>
+      <p v-else-if="status === 'unavailable'" class="panel muted" role="status" :data-reason="unavailableReason">
+        目前無法取得你的使用紀錄——{{ unavailableReason === 'offline'
+          ? '連不上後端服務，請確認 API 是否已啟動。'
+          : unavailableReason === 'malformed'
+            ? '後端有回應，但資料格式不如預期。'
+            : '後端有回應但拒絕了這次查詢（可能是登入憑證已失效），請重新登入再試。' }}
+      </p>
       <div v-else class="panel" role="status">正在整理你的生活資訊…</div>
     </section>
 
@@ -299,115 +327,143 @@ async function submitNeed(text: string) {
         </li>
       </ul>
       <!-- 近期行程卡:行事曆 projection 的前三筆 + 通知未讀;非六大區塊之一,掛在待處理事項之下 -->
-      <div class="panel schedule-card" data-testid="upcoming-schedule">
-        <div class="section-title-row">
-          <h3>近期行程</h3>
-          <RouterLink class="text-link" to="/user/calendar">開啟行事曆</RouterLink>
-        </div>
-        <p v-if="scheduleStatus === 'unavailable'" class="muted" role="status">
-          行程與通知暫時無法載入;其他內容不受影響。
-        </p>
-        <template v-else>
-          <ul v-if="upcomingEvents.length" class="plain-list" data-testid="upcoming-event-list">
-            <li v-for="event in upcomingEvents" :key="event.id">
-              <strong>{{ event.title }}</strong>
-              <span class="muted">・{{ formatEventTime(event.startsAt) }}</span>
-            </li>
-          </ul>
-          <p v-else class="muted">近期沒有已排定的行程。</p>
-          <div v-if="unreadCount > 0">
-            <button class="text-button" type="button" data-testid="notification-toggle"
-              :aria-expanded="notificationsOpen" @click="notificationsOpen = !notificationsOpen">
-              通知 <span class="status" data-testid="notification-badge">{{ unreadCount }} 則未讀</span>
-            </button>
-            <ul v-if="notificationsOpen" class="plain-list" data-testid="notification-list">
-              <li v-for="item in recentNotifications" :key="item.id">
-                <strong>{{ item.title }}</strong>
-                <span class="muted">・{{ item.body }}</span>
-                <button v-if="!item.readAt" class="text-button" type="button"
-                  :data-testid="`notification-read-${item.id}`" @click="markRead(item)">標為已讀</button>
+      <SubscriptionLock
+        :locked="!session.isSubscriber"
+        title="近期行程與通知"
+        description="行事曆、提醒與通知整理是訂閱功能；訂閱後這裡會列出接下來要發生的事。"
+        :heading-level="3"
+      >
+        <div class="panel schedule-card" data-testid="upcoming-schedule">
+          <div class="section-title-row">
+            <h3>近期行程</h3>
+            <RouterLink class="text-link" to="/user/calendar">開啟行事曆</RouterLink>
+          </div>
+          <p v-if="scheduleStatus === 'unavailable'" class="muted" role="status">
+            行程與通知暫時無法載入;其他內容不受影響。
+          </p>
+          <template v-else>
+            <ul v-if="upcomingEvents.length" class="plain-list" data-testid="upcoming-event-list">
+              <li v-for="event in upcomingEvents" :key="event.id">
+                <strong>{{ event.title }}</strong>
+                <span class="muted">・{{ formatEventTime(event.startsAt) }}</span>
               </li>
             </ul>
-          </div>
-          <p class="source-note muted">進度、通知與行事曆來自同一份 StatusEvent(展示資料)。</p>
-        </template>
-      </div>
+            <p v-else class="muted">近期沒有已排定的行程。</p>
+            <div v-if="unreadCount > 0">
+              <button class="text-button" type="button" data-testid="notification-toggle"
+                :aria-expanded="notificationsOpen" @click="notificationsOpen = !notificationsOpen">
+                通知 <span class="status" data-testid="notification-badge">{{ unreadCount }} 則未讀</span>
+              </button>
+              <ul v-if="notificationsOpen" class="plain-list" data-testid="notification-list">
+                <li v-for="item in recentNotifications" :key="item.id">
+                  <strong>{{ item.title }}</strong>
+                  <span class="muted">・{{ item.body }}</span>
+                  <button v-if="!item.readAt" class="text-button" type="button"
+                    :data-testid="`notification-read-${item.id}`" @click="markRead(item)">標為已讀</button>
+                </li>
+              </ul>
+            </div>
+            <p class="source-note muted">進度、通知與行事曆來自同一份 StatusEvent(展示資料)。</p>
+          </template>
+        </div>
+      </SubscriptionLock>
       <p class="source-note">依你的委託與案件狀態以規則整理，非語言模型生成。</p>
     </section>
 
     <!-- v4 生活圈入口：資料未審核時頁面會明確顯示 blocker，不顯示假範圍。 -->
-    <section class="panel home-panel" data-v4-section="life-circle" aria-labelledby="life-circle-title">
-      <div class="section-title-row">
-        <h2 id="life-circle-title">會場生活圈</h2>
-        <RouterLink class="button inline" to="/user/life-circle">查看生活圈</RouterLink>
-      </div>
-      <p class="muted">從指定會場切換步行／機車與 10／15 分鐘；只在有經確認 GeoJSON 時顯示據點。</p>
-    </section>
+    <SubscriptionLock
+      :locked="!session.isSubscriber"
+      title="會場生活圈"
+      description="虛擬地圖、通勤圈與附近 7-ELEVEN／ibon／統一服務，訂閱後即可查看。"
+      :heading-level="2"
+    >
+      <section class="panel home-panel" data-v4-section="life-circle" aria-labelledby="life-circle-title">
+        <div class="section-title-row">
+          <h2 id="life-circle-title">會場生活圈</h2>
+          <RouterLink class="button inline" to="/user/life-circle">查看生活圈</RouterLink>
+        </div>
+        <p class="muted">從指定會場切換步行／機車與 10／15 分鐘；只在有經確認 GeoJSON 時顯示據點。</p>
+      </section>
+    </SubscriptionLock>
 
     <!-- 3. 交給 AI 管家 -->
-    <section class="panel home-panel home-ai" data-home-section="ai" aria-labelledby="ai-title">
-      <h2 id="ai-title">交給 AI 管家</h2>
-      <p class="need-lede">用一句話描述需求，AI 會拆解成可確認的任務，例如「這週末找一間信義區四人餐廳」。</p>
-      <form class="need-form" @submit.prevent="submitNeed(need)">
-        <label class="visually-hidden" for="need-input">描述你的需求</label>
-        <input id="need-input" v-model="need" data-testid="need-input" type="text" placeholder="例如：爸媽週六要來，幫我安排清潔和修繕" autocomplete="off" />
-        <button class="button primary" type="submit" data-testid="need-submit" :disabled="matching">{{ matching ? '準備中…' : '交給 AI' }}</button>
-      </form>
-      <div class="need-starters">
-        <span class="muted">試試看：</span>
-        <button v-for="starter in starters" :key="starter" class="starter-chip" type="button" data-testid="need-starter" @click="submitNeed(starter)">{{ starter }}</button>
-      </div>
-      <div class="button-row ai-cta-row">
-        <RouterLink class="button primary" to="/user/assistant">開始對話</RouterLink>
-      </div>
-      <ol v-if="status === 'ready' && !hasHistory" class="onboarding-steps compact" data-testid="onboarding-steps">
-        <li><strong>描述需求</strong><span>用日常說法即可。</span></li>
-        <li><strong>預覽方案</strong><span>AI 補齊必要資訊。</span></li>
-        <li><strong>確認才執行</strong><span>交易與送單不會偷跑。</span></li>
-      </ol>
-    </section>
+    <SubscriptionLock
+      :locked="!session.isSubscriber"
+      title="AI 管家"
+      description="自然語言拆解、服務推薦與確認後安排，訂閱社區後即可使用。"
+      :heading-level="2"
+    >
+      <section class="panel home-panel home-ai" data-home-section="ai" aria-labelledby="ai-title">
+        <h2 id="ai-title">交給 AI 管家</h2>
+        <p class="need-lede">用一句話描述需求，AI 會拆解成可確認的任務，例如「這週末找一間信義區四人餐廳」。</p>
+        <form class="need-form" @submit.prevent="submitNeed(need)">
+          <label class="visually-hidden" for="need-input">描述你的需求</label>
+          <input id="need-input" v-model="need" data-testid="need-input" type="text" placeholder="例如：爸媽週六要來，幫我安排清潔和修繕" autocomplete="off" />
+          <button class="button primary" type="submit" data-testid="need-submit" :disabled="matching">{{ matching ? '準備中…' : '交給 AI' }}</button>
+        </form>
+        <div class="need-starters">
+          <span class="muted">試試看：</span>
+          <button v-for="starter in starters" :key="starter" class="starter-chip" type="button" data-testid="need-starter" @click="submitNeed(starter)">{{ starter }}</button>
+        </div>
+        <div class="button-row ai-cta-row">
+          <RouterLink class="button primary" to="/user/assistant">開始對話</RouterLink>
+        </div>
+        <ol v-if="status === 'ready' && !hasHistory" class="onboarding-steps compact" data-testid="onboarding-steps">
+          <li><strong>描述需求</strong><span>用日常說法即可。</span></li>
+          <li><strong>預覽方案</strong><span>AI 補齊必要資訊。</span></li>
+          <li><strong>確認才執行</strong><span>交易與送單不會偷跑。</span></li>
+        </ol>
+      </section>
+    </SubscriptionLock>
 
     <!-- 4. 給你的建議 -->
-    <section class="panel home-panel briefing" data-home-section="recommendations" aria-labelledby="recommendation-title">
-      <div class="section-title-row">
-        <h2 id="recommendation-title">給你的建議</h2>
-      </div>
-      <p v-if="!suggestedBriefing.length" class="muted">使用服務後，這裡會出現有依據、可單獨調整的建議。</p>
-      <ul v-else class="briefing-list">
-        <li v-for="item in suggestedBriefing" :key="item.id" class="briefing-item suggestion" data-testid="briefing-item">
-          <div class="briefing-body">
-            <span class="briefing-tag status reco-badge" data-kind="suggestion">個人化</span>
-            <strong>{{ item.title }}</strong>
-            <p class="muted reco-why">{{ item.detail }}</p>
-            <details v-if="item.evidence.length" class="reason-details">
-              <summary>為什麼提這件事？</summary>
-              <ul :data-testid="`briefing-evidence-${item.id}`">
-                <li v-for="(record, index) in item.evidence" :key="index">{{ describeEvidence(record) }}</li>
-              </ul>
-            </details>
-          </div>
-          <div class="briefing-actions">
-            <RouterLink v-if="item.actionRoute" class="button inline" :to="item.actionRoute">{{ item.actionLabel }}</RouterLink>
-            <button class="text-button" type="button" data-testid="briefing-dismiss" :aria-label="`不顯示「${item.title}」這則建議`" @click="dismissRecommendation(item)">不感興趣</button>
-          </div>
-        </li>
-      </ul>
-      <p v-if="lastDismissedRecommendation" class="recommendation-feedback" role="status" data-testid="briefing-dismissed">
-        已收起「{{ lastDismissedRecommendation.title }}」，其他建議不受影響。
-        <button class="text-button" type="button" @click="undoRecommendation(lastDismissedRecommendation)">復原</button>
-      </p>
-      <p v-if="feedbackStatus" class="need-error" role="alert">{{ feedbackStatus }}</p>
-      <p class="source-note">依你的使用紀錄以規則整理，非語言模型生成。</p>
-    </section>
+    <SubscriptionLock
+      :locked="!session.isSubscriber"
+      title="給你的建議"
+      description="個人化服務建議與優惠整理，會在訂閱後依你的社區生活資料提供。"
+      :heading-level="2"
+    >
+      <section class="panel home-panel briefing" data-home-section="recommendations" aria-labelledby="recommendation-title">
+        <div class="section-title-row">
+          <h2 id="recommendation-title">給你的建議</h2>
+        </div>
+        <p v-if="!suggestedBriefing.length" class="muted">使用服務後，這裡會出現有依據、可單獨調整的建議。</p>
+        <ul v-else class="briefing-list">
+          <li v-for="item in suggestedBriefing" :key="item.id" class="briefing-item suggestion" data-testid="briefing-item">
+            <div class="briefing-body">
+              <span class="briefing-tag status reco-badge" data-kind="suggestion">個人化</span>
+              <strong>{{ item.title }}</strong>
+              <p class="muted reco-why">{{ item.detail }}</p>
+              <details v-if="item.evidence.length" class="reason-details">
+                <summary>為什麼提這件事？</summary>
+                <ul :data-testid="`briefing-evidence-${item.id}`">
+                  <li v-for="(record, index) in item.evidence" :key="index">{{ describeEvidence(record) }}</li>
+                </ul>
+              </details>
+            </div>
+            <div class="briefing-actions">
+              <RouterLink v-if="item.actionRoute" class="button inline" :to="item.actionRoute">{{ item.actionLabel }}</RouterLink>
+              <button class="text-button" type="button" data-testid="briefing-dismiss" :aria-label="`不顯示「${item.title}」這則建議`" @click="dismissRecommendation(item)">不感興趣</button>
+            </div>
+          </li>
+        </ul>
+        <p v-if="lastDismissedRecommendation" class="recommendation-feedback" role="status" data-testid="briefing-dismissed">
+          已收起「{{ lastDismissedRecommendation.title }}」，其他建議不受影響。
+          <button class="text-button" type="button" @click="undoRecommendation(lastDismissedRecommendation)">復原</button>
+        </p>
+        <p v-if="feedbackStatus" class="need-error" role="alert">{{ feedbackStatus }}</p>
+        <p class="source-note">依你的使用紀錄以規則整理，非語言模型生成。</p>
+      </section>
+    </SubscriptionLock>
 
     <!-- 5. 常用功能 -->
     <section class="panel home-panel" data-home-section="shortcuts" aria-labelledby="shortcuts-title">
       <h2 id="shortcuts-title">常用功能</h2>
       <ul class="quick-links">
-        <li><RouterLink to="/user/services">預約服務</RouterLink></li>
+        <li><RouterLink :class="{ 'locked-shortcut': !session.isSubscriber }" :aria-label="session.isSubscriber ? '預約服務' : '預約服務，訂閱解鎖'" to="/user/services">預約服務<span v-if="!session.isSubscriber" aria-hidden="true"> 🔒</span></RouterLink></li>
         <li><RouterLink to="/user/orders">我的訂單</RouterLink></li>
-        <li><RouterLink to="/user/calendar">行事曆</RouterLink></li>
-        <li><RouterLink to="/user/wellbeing">生活關懷與成果</RouterLink></li>
+        <li><RouterLink :class="{ 'locked-shortcut': !session.isSubscriber }" :aria-label="session.isSubscriber ? '行事曆' : '行事曆，訂閱解鎖'" to="/user/calendar">行事曆<span v-if="!session.isSubscriber" aria-hidden="true"> 🔒</span></RouterLink></li>
+        <li><RouterLink :class="{ 'locked-shortcut': !session.isSubscriber }" :aria-label="session.isSubscriber ? '生活關懷與成果' : '生活關懷與成果，訂閱解鎖'" to="/user/wellbeing">生活關懷與成果<span v-if="!session.isSubscriber" aria-hidden="true"> 🔒</span></RouterLink></li>
         <li><RouterLink to="/user/community#my-groups-title">我的群組</RouterLink></li>
         <li><RouterLink to="/user/community">我的社區</RouterLink></li>
       </ul>
@@ -447,6 +503,9 @@ async function submitNeed(text: string) {
 }
 .home-card {
   display: grid;
+}
+.locked-shortcut {
+  color: var(--muted);
 }
 
 /* 點數與本月消費:三欄 KPI(原型 .grid.cols-3 + .kpi) */

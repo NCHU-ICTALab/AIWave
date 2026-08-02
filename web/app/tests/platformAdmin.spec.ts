@@ -11,7 +11,7 @@ import { mountApp } from './fixtures/mountApp'
 const ADMIN: Identity = {
   role: 'admin',
   accountId: null,
-  displayName: 'AIWave 平台營運者',
+  displayName: '社區小統平台營運者',
   accessToken: 'aiwave-admin',
 }
 

@@ -1,8 +1,11 @@
-# AIWave 生活服務作業系統
+# 社區小統・生活服務作業系統
 
 2026 雲湧智生：臺灣生成式 AI 應用黑客松——統一資訊命題。
 
-AIWave 以個人會員為主體，讓手動 Web、未來 Agent、MCP 與合作方工作台共用同一套
+> 產品對外名稱是**社區小統**。程式碼、Bearer 憑證（`aiwave-*`）、帳號與 workspace id
+> 裡的 `aiwave` **刻意不改名**——那些是識別碼與憑證，不是給人看的名字，改了會直接壞掉。
+
+社區小統以個人會員為主體，讓手動 Web、未來 Agent、MCP 與合作方工作台共用同一套
 Platform API、身分權限、交易狀態、點數、通知與行事曆。它不是第二個 OPENPOINT、純聊天
 機器人或只有畫面的 mock demo。
 
@@ -88,6 +91,7 @@ Platform API 使用 Bearer token，不接受瀏覽器自行宣告 `X-Account-Id`
 | `aiwave-chen` | 會員陳伯伯 |
 | `aiwave-vivian` | 會員 Vivian |
 | `aiwave-new` | 無歷史資料的新會員 |
+| `aiwave-demo-resident` | 住戶王小明（`household-wang-xiaoming`） |
 | `aiwave-partner` | 王子水電合作方人員 |
 | `aiwave-partner-duskin` | DUSKIN 樂清合作方人員 |
 | `aiwave-partner-21plus` | 21PLUS 餐廳合作方人員 |

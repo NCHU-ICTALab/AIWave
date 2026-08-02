@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
+import CommunityTicker from '@/components/CommunityTicker.vue'
 import FatherDayPushCard from '@/components/FatherDayPushCard.vue'
 import { DEMO_HOUSEHOLD_ID, type DemoCommunityAnswer } from '@/domain/communityDemo'
 import { useCommunityDemoStore } from '@/stores/communityDemo'
@@ -81,6 +82,8 @@ onMounted(() => {
         <span>訂閱服務 → 社區優惠 → 團購成交</span>
       </div>
     </header>
+
+    <CommunityTicker />
 
     <section class="demo-kpi-grid" aria-label="住戶首頁摘要">
       <article class="demo-kpi-card demo-kpi-peach" data-testid="resident-package-kpi">

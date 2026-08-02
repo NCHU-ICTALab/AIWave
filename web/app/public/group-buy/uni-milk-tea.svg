@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" width="480" height="300" role="presentation">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8ead9"/><stop offset="1" stop-color="#ecd0ae"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="300" fill="url(#bg)"/>
+  <circle cx="150" cy="168" r="118" fill="#ffffff" opacity=".34"/>
+  <path d="M18,272 L462,272" stroke="#2d3748" stroke-width="4" stroke-linecap="round" opacity=".18"/>
+
+    <path d="M94,66 L122,42 L178,42 L206,66 Z" fill="#8a4b1f" stroke="#2d3748" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M170,44 L184,16" stroke="#2d3748" stroke-width="9" stroke-linecap="round"/>
+    <path d="M170,44 L184,16" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+    <rect x="94" y="64" width="112" height="198" rx="9" fill="#f3ddc0" stroke="#2d3748" stroke-width="4"/>
+    <path d="M110,80 L110,246" stroke="#ffffff" stroke-width="7" stroke-linecap="round" opacity=".3"/>
+    <rect x="94" y="132" width="112" height="80" fill="#8a4b1f" stroke="#2d3748" stroke-width="4"/>
+    <text x="150" y="166" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="27" font-weight="900" fill="#ffffff">麥香</text>
+    <text x="150" y="195" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="19" font-weight="800" fill="#ffffff" opacity=".92">奶茶</text>
+  <rect x="272" y="34" width="74" height="34" rx="17" fill="#ffffff" stroke="#2d3748" stroke-width="3"/>
+  <text x="309" y="57" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="19" font-weight="900" fill="#2d3748">統一</text>
+  <text x="272" y="132" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="34" font-weight="900" fill="#2d3748">麥香奶茶</text>
+  <text x="272" y="170" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="23" font-weight="800" fill="#2d3748" opacity=".82">大麥焙香・醇厚奶茶</text>
+  <rect x="272" y="190" width="92" height="36" rx="18" fill="#ffffff" stroke="#2d3748" stroke-width="3"/>
+  <text x="318" y="215" text-anchor="middle" font-family="'Nunito','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif" font-size="20" font-weight="800" fill="#2d3748">300ml</text>
+</svg>

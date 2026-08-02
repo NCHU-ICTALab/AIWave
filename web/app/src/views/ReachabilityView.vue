@@ -11,18 +11,44 @@ const thresholdMinutes = ref<10 | 15>(10)
 const area = ref<ReachabilityArea | null>(null)
 const loading = ref(false)
 const error = ref('')
-const offlineDemo = ref(false)
+/** '' = 正常使用 API；'offline' = 後端真的連不上；'empty' = 後端回了空範圍。 */
+const fallbackReason = ref<'' | 'offline' | 'empty'>('')
 const locationState = ref<'idle' | 'requesting' | 'granted' | 'denied'>('idle')
 const locationMessage = ref('')
 const ORIGIN_POINT = { lon: 121.5654, lat: 25.0339 }
+/**
+ * Location id → 示意座標。id 必須對齊目錄投影（`fake_upstreams/partner_seed.py`
+ * 的 `loc-<brand>-NN`）；沒列到的 id 會走 `fallbackPoint()`，不會塌回起點。
+ */
 const LOCATION_POINTS: Record<string, { lon: number; lat: number }> = {
-  'loc-prince-01': { lon: 121.5628, lat: 25.0347 },
+  'loc-711-shop-01': { lon: 121.5669, lat: 25.0324 },
+  'loc-711-c2c-01': { lon: 121.5636, lat: 25.0322 },
+  'loc-cosmed-01': { lon: 121.5688, lat: 25.0356 },
+  'loc-prince-electric-01': { lon: 121.5628, lat: 25.0347 },
   'loc-duskin-01': { lon: 121.5708, lat: 25.0362 },
-  'loc-01-01': { lon: 121.5588, lat: 25.0353 },
-  'loc-02-01': { lon: 121.5668, lat: 25.0347 },
-  'loc-03-01': { lon: 121.5708, lat: 25.0362 },
-  'loc-08-01': { lon: 121.5762, lat: 25.0382 },
-  'loc-09-01': { lon: 121.5810, lat: 25.0317 },
+  'loc-foodomo-01': { lon: 121.5710, lat: 25.0330 },
+  'loc-21plus-01': { lon: 121.5598, lat: 25.0372 },
+  'loc-blackcat-01': { lon: 121.5744, lat: 25.0300 },
+  'loc-smile-01': { lon: 121.5580, lat: 25.0296 },
+  'loc-iopenmall-01': { lon: 121.5772, lat: 25.0384 },
+  'loc-ibon-ticket-01': { lon: 121.5560, lat: 25.0338 },
+}
+
+/**
+ * 沒有明確座標時的決定性 fallback：把 id 雜湊成起點附近的一個角度＋半徑，
+ * 讓未列入的據點仍然落在地圖上（而不是整疊在「會場起點」）。
+ */
+function fallbackPoint(id: string): { lon: number; lat: number } {
+  let hash = 7
+  for (let index = 0; index < id.length; index += 1) {
+    hash = (hash * 31 + id.charCodeAt(index)) % 100003
+  }
+  const angle = (hash % 360) * (Math.PI / 180)
+  const radius = 0.0018 + (Math.floor(hash / 360) % 6) * 0.0006
+  return {
+    lon: ORIGIN_POINT.lon + Math.cos(angle) * radius * 1.15,
+    lat: ORIGIN_POINT.lat + Math.sin(angle) * radius,
+  }
 }
 
 type Coordinate = [number, number]
@@ -82,21 +108,79 @@ const reachableServices = computed(() => {
 })
 
 function locationMarker(id: string) {
-  return project(LOCATION_POINTS[id] ?? ORIGIN_POINT)
+  return project(LOCATION_POINTS[id] ?? fallbackPoint(id))
+}
+
+/** 圖例分組；顏色不是唯一區分，圖例文字與 <title> 都說明了同一件事。 */
+const TONE_BY_PROVIDER: Record<string, 'repair' | 'cleaning' | 'convenience' | 'daily'> = {
+  'vendor-prince-electric': 'repair',
+  'vendor-duskin': 'cleaning',
+  'vendor-smile': 'cleaning',
+  'vendor-711-shop': 'convenience',
+  'vendor-711-c2c': 'convenience',
+  'vendor-iopenmall': 'convenience',
+  'vendor-ibon-ticket': 'convenience',
+  'vendor-blackcat': 'convenience',
+  'vendor-foodomo': 'daily',
+  'vendor-21plus': 'daily',
+  'vendor-cosmed': 'daily',
+  'vendor-uni-resort': 'daily',
+}
+
+const TONE_LABELS: Record<string, string> = {
+  repair: '修繕',
+  cleaning: '清潔・洗車',
+  convenience: '超商取貨・寄件・票券',
+  daily: '餐飲・藥妝',
 }
 
 function locationTone(providerId: string) {
-  return providerId === 'vendor-duskin' ? 'cleaning' : 'repair'
+  return TONE_BY_PROVIDER[providerId] ?? 'repair'
 }
+
+/** 據點名稱在目錄裡是「品牌 信義區服務點」，地圖上只留品牌避免標籤過長。 */
+function shortLabel(name: string): string {
+  return name.replace(/[\s・][^\s・]*服務點$/u, '').trim() || name
+}
+
+/**
+ * 把標籤左右／上下交錯，~6 個點時才不會互相疊住；
+ * 靠右的點改成向左對齊，避免文字被畫布切掉。
+ */
+const locationMarkers = computed(() => (area.value?.locations ?? []).map((location, index) => {
+  const point = locationMarker(location.id)
+  const flip = point.x > 62
+  const tone = locationTone(location.providerId)
+  return {
+    id: location.id,
+    name: location.name,
+    address: location.address ?? location.id,
+    tone,
+    toneLabel: TONE_LABELS[tone] ?? '',
+    x: point.x,
+    y: point.y,
+    labelX: flip ? point.x - 3.2 : point.x + 3.2,
+    labelY: point.y + (index % 2 === 0 ? -2.4 : 3.6),
+    anchor: flip ? 'end' : 'start',
+    label: shortLabel(location.name),
+  }
+}))
 
 function createVirtualArea(): ReachabilityArea {
   const wide = thresholdMinutes.value === 15
   const coordinates: Coordinate[] = wide
     ? [[121.559, 25.030], [121.573, 25.029], [121.578, 25.036], [121.570, 25.041], [121.558, 25.038], [121.559, 25.030]]
     : [[121.562, 25.032], [121.569, 25.031], [121.572, 25.036], [121.567, 25.039], [121.561, 25.036], [121.562, 25.032]]
-  const prince = { id: 'loc-prince-01', providerId: 'vendor-prince-electric', name: '王子水電・晴光服務點', address: '虛擬示範路 1 號' }
+  // Provider id 必須是目錄裡真的有的，否則「生活圈內可以直接用的服務」永遠是空的。
+  const prince = { id: 'loc-prince-electric-01', providerId: 'vendor-prince-electric', name: '王子水電・晴光服務點', address: '虛擬示範路 1 號' }
   const duskin = { id: 'loc-duskin-01', providerId: 'vendor-duskin', name: 'DUSKIN 樂清・河畔服務點', address: '虛擬示範路 2 號' }
-  const locations = wide ? [prince, duskin] : [prince]
+  const seven = { id: 'loc-711-shop-01', providerId: 'vendor-711-shop', name: '7-ELEVEN 日光森林門市・取貨服務', address: '虛擬示範路 3 號' }
+  const c2c = { id: 'loc-711-c2c-01', providerId: 'vendor-711-c2c', name: '7-ELEVEN 交貨便・生活服務站', address: '虛擬示範路 5 號' }
+  const cosmed = { id: 'loc-cosmed-01', providerId: 'vendor-cosmed', name: '康是美・社區藥妝服務點', address: '虛擬示範路 6 號' }
+  const foodomo = { id: 'loc-foodomo-01', providerId: 'vendor-foodomo', name: 'foodomo 社區外送合作點', address: '虛擬示範路 8 號' }
+  const locations = wide
+    ? [prince, seven, c2c, cosmed, foodomo, duskin]
+    : [prince, seven, c2c, cosmed, foodomo]
   return {
     originId: ORIGIN_ID,
     travelMode: travelMode.value,
@@ -115,17 +199,26 @@ function createVirtualArea(): ReachabilityArea {
 async function load() {
   loading.value = true
   error.value = ''
-  offlineDemo.value = false
+  fallbackReason.value = ''
   try {
-    area.value = await getReachabilityArea({
+    const loaded = await getReachabilityArea({
       originId: ORIGIN_ID,
       travelMode: travelMode.value,
       thresholdMinutes: thresholdMinutes.value,
     })
+    // 後端的種子資料本來就是 `isDemo: true`（經確認的固定示意範圍），
+    // 那不是「後端沒起來」，所以不能拿它當 fallback 條件；只有真的一個據點
+    // 都沒有時才退回本地示意圖，並且要誠實說明原因。
+    if (loaded.locations.length === 0) {
+      area.value = createVirtualArea()
+      fallbackReason.value = 'empty'
+    } else {
+      area.value = loaded
+    }
   } catch (reason) {
     void reason
     area.value = createVirtualArea()
-    offlineDemo.value = true
+    fallbackReason.value = 'offline'
   } finally {
     loading.value = false
   }
@@ -215,7 +308,11 @@ onMounted(() => void load())
         <p>起點：{{ originLabel }}</p>
         <p><strong>{{ area.travelMode === 'pedestrian' ? '步行' : '機車' }}・{{ area.thresholdMinutes }} 分鐘</strong></p>
         <p class="source-note">來源：{{ area.source }}・{{ area.realTime ? '含即時資料' : '非即時路況' }}・{{ area.navigation ? '可導航' : '不提供導航' }}</p>
-        <p v-if="offlineDemo" class="reachability-demo-notice" data-testid="reachability-offline-demo">後端未啟動，現在使用完全虛擬的生活圈示意；道路、街區與服務點都是 Demo 資料。</p>
+        <p v-if="fallbackReason" class="reachability-demo-notice" data-testid="reachability-offline-demo">
+          {{ fallbackReason === 'offline'
+            ? '目前連不上後端，改用完全虛擬的生活圈示意；道路、街區與服務點都是 Demo 資料。'
+            : '後端這個條件沒有回傳任何據點，改用完全虛擬的生活圈示意；道路、街區與服務點都是 Demo 資料。' }}
+        </p>
         <div class="reachability-visual" data-testid="reachability-map-visual" role="img" :aria-label="`${area.travelMode === 'pedestrian' ? '步行' : '機車'} ${area.thresholdMinutes} 分鐘固定示意範圍`">
           <svg viewBox="0 0 100 100" aria-hidden="true">
             <defs><pattern id="reachability-grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" stroke-opacity=".16" stroke-width=".5" /></pattern></defs>
@@ -232,23 +329,23 @@ onMounted(() => void load())
             <path d="M -8 34 C 17 39 39 29 58 35 S 84 49 108 45" class="reachability-street" />
             <circle :cx="originMarker.x" :cy="originMarker.y" :r="commuteRingRadius" class="commute-ring" />
             <polygon v-if="polygonPoints" :points="polygonPoints" class="reachability-polygon" />
-            <g v-for="location in area.locations" :key="location.id" :class="['reachability-location-marker', locationTone(location.providerId)]">
-              <circle :cx="locationMarker(location.id).x" :cy="locationMarker(location.id).y" r="2.4" />
-              <text :x="locationMarker(location.id).x + 3" :y="locationMarker(location.id).y + 1">{{ location.name.replace('信義服務點', '') }}</text>
-              <title>{{ location.name }}</title>
+            <g v-for="marker in locationMarkers" :key="marker.id" :class="['reachability-location-marker', marker.tone]">
+              <circle :cx="marker.x" :cy="marker.y" r="2.4" />
+              <text :x="marker.labelX" :y="marker.labelY" :text-anchor="marker.anchor">{{ marker.label }}</text>
+              <title>{{ marker.name }}（{{ marker.toneLabel }}）</title>
             </g>
             <g class="reachability-origin-marker"><circle :cx="originMarker.x" :cy="originMarker.y" r="3.2" /><text :x="originMarker.x + 3" :y="originMarker.y - 3">會場起點</text></g>
           </svg>
-          <div class="reachability-map-caption"><span>● 會場起點</span><span class="legend-repair">● 修繕服務</span><span class="legend-cleaning">● 清潔服務</span><span>○ {{ area.thresholdMinutes }} 分鐘通勤圈</span></div>
+          <div class="reachability-map-caption"><span>● 會場起點</span><span class="legend-repair">● 修繕</span><span class="legend-cleaning">● 清潔・洗車</span><span class="legend-convenience">● 超商取貨・寄件・票券</span><span class="legend-daily">● 餐飲・藥妝</span><span>○ {{ area.thresholdMinutes }} 分鐘通勤圈</span></div>
         </div>
         <p class="geometry-fact">GeoJSON geometry：{{ area.geometry.type ?? 'unknown' }}・固定示意範圍，不代表導航路線</p>
       </div>
       <section class="panel" aria-labelledby="reachable-provider-title">
         <h2 id="reachable-provider-title">範圍內 Provider／Location</h2>
-        <ul v-if="area.locations.length" class="plain-list" data-testid="reachable-location-list">
-          <li v-for="location in area.locations" :key="location.id">
-            <strong>{{ location.name }}</strong>
-            <span class="muted">{{ location.address ?? location.id }}</span>
+        <ul v-if="locationMarkers.length" class="plain-list" data-testid="reachable-location-list">
+          <li v-for="marker in locationMarkers" :key="marker.id">
+            <strong>{{ marker.name }}</strong>
+            <span class="muted">{{ marker.toneLabel }}・{{ marker.address }}</span>
           </li>
         </ul>
         <p v-else class="muted">這個條件目前沒有已確認的據點。</p>
@@ -386,8 +483,14 @@ onMounted(() => void load())
 }
 .reachability-location-marker.repair circle { fill: var(--accent, #ff725c); }
 .reachability-location-marker.cleaning circle { fill: var(--lilac, #e6e6fa); }
+.reachability-location-marker.convenience circle { fill: var(--yellow, #fde68a); }
+.reachability-location-marker.daily circle { fill: var(--mint, #cdeedd); }
 .reachability-location-marker text {
   fill: var(--ink);
+  paint-order: stroke;
+  stroke: var(--surface, #fff);
+  stroke-width: 0.7px;
+  stroke-linejoin: round;
   font-size: 2.2px;
   font-weight: 900;
 }
@@ -397,6 +500,10 @@ onMounted(() => void load())
   stroke-width: 1;
 }
 .reachability-origin-marker text {
+  paint-order: stroke;
+  stroke: var(--surface, #fff);
+  stroke-width: 0.9px;
+  stroke-linejoin: round;
   font-size: 3px;
   font-weight: 900;
 }
@@ -410,6 +517,8 @@ onMounted(() => void load())
 }
 .reachability-map-caption .legend-repair { color: var(--accent-ink); }
 .reachability-map-caption .legend-cleaning { color: var(--primary); }
+.reachability-map-caption .legend-convenience { color: #8a5a00; }
+.reachability-map-caption .legend-daily { color: #146c4a; }
 .reachability-demo-notice {
   margin: .6rem 0 0;
   padding: .6rem .7rem;
