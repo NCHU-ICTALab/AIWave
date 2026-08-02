@@ -7,6 +7,15 @@ spec 15 §4/§4.2:Agent 負責理解、規劃、預填、比較、導覽與受�
 from .grants import GrantError, SqliteGrantRepository
 from .registry import RegistryResolution, ServiceRegistry
 from .time_resolver import TimeResolution, TimeResolver
+from .contracts import (
+    ConversationTurn,
+    ContractError,
+    ProposedAction,
+    TaskPatch,
+    ToolResult,
+    TurnIntent,
+)
+from .turns import apply_task_patches, capability_descriptions, classify_turn_intent, validate_proposed_action
 
 __all__ = [
     "GrantError",
@@ -15,4 +24,14 @@ __all__ = [
     "SqliteGrantRepository",
     "TimeResolution",
     "TimeResolver",
+    "ConversationTurn",
+    "ContractError",
+    "ProposedAction",
+    "TaskPatch",
+    "ToolResult",
+    "TurnIntent",
+    "apply_task_patches",
+    "capability_descriptions",
+    "classify_turn_intent",
+    "validate_proposed_action",
 ]

@@ -72,10 +72,15 @@ from core.calendar import SqliteCalendarRepository
 from core.catalog import CatalogSyncService, SqliteCatalogRepository
 from core.fulfillment import SqliteFulfillmentRepository
 from core.notifications import SqliteNotificationRepository
+from core.outcomes import SqliteOutcomeProjectionService
 from core.payments import SqliteDemoPaymentAdapter
 from core.points import SqlitePointsLedger
+from core.proactive_care import ProactiveCareService
 from core.providers import ProviderBookingService, ProviderConnector, build_provider_connector
 from core.task_drafts import SqliteTaskDraftRepository
+from core.task_packages import SqliteTaskPackageService
+from core.wiki import WikiService
+from core.reachability import ReachabilityService, SeededGeoJsonReachabilityProvider
 
 _CONFIRM_WORDS = {"對", "好", "沒問題", "確認", "確認送出", "送出", "可以", "ok", "yes", "是", "嗯"}
 
@@ -451,6 +456,17 @@ def create_app(
     )
     catalog_projection = SqliteCatalogRepository(demo_db, now=demo_now)
     catalog_sync = CatalogSyncService(catalog_projection, connectors=configured_provider_connectors)
+    reachability = ReachabilityService(
+        SeededGeoJsonReachabilityProvider(
+            Path(__file__).resolve().parents[1] / "data" / "reachability" / "demo.geojson",
+            now=lambda: demo_now().isoformat(),
+        ),
+        catalog=catalog_projection,
+    )
+    care = ProactiveCareService(demo_db, now=demo_now)
+    task_packages = SqliteTaskPackageService(demo_db, now=demo_now)
+    outcomes = SqliteOutcomeProjectionService(demo_db, points=demo_points, now=demo_now)
+    wiki = WikiService(Path(__file__).resolve().parents[1] / "docs" / "knowledge")
     agent_orchestrator = AgentOrchestrator(
         llm_factory=llm_factory,
         registry=ServiceRegistry(),
@@ -461,6 +477,7 @@ def create_app(
         catalog=catalog_projection,
         drafts=task_drafts,
         points=demo_points,
+        wiki=wiki,
     )
     vendor_service = VendorService(configured_vendor_client)
     life_tasks = LifeTaskService(
@@ -513,6 +530,10 @@ def create_app(
         agent_orchestrator=agent_orchestrator,
         agent_sessions=agent_sessions_store,
         agent_grants=agent_grants,
+        reachability_service=reachability,
+        care_service=care,
+        task_packages=task_packages,
+        outcomes=outcomes,
     ))
     application.state.access_repository = access
     application.state.community_repository = communities
@@ -527,6 +548,11 @@ def create_app(
     application.state.provider_booking_service = provider_bookings
     application.state.catalog_repository = catalog_projection
     application.state.catalog_sync_service = catalog_sync
+    application.state.wiki_service = wiki
+    application.state.reachability_service = reachability
+    application.state.proactive_care_service = care
+    application.state.task_package_service = task_packages
+    application.state.outcome_projection_service = outcomes
     reset_service = DemoResetService(
         demo_db,
         access=access,

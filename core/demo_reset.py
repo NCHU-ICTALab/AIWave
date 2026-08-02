@@ -140,6 +140,11 @@ class DemoResetService:
                 f"SELECT id FROM calendar_events WHERE {scope_sql}", values,
             ).fetchall()
         ] if "calendar_events" in self._existing_tables(connection) else []
+        v4_package_ids = [
+            row[0] for row in connection.execute(
+                f"SELECT id FROM v4_life_task_packages WHERE {scope_sql}", values,
+            ).fetchall()
+        ] if "v4_life_task_packages" in self._existing_tables(connection) else []
 
         existing = self._existing_tables(connection)
         for table, column, ids in (
@@ -148,6 +153,8 @@ class DemoResetService:
             ("commerce_order_items", "order_id", order_ids),
             ("demo_payment_events", "payment_id", payment_ids),
             ("calendar_event_exceptions", "event_id", event_ids),
+            ("v4_task_package_item_events", "package_id", v4_package_ids),
+            ("v4_life_task_package_items", "package_id", v4_package_ids),
         ):
             if table in existing:
                 self._delete_ids(connection, table, column, ids)
@@ -158,9 +165,29 @@ class DemoResetService:
         for table in (
             "task_drafts", "points_ledger", "demo_payments", "notifications",
             "calendar_events", "bookings", "commerce_orders",
+            "v4_life_task_packages", "v4_life_context_events", "v4_care_candidates",
+            "v4_care_messages", "v4_life_outcomes", "v4_achievement_unlocks",
+            "v4_demo_reward_entries", "v4_provider_success_fees",
         ):
             if table in existing and "demo_workspace_id" in self._columns(connection, table):
-                connection.execute(f'DELETE FROM "{table}" WHERE {scope_sql}', values)
+                columns = self._columns(connection, table)
+                table_scope = "demo_workspace_id=?"
+                table_values: list[Any] = [demo_workspace_id]
+                if workspace_id is not None and "workspace_id" in columns:
+                    table_scope += " AND workspace_id=?"
+                    table_values.append(workspace_id)
+                if account_id is not None and "account_id" in columns:
+                    table_scope += " AND account_id=?"
+                    table_values.append(account_id)
+                connection.execute(f'DELETE FROM "{table}" WHERE {table_scope}', table_values)
+        if "v4_demo_reward_campaigns" in existing and "v4_demo_reward_entries" in existing:
+            connection.execute(
+                """UPDATE v4_demo_reward_campaigns SET issued_amount=(
+                     SELECT COALESCE(SUM(CASE WHEN kind='grant' THEN amount ELSE -amount END),0)
+                     FROM v4_demo_reward_entries WHERE campaign_id=v4_demo_reward_campaigns.id
+                   ), updated_at=?""",
+                (self._timestamp(),),
+            )
         if account_id is not None and "notification_preferences" in existing:
             connection.execute("DELETE FROM notification_preferences WHERE account_id=?", (account_id,))
 

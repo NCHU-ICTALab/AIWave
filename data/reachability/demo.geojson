@@ -1,0 +1,71 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "source": "競賽 Demo 固定示意資料（非導航）",
+    "generatedAt": "2026-08-02T00:00:00+08:00",
+    "reviewStatus": "internal-demo-reviewed",
+    "coordinateStatus": "demo-only-approximation",
+    "venueAddress": "華南銀行國際會議中心（臺北市信義區松仁路 123 號）",
+    "isDemo": true,
+    "realTime": false,
+    "navigation": false
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "originId": "venue-huanan-bank-conference-center",
+        "travelMode": "pedestrian",
+        "thresholdMinutes": 10,
+        "label": "步行 10 分鐘・固定示意範圍",
+        "eligibleLocationIds": ["loc-02-01"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[121.5624, 25.0308], [121.5688, 25.0308], [121.5702, 25.0352], [121.5640, 25.0363], [121.5624, 25.0308]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "originId": "venue-huanan-bank-conference-center",
+        "travelMode": "pedestrian",
+        "thresholdMinutes": 15,
+        "label": "步行 15 分鐘・固定示意範圍",
+        "eligibleLocationIds": ["loc-02-01", "loc-03-01"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[121.5596, 25.0288], [121.5728, 25.0288], [121.5742, 25.0377], [121.5600, 25.0393], [121.5596, 25.0288]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "originId": "venue-huanan-bank-conference-center",
+        "travelMode": "scooter",
+        "thresholdMinutes": 10,
+        "label": "機車 10 分鐘・固定示意範圍",
+        "eligibleLocationIds": ["loc-02-01", "loc-03-01", "loc-08-01"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[121.5518, 25.0248], [121.5795, 25.0248], [121.5820, 25.0418], [121.5530, 25.0440], [121.5518, 25.0248]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "originId": "venue-huanan-bank-conference-center",
+        "travelMode": "scooter",
+        "thresholdMinutes": 15,
+        "label": "機車 15 分鐘・固定示意範圍",
+        "eligibleLocationIds": ["loc-01-01", "loc-02-01", "loc-03-01", "loc-08-01", "loc-09-01"]
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[121.5445, 25.0205], [121.5875, 25.0205], [121.5900, 25.0468], [121.5460, 25.0500], [121.5445, 25.0205]]]
+      }
+    }
+  ]
+}

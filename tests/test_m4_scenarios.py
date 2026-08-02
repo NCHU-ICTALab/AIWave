@@ -204,9 +204,11 @@ def test_home_repair_full_loop_with_points_reschedule_and_completion(tmp_path):
         f"/api/v1/platform/bookings/{booking_id}", headers=bearer("aiwave"),
     ).json()["data"]
     assert persisted["status"] == "completed"
+    # v4 完成投影會一次性發放 Demo 回饋 20 點；重開仍應保留
+    # seed 180 - 折抵 100 + 回饋 20 = 100，而不是重複發放。
     assert reopened.get(
         "/api/v1/platform/points", headers=bearer("aiwave"),
-    ).json()["data"]["balance"] == 80
+    ).json()["data"]["balance"] == 100
 
 
 def test_dining_reservation_cancel_refunds_and_releases_slot(tmp_path):

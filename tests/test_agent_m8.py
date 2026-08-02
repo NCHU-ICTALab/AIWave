@@ -103,6 +103,30 @@ def test_single_scene_flow_reaches_a_real_booking_via_grant(tmp_path):
     ).json()["data"]
     assert grant["status"] == "proposed" and grant["budgetLimit"] >= 1200
 
+    # Editing the v4 package is the source of truth.  The old proposed grant
+    # must be invalidated and re-proposed before any provider side effect.
+    package = client.get(
+        f"/api/v1/platform/agent/task-packages/{session['activeTaskPackageId']}",
+        headers=bearer("aiwave"),
+    ).json()["data"]
+    replacement = next(
+        option for option in package["items"][0]["details"]["proposalOptions"]
+        if option["id"] != package["items"][0]["details"]["selectedOptionId"]
+    )
+    patched = client.patch(
+        f"/api/v1/platform/agent/task-packages/{package['id']}/items/{package['items'][0]['id']}",
+        headers=bearer("aiwave"),
+        json={
+            "expected_version": package["version"],
+            "operation": "replace_provider",
+            "changes": {"optionId": replacement["id"]},
+        },
+    )
+    assert patched.status_code == 200, patched.text
+    stale_approval = send(client, {"session_id": session["id"], "action": {"type": "approve_grant"}})
+    assert stale_approval["session"]["grantId"] != grant["id"]
+    assert client.get("/api/v1/platform/bookings", headers=bearer("aiwave")).json()["data"] == []
+
     done = send(client, {"session_id": session["id"], "action": {"type": "approve_grant"}})
     session = done["session"]
     subtask = session["subtasks"][0]
@@ -225,6 +249,26 @@ def test_manual_handoff_shares_the_same_draft_and_user_edits_win(tmp_path):
         f"/api/v1/platform/bookings/{booking_id}", headers=bearer("aiwave"),
     ).json()["data"]
     assert booking["details"]["problem"] == "廚房插座沒電"  # user 值贏過 agent
+
+
+def test_targeted_reversal_patches_only_the_named_subtask(tmp_path):
+    client, _ = make_stack(tmp_path, [
+        {"subtasks": [
+            {"goal": "安排家裡清潔", "serviceHint": "清潔", "datePhrase": "這週末"},
+            {"goal": "預訂家庭餐廳", "serviceHint": "訂位", "datePhrase": "這週末"},
+        ]},
+    ])
+
+    first = send(client, {"message": "爸媽週末來，幫我安排清潔和餐廳"})
+    session = first["session"]
+    paused = send(client, {
+        "session_id": session["id"],
+        "message": "餐廳保留，清潔先不要",
+    })
+    tasks = {item["domain"]: item for item in paused["session"]["subtasks"]}
+    assert tasks["home_cleaning"]["status"] == "paused"
+    assert tasks["dining_reservation"]["status"] != "paused"
+    assert paused["turn"]["taskPatches"][0]["targetId"] == tasks["home_cleaning"]["id"]
 
 
 def test_sessions_are_workspace_isolated_and_restorable(tmp_path):

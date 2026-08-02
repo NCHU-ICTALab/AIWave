@@ -80,6 +80,9 @@ class BedrockLlm:
     def json(self, messages: list[Message], *, temperature: float = 0.0, max_tokens: int = 512) -> object:
         return _extract_json(self.chat(messages, temperature=temperature, max_tokens=max_tokens))
 
+    def grounded_json(self, messages: list[Message], *, temperature: float = 0.0, max_tokens: int = 512) -> object:
+        return self.json(messages, temperature=temperature, max_tokens=max_tokens)
+
 
 def _to_anthropic(messages: list[Message]) -> tuple[str, list[dict]]:
     """OpenAI 風格訊息 → anthropic messages 格式。

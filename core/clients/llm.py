@@ -23,6 +23,8 @@ class LlmClient(Protocol):
 
     def json(self, messages: list[Message], *, temperature: float = 0.0, max_tokens: int = 512) -> object: ...
 
+    def grounded_json(self, messages: list[Message], *, temperature: float = 0.0, max_tokens: int = 512) -> object: ...
+
 
 class OpenAICompatLlm:
     """OpenAI Chat Completions 相容用戶端。"""
@@ -44,6 +46,15 @@ class OpenAICompatLlm:
         """要求並解析 JSON 回覆（容忍 ```json 圍欄與前後雜訊）。"""
         text = self.chat(messages, temperature=temperature, max_tokens=max_tokens)
         return _extract_json(text)
+
+    def grounded_json(self, messages: list[Message], *, temperature: float = 0.0, max_tokens: int = 512) -> object:
+        """Parse the second, facts-only response stage.
+
+        It is a named seam rather than a second client implementation so test
+        doubles can intentionally omit the optional stage and retain the
+        deterministic fallback.
+        """
+        return self.json(messages, temperature=temperature, max_tokens=max_tokens)
 
 
 def _extract_json(text: str) -> object:

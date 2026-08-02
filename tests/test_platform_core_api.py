@@ -247,6 +247,15 @@ def test_admin_refund_derives_owner_inside_the_same_demo_workspace(tmp_path):
             "amount": 120, "points_redeemed": 20, "outcome": "success",
         },
     ).json()["data"]
+    for step, status in enumerate(("accepted", "preparing", "shipped", "delivered"), start=1):
+        transitioned = client.post(
+            f"/api/v1/platform/commerce-orders/{order['id']}/transition",
+            headers=write_headers("aiwave-partner-711shop", f"vivian-order-step-{step}"),
+            json={"expected_version": order["version"], "status": status},
+        )
+        assert transitioned.status_code == 200, transitioned.text
+        order = transitioned.json()["data"]
+    assert order["status"] == "delivered"
     refunded = client.post(
         f"/api/v1/platform/payments/{payment['id']}/refund",
         headers=write_headers("aiwave-admin", "admin-refund-vivian"),
@@ -254,6 +263,7 @@ def test_admin_refund_derives_owner_inside_the_same_demo_workspace(tmp_path):
     )
     assert refunded.status_code == 200
     assert refunded.json()["data"]["status"] == "refunded"
+    assert refunded.json()["data"]["outcome"]["outcome"]["status"] == "reversed"
     assert client.get(
         "/api/v1/platform/points", headers=bearer("aiwave-vivian"),
     ).json()["data"]["balance"] == 180
