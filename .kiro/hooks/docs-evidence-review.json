@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Review Documentation Evidence",
+      "trigger": "PostFileSave",
+      "description": "檢查儲存的產品文件是否清楚區分 Demo、正式產品與證據邊界，並避免未驗證宣稱或機密內容。",
+      "matcher": "docs[\\\\/].*\\.md$",
+      "action": {
+        "type": "agent",
+        "prompt": "Review the saved documentation file only. Check that Demo capability, production design, and evidence boundaries are clearly labeled; factual claims and third-party content have appropriate sources or are marked as requiring validation; the content does not conflict with docs/specs/15-agreed-product-and-platform-direction.md, docs/specs/16-proactive-life-butler-and-commercial-loop.md, or docs/specs/17-conversational-agent-session-and-llm-wiki.md; and no secrets, credentials, tokens, private keys, or sensitive values are included. Report concrete issues and suggested documentation-only corrections. Do not modify application code."
+      }
+    }
+  ]
+}

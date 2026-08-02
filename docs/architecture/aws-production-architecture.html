@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>生活 AI 管家｜AWS 已部署 Foundation</title>
+  <style>
+    :root {
+      --paper: #f4f1e9;
+      --surface: #fffefb;
+      --surface-2: #ebe7dc;
+      --ink: #17212b;
+      --muted: #66717d;
+      --line: #b9c0c5;
+      --aws: #e87900;
+      --edge: #6d3fc0;
+      --network: #4458a6;
+      --compute: #c55218;
+      --storage: #2f7d32;
+      --integration: #ae3475;
+      --observe: #4f606f;
+      --deployed: #147a4d;
+      --planned: #a23a35;
+      --reserved: #8b6d22;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #20262d; }
+    body { font-family: Nunito, "Noto Sans TC", "Microsoft JhengHei", sans-serif; color: var(--ink); }
+    #viewport { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+    #canvas {
+      position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px;
+      transform-origin: center center; overflow: hidden; background: var(--paper);
+    }
+    header { position: absolute; left: 58px; right: 58px; top: 38px; height: 102px; border-bottom: 2px solid var(--ink); }
+    h1 { margin: 0; font-size: 39px; line-height: 1.05; letter-spacing: -.025em; }
+    .subtitle { margin-top: 9px; color: var(--muted); font-size: 16px; }
+    .meta { position: absolute; right: 0; top: 0; text-align: right; font: 14px/1.65 Consolas, "IBM Plex Mono", monospace; color: var(--muted); }
+    .meta strong { color: var(--deployed); }
+    .endpoint { color: var(--ink); }
+
+    .boundary {
+      position: absolute; border: 2px solid var(--line); background: rgba(255,255,255,.45);
+    }
+    .boundary > .label {
+      position: absolute; top: -13px; left: 18px; padding: 3px 9px; background: var(--paper);
+      color: var(--muted); font: 800 12px/1.2 Consolas, monospace; letter-spacing: .07em;
+    }
+    .region { left: 610px; top: 174px; width: 1248px; height: 706px; border: 3px solid var(--ink); }
+    .vpc { left: 874px; top: 238px; width: 690px; height: 570px; border: 3px solid var(--network); background: #f7f6fb; }
+    .managed { left: 1590px; top: 238px; width: 238px; height: 570px; background: #faf8f1; }
+    .edge-label { position: absolute; left: 275px; top: 174px; color: var(--muted); font: 800 12px Consolas, monospace; letter-spacing: .07em; }
+
+    .lane {
+      position: absolute; border: 1.5px dashed #a9b1bb; background: rgba(255,255,255,.67);
+    }
+    .lane .lane-title { position: absolute; left: 12px; top: 10px; color: var(--muted); font: 800 11px Consolas, monospace; letter-spacing: .05em; }
+    .public-lane { left: 900px; top: 280px; width: 205px; height: 480px; }
+    .app-lane { left: 1123px; top: 280px; width: 412px; height: 322px; }
+    .db-lane { left: 1123px; top: 620px; width: 412px; height: 140px; border-color: #bca76d; background: #fffdf5; }
+
+    .card {
+      position: absolute; z-index: 4; border: 2px solid var(--ink); background: var(--surface);
+      box-shadow: 5px 5px 0 rgba(23,33,43,.13); padding: 12px 14px;
+    }
+    .card-head { display: flex; align-items: center; gap: 11px; }
+    .code {
+      display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 auto;
+      color: white; font: 900 13px Consolas, monospace; letter-spacing: -.03em;
+    }
+    .edge .code { background: var(--edge); }
+    .storage .code { background: var(--storage); }
+    .network .code { background: var(--network); }
+    .compute .code { background: var(--compute); }
+    .integration .code { background: var(--integration); }
+    .observe .code { background: var(--observe); }
+    .title { font-size: 16px; line-height: 1.15; font-weight: 900; }
+    .detail { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.35; }
+    .badge {
+      display: inline-block; margin-top: 9px; padding: 3px 7px; border: 1px solid currentColor;
+      color: var(--deployed); font: 800 10px Consolas, monospace; letter-spacing: .05em;
+    }
+    .reserved-badge { color: var(--reserved); }
+
+    .viewer { left: 45px; top: 235px; width: 176px; min-height: 114px; border-width: 3px; box-shadow: 6px 6px 0 var(--ink); }
+    .viewer .title { font-size: 19px; }
+    .cloudfront { left: 275px; top: 216px; width: 262px; min-height: 144px; }
+    .s3 { left: 650px; top: 256px; width: 188px; min-height: 124px; }
+    .alb { left: 924px; top: 337px; width: 158px; min-height: 138px; }
+    .nat { left: 924px; top: 585px; width: 158px; min-height: 112px; }
+    .ecs { left: 1146px; top: 322px; width: 366px; min-height: 252px; border-color: var(--compute); }
+    .managed-card { left: 1611px; width: 196px; min-height: 100px; box-shadow: 4px 4px 0 rgba(23,33,43,.11); }
+    .ecr { top: 270px; }
+    .sqs { top: 392px; min-height: 110px; }
+    .bedrock { top: 518px; min-height: 106px; }
+    .cw { top: 642px; min-height: 118px; }
+
+    .container-list { margin-top: 14px; border-top: 1px solid #d5d8d8; }
+    .container {
+      display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
+      padding: 8px 2px; border-bottom: 1px solid #e1e3e2; font-size: 12px;
+    }
+    .container strong { font: 800 12px Consolas, monospace; }
+    .container span { color: var(--muted); font: 11px Consolas, monospace; }
+    .container.api strong { color: var(--compute); }
+    .task-note { margin-top: 9px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+
+    .db-empty { position: absolute; left: 1146px; top: 660px; width: 366px; height: 76px; z-index: 4; padding: 12px 14px; border: 2px dashed var(--reserved); background: #fffdf7; }
+    .db-empty strong { color: var(--reserved); font-size: 14px; }
+    .db-empty span { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; }
+
+    .verification {
+      position: absolute; left: 45px; top: 470px; width: 518px; height: 410px;
+      border: 3px solid var(--deployed); background: #f8fffa; padding: 20px 22px;
+    }
+    .verification h2 { margin: 0 0 13px; font-size: 18px; }
+    .check-row { display: grid; grid-template-columns: 13px 1fr auto; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid #cfe2d6; }
+    .dot { width: 10px; height: 10px; background: var(--deployed); }
+    .check-label { font-size: 13px; }
+    .check-value { color: var(--deployed); font: 800 12px Consolas, monospace; }
+    .security-note { margin-top: 13px; padding-top: 13px; border-top: 2px solid var(--ink); color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .security-note strong { color: var(--ink); }
+
+    .target-strip {
+      position: absolute; left: 45px; right: 62px; top: 924px; height: 116px;
+      border-top: 2px solid var(--planned); border-bottom: 2px solid var(--planned); background: #fff7f5;
+      display: grid; grid-template-columns: 210px repeat(4, 1fr); align-items: stretch;
+    }
+    .target-heading { padding: 17px 18px; color: var(--planned); }
+    .target-heading strong { display: block; font-size: 16px; }
+    .target-heading span { display: block; margin-top: 7px; font: 11px/1.35 Consolas, monospace; }
+    .target-item { padding: 17px 19px; border-left: 1px solid #dfbbb7; }
+    .target-item strong { display: block; font-size: 13px; }
+    .target-item span { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .not-deployed { margin-top: 7px; color: var(--planned); font: 800 10px Consolas, monospace; }
+
+    svg.links { position: absolute; inset: 0; width: 1920px; height: 1080px; z-index: 2; pointer-events: none; }
+    .flow { fill: none; stroke: var(--ink); stroke-width: 3; marker-end: url(#arrow); }
+    .api-flow { fill: none; stroke: var(--compute); stroke-width: 3; marker-end: url(#arrowOrange); }
+    .data-flow { fill: none; stroke: var(--storage); stroke-width: 3; marker-end: url(#arrowGreen); }
+    .async-flow { fill: none; stroke: var(--integration); stroke-width: 3; stroke-dasharray: 9 7; marker-end: url(#arrowPink); }
+    .ops-flow { fill: none; stroke: var(--observe); stroke-width: 2.5; stroke-dasharray: 5 6; marker-end: url(#arrowGray); }
+    .egress-flow { fill: none; stroke: var(--network); stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#arrowBlue); }
+    .path-label { position: absolute; z-index: 5; padding: 3px 6px; background: var(--paper); color: var(--muted); font: 10px Consolas, monospace; }
+    .label-static { left: 548px; top: 230px; }
+    .label-api { left: 542px; top: 335px; }
+    .label-alb { left: 850px; top: 335px; }
+    .label-task { left: 1088px; top: 385px; }
+    .label-nat { left: 1091px; top: 609px; }
+    .label-sqs { left: 1518px; top: 431px; }
+    .label-bedrock { left: 1518px; top: 548px; }
+
+    footer { position: absolute; right: 65px; bottom: 14px; color: var(--muted); font: 10px Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <div id="viewport"><main id="canvas">
+    <!--
+      FACT BASIS · queried from AWS us-east-1 on 2026-08-01:
+      - aiwave-production-app = UPDATE_COMPLETE
+      - CloudFront = Deployed; origins frontend-s3 + api-alb; /api/* routes to ALB
+      - ECS service api = desired/running 1/1
+      - One Fargate task definition contains api + partner-fake + vendor-fake
+      - Six subnets exist: 2 public, 2 private app, 2 reserved private DB
+      - RDS clusters = 0; RDS instances = 0
+      - SQS queue + DLQ, ECR, three log groups, Container Insights are deployed
+      - Bedrock Runtime is active through direct API-task invocation: us.anthropic.claude-sonnet-4-6
+      This canvas intentionally shows DEPLOYED resources in the main diagram.
+      Future resources are isolated in the bottom NEXT STAGE strip.
+    -->
+
+    <header>
+      <h1>生活 AI 管家｜AWS 已部署 Foundation</h1>
+      <div class="subtitle">主圖只呈現目前真實資源；未建立的正式資料層集中於底部下一階段</div>
+      <div class="meta">REGION&nbsp; <strong>us-east-1</strong><br/>STACK&nbsp; <strong>UPDATE_COMPLETE</strong><br/><span class="endpoint">d30aef3rrzkoy1.cloudfront.net</span></div>
+    </header>
+
+    <div class="edge-label">GLOBAL EDGE</div>
+    <section class="boundary region"><div class="label">AWS REGION · us-east-1</div></section>
+    <section class="boundary vpc"><div class="label">VPC · 10.20.0.0/16 · 2 AZ</div></section>
+    <section class="boundary managed"><div class="label">MANAGED SERVICES</div></section>
+    <section class="lane public-lane"><div class="lane-title">PUBLIC SUBNETS × 2</div></section>
+    <section class="lane app-lane"><div class="lane-title">PRIVATE APP SUBNETS × 2</div></section>
+    <section class="lane db-lane"><div class="lane-title">PRIVATE DB SUBNETS × 2</div></section>
+
+    <div class="card viewer">
+      <div class="title">使用者</div>
+      <div class="detail">住戶 · 管委會<br/>廠商 · LINE WebView</div>
+      <div class="badge">HTTPS</div>
+    </div>
+
+    <div class="card edge cloudfront">
+      <div class="card-head"><div class="code">CF</div><div><div class="title">CloudFront</div><div class="detail">default → S3<br/>/api/* → ALB</div></div></div>
+      <div class="badge">DEPLOYED</div>
+    </div>
+
+    <div class="card storage s3">
+      <div class="card-head"><div class="code">S3</div><div><div class="title">Private S3</div><div class="detail">Vue dist<br/>OAC only</div></div></div>
+      <div class="badge">DEPLOYED</div>
+    </div>
+
+    <div class="card network alb">
+      <div class="card-head"><div class="code">ALB</div><div><div class="title">Public ALB</div><div class="detail">HTTP origin<br/>target :8000</div></div></div>
+      <div class="badge">CF ONLY</div>
+    </div>
+
+    <div class="card network nat">
+      <div class="card-head"><div class="code">NAT</div><div><div class="title">NAT Gateway</div><div class="detail">1 EIP · egress<br/>public subnet A</div></div></div>
+      <div class="badge">DEPLOYED</div>
+    </div>
+
+    <div class="card compute ecs">
+      <div class="card-head"><div class="code">ECS</div><div><div class="title">Fargate service · api</div><div class="detail">desired/running 1/1 · no public IP</div></div></div>
+      <div class="container-list">
+        <div class="container api"><strong>api</strong><span>FastAPI · :8000 · 512 CPU</span></div>
+        <div class="container"><strong>partner-fake</strong><span>sidecar · 127.0.0.1:8020</span></div>
+        <div class="container"><strong>vendor-fake</strong><span>sidecar · 127.0.0.1:8021</span></div>
+      </div>
+      <div class="task-note">同一個 task、共享 localhost；API 直接呼叫 Bedrock 並以 process lock 控制 1 RPS。SQLite / in-memory 仍限制水平擴展。</div>
+    </div>
+
+    <div class="db-empty">
+      <strong>DB network reserved · RDS = 0</strong>
+      <span>subnets 與 route table 已建立；Aurora、DB secret、migration task 尚未建立。</span>
+    </div>
+
+    <div class="card managed-card compute ecr">
+      <div class="card-head"><div class="code">ECR</div><div><div class="title">ECR</div><div class="detail">immutable smoke image</div></div></div>
+      <div class="badge">DEPLOYED</div>
+    </div>
+
+    <div class="card managed-card integration sqs">
+      <div class="card-head"><div class="code">SQS</div><div><div class="title">AI Queue + DLQ</div><div class="detail">queues ready<br/>worker 尚未建立</div></div></div>
+      <div class="badge">2 QUEUES</div>
+    </div>
+
+    <div class="card managed-card compute bedrock">
+      <div class="card-head"><div class="code">BR</div><div><div class="title">Bedrock Runtime</div><div class="detail">Claude Sonnet 4.6<br/>API direct invoke</div></div></div>
+      <div class="badge">ACTIVE · 1 RPS</div>
+    </div>
+
+    <div class="card managed-card observe cw">
+      <div class="card-head"><div class="code">CW</div><div><div class="title">CloudWatch</div><div class="detail">3 log groups<br/>Container Insights</div></div></div>
+      <div class="badge">NO ALARMS YET</div>
+    </div>
+
+    <aside class="verification">
+      <h2>2026-08-01 · 實際驗證</h2>
+      <div class="check-row"><i class="dot"></i><span class="check-label">CloudFront distribution</span><span class="check-value">DEPLOYED</span></div>
+      <div class="check-row"><i class="dot"></i><span class="check-label">Vue / SPA / API smoke</span><span class="check-value">HTTP 200</span></div>
+      <div class="check-row"><i class="dot"></i><span class="check-label">ECS service</span><span class="check-value">1 / 1</span></div>
+      <div class="check-row"><i class="dot"></i><span class="check-label">ALB target</span><span class="check-value">HEALTHY</span></div>
+      <div class="check-row"><i class="dot"></i><span class="check-label">Catalog providers / Bedrock</span><span class="check-value">12 / ACTIVE</span></div>
+      <div class="check-row"><i class="dot"></i><span class="check-label">RDS cluster / instance</span><span class="check-value">0 / 0</span></div>
+      <div class="security-note"><strong>Origin boundary</strong><br/>ALB security group 只接受 AWS CloudFront origin-facing prefix list；listener 預設回 403，只有帶正確 <code>X-Origin-Verify</code> 的 CloudFront request 會 forward。直接 ALB 公網存取已封鎖。</div>
+    </aside>
+
+    <div class="path-label label-static">default · OAC</div>
+    <div class="path-label label-api">/api/* · no cache</div>
+    <div class="path-label label-alb">CF prefix + header</div>
+    <div class="path-label label-task">HTTP :8000</div>
+    <div class="path-label label-nat">optional egress</div>
+    <div class="path-label label-sqs">queue ready</div>
+    <div class="path-label label-bedrock">direct invoke · 1 RPS</div>
+
+    <svg class="links" viewBox="0 0 1920 1080" aria-label="目前已部署 AWS 資料流">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#17212b"/></marker>
+        <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#c55218"/></marker>
+        <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2f7d32"/></marker>
+        <marker id="arrowPink" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#ae3475"/></marker>
+        <marker id="arrowGray" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4f606f"/></marker>
+        <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#4458a6"/></marker>
+      </defs>
+      <path class="flow" d="M221 292 H265"/>
+      <path class="data-flow" d="M537 258 H640"/>
+      <path class="api-flow" d="M537 324 H780 V404 H914"/>
+      <path class="api-flow" d="M1082 404 H1136"/>
+      <path class="egress-flow" d="M1146 545 H1092 V641 H1082"/>
+      <path class="flow" d="M1611 324 H1535 V367 H1512"/>
+      <path class="async-flow" d="M1512 454 H1601"/>
+      <path class="api-flow" d="M1512 520 H1568 V570 H1601"/>
+      <path class="ops-flow" d="M1512 540 H1574 V700 H1601"/>
+    </svg>
+
+    <section class="target-strip" aria-label="下一階段尚未部署資源">
+      <div class="target-heading"><strong>下一階段</strong><span>NOT IN CURRENT STACK<br/>通過資料層閘門後才建立</span></div>
+      <div class="target-item"><strong>Aurora PostgreSQL 16.11</strong><span>Serverless v2 · 2–8 ACU<br/>PostgreSQL adapters + migrations</span><div class="not-deployed">NOT DEPLOYED</div></div>
+      <div class="target-item"><strong>ECS API task × 2</strong><span>跨 AZ 水平擴展<br/>需移除 SQLite / in-memory</span><div class="not-deployed">CURRENTLY 1 TASK</div></div>
+      <div class="target-item"><strong>AI worker</strong><span>Bedrock 已由 API task 直接呼叫<br/>下一步改為 SQS consumer + job status</span><div class="not-deployed">BEDROCK ACTIVE · WORKER NOT DEPLOYED</div></div>
+      <div class="target-item"><strong>正式 edge / operations</strong><span>Route 53 · ACM origin TLS · WAF<br/>CloudWatch alarms · synthetic checks</span><div class="not-deployed">NOT DEPLOYED</div></div>
+    </section>
+
+    <footer>Source of truth · CloudFormation stack aiwave-production-app · diagram updated from live AWS state</footer>
+  </main></div>
+  <script>
+    const canvas = document.getElementById('canvas');
+    function fitCanvas() {
+      const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+      canvas.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    }
+    window.addEventListener('resize', fitCanvas);
+    fitCanvas();
+    window.__ready = true;
+  </script>
+</body>
+</html>

@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Hackathon entry for 統一資訊's prompt **「AI 生活管家：智慧社區服務需求理解與媒合平台」** (2026 雲湧智生 GenAI hackathon). A LINE/Web life-butler that understands a resident's need in natural language, drives a flexible **留資表單 (lead-capture form / 諮詢單)**, and matches it to service vendors.
 
+**To find out what already exists, read [docs/feature-inventory.md](docs/feature-inventory.md) first.** It is the per-feature map of *capability → code path → endpoint → the test that proves it*, plus the data-honesty grading (official / derived / `competition_seed` / `demo_composition` / `draft`) and an explicit list of what is deliberately NOT built. Keep it updated when you add or remove a feature — a spec saying something does not mean it is implemented.
+
 **`docs/` is the source-of-truth spec, not just notes.** Start at [docs/README.md](docs/README.md) (index of 9 specs + 14 ADRs). [CONTEXT.md](CONTEXT.md) is the domain glossary; [docs/archive/](docs/archive/) holds superseded material (early proposals, design exploration) — historical only, do not treat as current. When you change behavior, keep the relevant `docs/specs/*` in sync — several decisions there are load-bearing (see ADRs below).
 
 **Read [docs/specs/08-product-experience.md](docs/specs/08-product-experience.md) before touching the frontend.** It records why the current navigation is "built for a demo, not for a user" and what the first-run experience should become. Three product forks in it are still undecided.

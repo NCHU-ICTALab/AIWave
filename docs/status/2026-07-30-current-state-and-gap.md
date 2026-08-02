@@ -1,17 +1,58 @@
-# 2026-07-30 現況、完成證據與後續差距
+# 2026-08-01 現況、完成證據與後續差距
 
 > 產品目標與完成定義以 [15 產品與平台定案基線](../specs/15-agreed-product-and-platform-direction.md) 為準。
 > 本文件不沿用 2026-07-30 前文件的「完成」標記；每一項狀態都以現行程式與測試為證據。
 
 ## 一句話判斷
 
-M0～M3 已落地；M4 完成：**後端六場景閉環**（端到端測試）＋ HTML 原型**經產品負責人核准
-（方向 A）**＋ 正式廠商名單（`廠商and表單.md`）落入 seed（partner-demo-v5）＋ **Vue 手動 UI**
-（六場景探索、TaskDraft 預約精靈、訂單詳情/取消/改期/重付、行事曆、廠商案件工作台、
-平台管理台、8 家合作方登入）。M8 Agent 已完成(2026-07-31):確定性守門(Service Registry/TimeResolver/
-ExecutionGrant)、真 LLM(.env Gemma)協調器、與手動共用 TaskDraft/同一 submit 閉包、
-AI 頁換腦+側欄共享對話、舊 planner 退場。尚未完成:M9 遠端 MCP、M10 全面稽核與
-Demo 主故事排演,因此不能宣稱整個 AIWave 已完成。
+M0～M3、M4 六場景手動閉環與 M8 Agent 仍以原有證據成立；本輪另完成 v4 的 Turn／Session
+契約、隔離 Wiki、固定生活圈服務、主動關懷候選→送達、可編輯任務包、成果／成就／Demo
+回饋／Provider 結算投影，以及會員端生活成果與生活圈頁。v4 的內部 API、測試替身與前端
+流程可重現；**完整五分鐘實站 Demo 尚不能標記完成**，因為正式／授權生活指南來源與會場
+官方座標／人工檢查仍是外部或人工 gate，Amazon Location、正式 Provider／OPENPOINT／AWS
+資料也尚未取得。競賽 Demo 本身已改用清楚標示的內部固定資料，可直接走查互動。
+
+## v4 增量現況（2026-08-01）
+
+| 能力 | 現況 | 可重現證據 |
+| --- | --- | --- |
+| Turn／Action／ToolResult／TaskPatch | 已建立 stable ID、expectedVersion、capability risk/schema/principal 邊界；grounded 第二階段對正式 LLM client 可用，模型失敗或 facts 矛盾會保留安全摘要 | `core/agent_core/contracts.py`、`turns.py`、`orchestrator.py`；`tests/test_agent_v4_contracts.py`、`tests/test_v4_acceptance_matrix.py` |
+| ConversationSession | create/list/get/rename/archive/restore、metadata、pending grant、active task package、OCC、workspace/account 隔離；封存保留資料，沒有永久刪除宣稱 | `core/agent_core/sessions.py`、`api/platform_core.py`；session lifecycle tests、`web/app/tests/agentSessions.spec.ts` |
+| LLM Wiki | product-help 與內部編寫的 life-guide 中元 Demo 都已發布；domain、locale、region、app version、引用與 action allowlist、無證據 fallback 已驗證；Wiki body 只作資料，不能變成工具 action；無關問題不會誤配第一篇文章 | `core/wiki/service.py`、`docs/knowledge/`；`tests/test_v4_wiki.py` |
+| 會場生活圈 | ReachabilityProvider、固定 GeoJSON schema、步行／機車與 10／15 分鐘限制、Catalog Location 篩選、Provider Service Area 分流與前端單次定位不保存已完成；目前使用明確標示為內部 Demo approximation 的固定 GeoJSON，非即時路況／導航／官方座標 | `core/reachability/`、`data/reachability/README.md`、`demo.geojson`、`web/app/src/views/ReachabilityView.vue`；`tests/test_v4_reachability.py`、`web/app/tests/reachability.spec.ts` |
+| 主動關懷 | 白名單 Demo event、candidate 與 message 分離；delivery 會先套用來源／偏好／頻率／安靜時段 policy，讀取不再產生副作用；原因／來源／資料／ignore／snooze／close／open guide 與「只整理清單、不下單」已完成 | `core/proactive_care/service.py`、`policy.py`；`tests/test_v4_care.py`、`tests/test_v4_care_policy.py` |
+| 關懷正式政策 | quiet／balanced／caring、類別覆寫、頻率、安靜時段、交易通知獨立計數與資料來源白名單已做成不進主 Demo 設定頁的可測試 policy，並接在 delivery 前 | `core/proactive_care/policy.py`、`docs/architecture/v4-care-delivery-policy.md`；`tests/test_v4_care_policy.py` |
+| LifeTaskPackage | source／beneficiary／ServiceLocation／TaskDraft refs、逐項修改／暫緩／移除／Catalog option replacement、OCC、bounded grant、跨 Provider partial failure 與 event-key 冪等已完成；執行時以最新任務包項目同步共用 TaskDraft 再 submit | `core/task_packages/`、`api/platform_core.py`；`tests/test_v4_task_packages.py`、`tests/test_agent_m8.py` |
+| LifeOutcome／商業投影 | completed／delivered once-only outcome、一次 Achievement、Demo reward budget/cap/dedupe/reversal、Provider fee、平台結算與會員 fee 隔離已完成；全額 operator refund 會產生 `refunded` reversal projection | `core/outcomes/`、`api/platform_core.py`；`tests/test_v4_outcomes.py`、`tests/test_platform_core_api.py` |
+| Agent／v4 畫面證據 | Assistant 畫面呈現 ToolResult 狀態、facts、稽核參照、Wiki 引用與更新日；生活圈／關懷／成果／Provider 頁面保留 Demo、pending、非正式限制文案 | `web/app/src/components/AgentConversation.vue`、`web/app/src/views/`；`web/app/tests/assistantConversation.spec.ts`（6）、全套 Vitest（31 files／154 tests）、typecheck/build |
+| 會員／Provider 畫面 | `/user/life-circle`、`/user/wellbeing` 與 `/partner`；生活圈切換、關懷卡、任務包項目操作、成果／成就／Demo 回饋、Provider 結算、真實限制文案與 responsive CSS 已完成 | `web/app/src/views/ReachabilityView.vue`、`WellbeingView.vue`、`VendorView.vue`；前端 route tests、typecheck/build |
+| 驗收入口 | Agent／Wiki／生活圈／關懷／任務包／成果矩陣已集中，非 deterministic 文案不做逐字 snapshot | [v4 acceptance matrix](../testing/v4-acceptance-matrix.md) |
+
+### 最新可重現驗證（2026-08-01）
+
+- 受最新後端變更影響的回歸：`uv run pytest -q tests/test_agent_m8.py tests/test_agent_v4_contracts.py tests/test_v4_task_packages.py tests/test_v4_care.py tests/test_v4_care_policy.py tests/test_v4_wiki.py tests/test_v4_outcomes.py tests/test_platform_core_api.py` → 39 passed。
+- 前端：`npm test -- --run`（於 `web/app`）→ 31 test files／155 tests passed；`npm run typecheck` 與 `npm run build` passed。
+- 完整 fake stack 的 `npm run audit:ui` 回傳 exit 0；它是自動化 route audit，不替代新 v4 頁面的真實瀏覽器人工走查。
+- `uv run pytest -q` 全庫單次執行曾在 300 秒 timeout；2026-08-01 已以五批覆蓋全部 53 個 backend test files 且全部通過，另以 39-test v4 受影響組合重跑確認，故不宣稱單次全庫命令通過。
+
+### v4 目前不是完成的項目
+
+- 中元 Demo 指南已由 AIWave 內部編寫並人工檢視後以 `published` 提供展示；颱風、搬家／入厝與正式／授權來源、商業使用權、地域差異仍是外部 gate，不把 Demo 內容說成官方建議。
+- 華南銀行國際會議中心官方精確座標與外部人工檢查尚未取得；目前 `demo.geojson` 是可操作但明確標記 `isDemo`、非即時、非導航的固定示意範圍。
+- 390px／1440px 新 v4 頁面的真實瀏覽器鍵盤走查、五分鐘實站彩排／錄影備援尚未完成；元件測試與 production build 不替代人工 gate。
+- 本輪嘗試用 in-app browser 取得新 v4 頁面的畫面證據，但執行環境沒有可用 browser instance；因此沒有把瀏覽器畫面驗收標成通過。
+- Amazon Location adapter、正式 Provider／品牌／價格／取消規則、OPENPOINT 官方活動規則、AWS production verification/secrets 仍是外部 gate；Session 永久刪除／retention policy 與真實 LLM naturalness 人工評分也尚未由產品／評審確認。
+
+### 剩餘 unchecked task 與 blocker 對照
+
+| v4 task | 目前未勾選原因 |
+| --- | --- |
+| 1／11／14.3 | 競賽 Demo 的內部指南與「只整理、不下單」流程已完成；正式／授權生活指南與地域審核仍未取得。 |
+| 2（僅因 2.5）／3／9.2 | 會場官方精確座標、Provider／Location 外部座標與人工檢查 GeoJSON 尚未由外部提供／確認；內部固定 Demo fixture 已可走查。 |
+| 9.7 | Amazon Location 的帳號權限、費用、覆蓋與 production verification 尚未具備；固定 provider 是選配，不以空殼代替。 |
+| 14（僅因 14.3、14.5）／15.5 | 需要正式指南或真實瀏覽器的 390px／1440px、鍵盤、WCAG 與畫面人工 gate。 |
+| 15.6 | 尚未有完整五分鐘實站彩排與錄影／離線備援；自動化 fake-stack audit 不替代現場彩排。 |
+| Session retention／naturalness review | 永久刪除與 retention period 需要產品／法務決策；真實 LLM 自然度需要人類評分，非 repository 自動測試可替代。 |
 
 ## M0～M3 狀態
 
@@ -84,7 +125,7 @@ Demo 主故事排演,因此不能宣稱整個 AIWave 已完成。
 | 廠商工作台 | VendorView 平台案件分頁：合法轉移按鈕（不合法不渲染）、409 重載、aria-live 同步提示、commerce 轉移、snapshot | vendorPlatformBookings.spec.ts |
 | 平台管理台 | PlatformView 重寫：目錄健康表、重新同步（partial 誠實顯示）、demo reset 確認 | platformAdmin.spec.ts |
 | 登入 | 帳密登入卡（示範驗證與錯誤狀態）＋ 8 家合作方品牌可選（與 access seed 一致） | loginAndAccess.spec.ts |
-| 方向 A 版面對齊（2026-07-31） | 公開首頁 `/`（產品價值、六場景、右上登入，spec 15 §9.1）；手機 ≤650px 底部導覽（同一 nav 元素固定底部，修 backdrop-filter 包含塊陷阱）；行事曆月/列表切換（週日開頭月曆格） | loginAndAccess.spec.ts、實站截圖 |
+| 方向 A 版面對齊（2026-07-31） | 公開首頁 `/`（產品價值、六場景、右上登入，spec 15 §9.1）；手機 ≤650px 底部導覽（同一 nav 元素固定底部，修 backdrop-filter 包含塊陷阱）；行事曆以可翻月的月曆格為主，並保留來源篩選與手動新增 | loginAndAccess.spec.ts、calendarView.spec.ts |
 
 ### 實站瀏覽器稽核（2026-07-30，四服務全啟動後以 Playwright 驗證）
 
@@ -111,6 +152,8 @@ WCAG 深度稽核（含鍵盤逐頁走查）屬 M10。
 | M6 HTML 審批 | ✅ 方向 A 已核准（2026-07-30）；原型保留於 `design-system/aiwave/pages/` 作設計基準 |
 | M7 正式 Web | 六場景手動閉環 UI 已整合;390/1440 全頁截圖走查與 WCAG 2.2 AA 全面驗收仍待 M10 稽核 |
 | M8 Agent | ✅ 完成(2026-07-31):`core/agent_core/`(Registry/TimeResolver/Grant/orchestrator/sessions)、`/platform/agent/*` 端點與手動共用 submit/payment 閉包、AgentConversation+AgentDrawer、真 LLM 實站三條流程驗證(單場景/跨場景一張授權兩單/切手動 user 值優先);證據:test_agent_guardrails.py(11)、test_agent_m8.py(5)、runbook §8 |
+| v4 內部垂直切片 | ✅ Turn／Session／Wiki／Reachability／Care／TaskPackage／Outcome 與會員端頁面已完成；以 `docs/testing/v4-acceptance-matrix.md` 和本文件上方表格為準，不等同正式生活指南、正式地理資料或完整實站彩排 |
+| v4 外部資料 gate | 尚未完成：正式／授權生活指南來源、會場官方精確座標／GeoJSON 人工檢查、Provider／OPENPOINT 正式資料；內部 Demo 資料維持清楚的非正式限制 |
 | M9 遠端 MCP | 現有 stdio compatibility proxy 已只走 Platform API，但不是 mcp==2.0.0 Streamable HTTP Gateway |
 | M10 hardening | 六大場景 browser E2E、正式 Demo 主故事與整體 WCAG 稽核尚未完成 |
 | 延後 | LINE／Discord、正式 AWS、簡報與商業話術 |
