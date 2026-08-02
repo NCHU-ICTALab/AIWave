@@ -75,10 +75,16 @@
 - 點數折抵、活動回饋、生活成果、成就提示與 Provider 費用各自分開。
 - 北極星指標是生活任務完成率。
 
+## 架構與部署
+
+- [AWS 正式環境架構](architecture/aws-production-architecture.md)（另有[圖解版](architecture/aws-production-architecture.html)）：`infra/` CloudFormation 對應的目標架構。
+- [v4 關懷送達政策](architecture/v4-care-delivery-policy.md)：quiet／balanced／caring 三檔、頻率上限與安靜時段的判定規則，對應 `core/proactive_care/policy.py`。
+
 ## 其他文件
 
 - [2026-08-01 初步提案](strategy/2026-08-01-preliminary-proposal.md)
 - [競賽策略與奪冠證據](strategy/competition-winning-strategy.md)
+- [廠商名單與代表性表單](廠商and表單.md)：產品負責人提供的統一集團官方名單，`fake_upstreams/partner_seed.py` 的品牌唯一依據
 - [品牌與視覺](brand-spec.md)
 - [M0 程式碼盤點與保護基線](status/2026-07-30-m0-code-audit.md)
 - [現況、完成證據與後續差距](status/2026-07-30-current-state-and-gap.md)

@@ -13,3 +13,7 @@ M0～M3 的現行完成證據位於：
 1. [15 產品與平台定案基線：實作順序](../specs/15-agreed-product-and-platform-direction.md#12-實作順序)
 2. 從 M4 開始每一階段另建可驗收的工作票；不得直接沿用舊文件的「完成」狀態。
 3. 每個服務類別開始前，先向產品負責人取得真實廠商、服務欄位與參考表單。
+
+## 平行工作流任務書
+
+- [2026-08-02 社區 AI 團購平台（Codex）](2026-08-02-codex-community-groupbuy-brief.md)：交付給平行 Web 工作流的任務書，只做 Web、不含 Bot 端；原置於專案根目錄的 `codex_prompt_社區AI團購平台.md`。
