@@ -17,14 +17,14 @@ describe('member primary navigation', () => {
 
     expect(links.map((link) => link.text().trim())).toEqual([
       '首頁',
-      '點數兌換',
+      '社區',
       'AI',
       '服務',
-      '會員中心',
+      '個人檔案',
     ])
     expect(links.map((link) => link.attributes('href'))).toEqual([
       '/user',
-      '/user/points',
+      '/user/community',
       '/user/assistant',
       '/user/services',
       '/user/member',

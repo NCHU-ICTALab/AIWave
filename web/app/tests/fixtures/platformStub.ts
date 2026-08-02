@@ -738,6 +738,26 @@ export function createPlatformStub() {
             session.grantId = session.grantId ?? nextId('grant')
             reply(`表單都備齊了,金額 NT$${subtask.quote.payable}。執行授權內容:服務商 ${subtask.selected.providerName};預算上限 NT$${subtask.quote.payable};30 分鐘內有效。核准後我才會實際送出。`)
           }
+        } else if (text.includes('爸媽') && text.includes('清潔') && (text.includes('晚餐') || text.includes('餐廳'))) {
+          stages.push('理解需求', '查詢可用方案與時段', '整理方案', '等待你確認')
+          session.subtasks = [
+            {
+              id: nextId('task'), goal: '安排家裡清潔', domain: 'home_cleaning',
+              time: { date: '2026-08-01', endDate: null, echo: '8/1(週六)' }, status: 'resolved',
+              clarify: null, clarifyOptions: [],
+              proposals: [stubProposal('vendor-duskin', 'off-duskin-cleaning')],
+              selected: null, draftId: null, missingFields: [], subjectType: null, subjectId: null,
+            },
+            {
+              id: nextId('task'), goal: '安排家庭晚餐', domain: 'dining_reservation',
+              time: { date: '2026-08-01', endDate: null, echo: '8/1(週六)' }, status: 'resolved',
+              clarify: null, clarifyOptions: [],
+              proposals: [stubProposal('vendor-21plus', 'off-21plus-dinner')],
+              selected: null, draftId: null, missingFields: [], subjectType: null, subjectId: null,
+            },
+          ]
+          session.awaiting = 'option'
+          reply('我懂了：爸媽週末要來，你想安排家裡清潔，也想找一個家庭晚餐方案。我先把兩件事分開列出來，你可以各自看看，不用現在決定。')
         } else if (text.includes('洗衣服')) {
           stages.push('理解需求', '等待你確認')
           session.subtasks = [{

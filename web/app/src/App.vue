@@ -13,24 +13,20 @@ const router = useRouter()
 const route = useRoute()
 const store = useDemoStore()
 const session = useSessionStore()
-type AppIconName = 'home' | 'points' | 'ai' | 'services' | 'member'
+type AppIconName = 'home' | 'community' | 'points' | 'ai' | 'services' | 'member'
 
 /** 導覽由身分決定；工作人員的工作台只有單頁，不需要導覽列。 */
 const navItems = computed(() => {
   if (session.role !== 'user') return []
-  if (route.path.startsWith('/demo')) {
-    return [
-      { to: '/demo/community', label: '社區', icon: 'home' },
-      { to: '/demo/resident#group-buys', label: '社區團購', icon: 'services' },
-      { to: '/demo/member', label: '個人檔案', icon: 'member' },
-    ] satisfies Array<{ to: string; label: string; icon: AppIconName }>
-  }
+  // Wang Xiaoming and every regular resident use the same five destinations.
+  // The /demo/* paths remain valid presentation aliases, but never get a
+  // second, special navigation shell.
   return [
     { to: '/user', label: '首頁', icon: 'home' },
-    { to: '/user/points', label: '點數兌換', icon: 'points' },
+    { to: '/user/community', label: '社區', icon: 'community' },
     { to: '/user/assistant', label: 'AI', icon: 'ai' },
     { to: '/user/services', label: '服務', icon: 'services' },
-    { to: '/user/member', label: '會員中心', icon: 'member' },
+    { to: '/user/member', label: '個人檔案', icon: 'member' },
   ] satisfies Array<{ to: string; label: string; icon: AppIconName }>
 })
 
@@ -42,7 +38,7 @@ const showAgentDrawer = computed(
 )
 
 const homeLink = computed(() => {
-  if (route.path.startsWith('/demo')) return session.role === 'manager' ? '/demo/committee' : '/demo/community'
+  if (route.path.startsWith('/demo') && session.role === 'manager') return '/demo/committee'
   return session.role ? ROLE_HOME[session.role] : '/login'
 })
 

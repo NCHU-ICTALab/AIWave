@@ -46,6 +46,10 @@ describe('agent conversation shell', () => {
     const composer = wrapper.get('[data-testid="assistant-composer"]')
     expect(composer.find('#agent-input').exists()).toBe(true)
     expect(wrapper.get('#agent-input').attributes('data-autogrow')).toBe('true')
+    expect(wrapper.find('[data-testid="agent-session-history"]').exists()).toBe(true)
+    expect(wrapper.find('.assistant-session-column').exists()).toBe(true)
+    expect(wrapper.find('.assistant-chat-column').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="natural-language-hint"]').text()).toContain('不用先選服務分類')
 
     await say(wrapper, '浴室的燈不亮了')
 
@@ -63,6 +67,19 @@ describe('agent conversation shell', () => {
       zone.element.compareDocumentPosition(composer.get('form').element) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
+  })
+
+  it('understands a whole life situation and keeps multiple needs in one conversation', async () => {
+    recordAgentPosts()
+    const { wrapper } = await mountApp('/user/assistant')
+
+    await say(wrapper, '爸媽週末要來，幫我安排家裡清潔和家庭晚餐')
+
+    const messages = wrapper.get('[aria-label="對話內容"]')
+    expect(messages.text()).toContain('我懂了：爸媽週末要來')
+    expect(wrapper.findAll('[data-testid="proposal-card"]')).toHaveLength(2)
+    expect(wrapper.text()).toContain('DUSKIN 樂清')
+    expect(wrapper.text()).toContain('21PLUS')
   })
 
   it('clarifies an ambiguous need with option buttons that send structured actions, not another LLM guess', async () => {
@@ -135,14 +152,18 @@ describe('agent conversation shell', () => {
     const { wrapper, router } = await mountApp('/user/assistant')
 
     const chips = wrapper.findAll('[data-testid="starter-chip"]')
-    expect(chips.map((chip) => chip.text())).toEqual(['浴室的燈不亮了', '想找人來打掃', '這週末想訂餐廳'])
+    expect(chips.map((chip) => chip.text())).toEqual([
+      '爸媽週末要來，幫我安排清潔和晚餐',
+      '浴室的燈不亮了，想找人明天來修',
+      '我想先看看社區有哪些服務',
+    ])
 
     await chips[0]!.trigger('click')
     await flushPromises()
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('assistant') // 沒有導頁
-    expect(posted.map((call) => call.message)).toEqual(['浴室的燈不亮了'])
+    expect(posted.map((call) => call.message)).toEqual(['爸媽週末要來，幫我安排清潔和晚餐'])
     expect(wrapper.find('[data-testid="proposal-card"]').exists()).toBe(true)
   })
 })

@@ -1,21 +1,29 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
+import FatherDayPushCard from '@/components/FatherDayPushCard.vue'
 import { DEMO_HOUSEHOLD_ID, type DemoCommunityAnswer } from '@/domain/communityDemo'
 import { useCommunityDemoStore } from '@/stores/communityDemo'
 import { useSessionStore } from '@/stores/session'
 
+const props = withDefaults(defineProps<{ embedded?: boolean; calendarTo?: string }>(), {
+  embedded: false,
+  calendarTo: '/demo/calendar',
+})
 const demo = useCommunityDemoStore()
 const session = useSessionStore()
+const route = useRoute()
 const dashboard = computed(() => demo.residentDashboard)
 const householdId = computed(() => session.accountId ?? DEMO_HOUSEHOLD_ID)
+const residentName = computed(() => session.displayName || dashboard.value?.resident.displayName || '住戶')
+const groupBuyRouteName = computed(() => route.path.startsWith('/demo') ? 'demo-group-buy' : 'community-group-buy')
 
 const query = ref('')
 const answer = ref<DemoCommunityAnswer | null>(null)
 const askState = ref<'idle' | 'thinking' | 'answered'>('idle')
 const askFeedback = ref('')
 const serviceNoteOpen = ref(false)
-const fatherDayDismissed = ref(false)
 
 const money = (value: number) => `NT$ ${value.toLocaleString('zh-TW')}`
 const dateLabel = (value: string) => {
@@ -49,10 +57,6 @@ function reportAnswer() {
   askFeedback.value = '已送入管委會未回答問題清單，謝謝你的提醒。'
 }
 
-function dismissFatherDay() {
-  fatherDayDismissed.value = true
-}
-
 onMounted(() => {
   demo.loadResident(householdId.value)
 })
@@ -63,10 +67,11 @@ onMounted(() => {
     <header class="demo-hero demo-hero-resident">
       <div>
         <p class="eyebrow">AI 智慧社區・住戶首頁</p>
-        <h1>{{ dashboard.community.name }}</h1>
+        <h1 v-if="!props.embedded">{{ dashboard.community.name }}</h1>
+        <h2 v-else>{{ dashboard.community.name }}</h2>
         <p class="demo-hero-lede">把公告、社區規約與團購放在同一個入口，住戶不用再翻群組訊息。</p>
         <div class="demo-chip-row">
-          <span class="demo-chip demo-chip-mint">{{ dashboard.resident.displayName }}・{{ dashboard.resident.householdLabel }}</span>
+          <span class="demo-chip demo-chip-mint">{{ residentName }}・{{ dashboard.resident.householdLabel }}</span>
           <span class="demo-chip">{{ dashboard.community.address }}</span>
         </div>
       </div>
@@ -100,11 +105,7 @@ onMounted(() => {
       </article>
     </section>
 
-    <section v-if="!fatherDayDismissed" class="panel demo-panel demo-care-push" data-testid="father-day-push" aria-labelledby="father-day-push-title">
-      <div class="demo-care-push-icon" aria-hidden="true">💌</div>
-      <div class="demo-care-push-copy"><p class="eyebrow">AI 主動提醒・8/8</p><h2 id="father-day-push-title">父親節快到了，王小明要不要先安排一下？</h2><p>這是根據你已授權的 Demo 行事曆提醒；可以先看看月曆，再決定要不要準備晚餐或傳訊息給爸爸。</p><span class="demo-meta">資料來源：競賽 Demo 固定事件・不背景追蹤位置</span></div>
-      <div class="button-row demo-care-push-actions"><RouterLink class="button primary" data-testid="father-day-calendar-link" to="/demo/calendar">看月曆</RouterLink><button class="button" type="button" data-testid="father-day-snooze" @click="dismissFatherDay">稍後提醒</button></div>
-    </section>
+    <FatherDayPushCard :calendar-to="props.calendarTo" />
 
     <div class="demo-two-column">
       <section class="panel demo-panel" data-testid="resident-announcements" aria-labelledby="resident-announcements-title">
@@ -219,7 +220,7 @@ onMounted(() => {
           <p>{{ group.description }}</p>
           <div class="demo-group-metrics"><span>進度 <strong>{{ group.progressUnits }}/{{ group.thresholdUnits }}</strong></span><span>預計到貨 <strong>{{ dateLabel(group.expectedArrival) }}</strong></span></div>
           <div class="demo-progress" role="progressbar" :aria-valuenow="group.progressUnits" :aria-valuemin="0" :aria-valuemax="group.thresholdUnits" :aria-label="`${group.name} 成團進度`"><span :style="{ width: progressWidth(group.progressUnits, group.thresholdUnits) }" /></div>
-          <div class="demo-group-card-foot"><span>社區價 {{ money(group.variants[0]?.price ?? 0) }} 起</span><RouterLink class="button primary" :to="{ name: 'demo-group-buy', params: { groupBuyId: group.id } }">查看團購</RouterLink></div>
+          <div class="demo-group-card-foot"><span>社區價 {{ money(group.variants[0]?.price ?? 0) }} 起</span><RouterLink class="button primary" :to="{ name: groupBuyRouteName, params: { groupBuyId: group.id } }">查看團購</RouterLink></div>
         </article>
       </div>
       <p v-if="!dashboard.activeGroupBuys.length" class="demo-empty">目前沒有進行中的團購，請稍後再回來看看。</p>
@@ -247,23 +248,3 @@ onMounted(() => {
   </section>
   <div v-else class="panel demo-loading" role="status">正在整理日光森林社區資料…</div>
 </template>
-
-<style scoped>
-.demo-care-push {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 1rem;
-  align-items: center;
-  border-color: var(--ink);
-  background: var(--yellow, #fde68a);
-}
-.demo-care-push-icon { font-size: 2.25rem; }
-.demo-care-push-copy { min-width: 0; }
-.demo-care-push-copy h2 { margin: 0 0 .35rem; }
-.demo-care-push-copy p { margin: .2rem 0 .45rem; }
-.demo-care-push-actions { justify-content: flex-end; }
-@media (max-width: 720px) {
-  .demo-care-push { grid-template-columns: auto minmax(0, 1fr); }
-  .demo-care-push-actions { grid-column: 1 / -1; justify-content: flex-start; }
-}
-</style>

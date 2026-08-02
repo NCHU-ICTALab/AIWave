@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 import { getReachabilityArea, type ReachabilityArea } from '@/api/platformClient'
+import { LIFE_CIRCLE_SERVICES } from '@/data/memberDemoContent'
 
 const ORIGIN_ID = 'venue-huanan-bank-conference-center'
 const originLabel = '華南銀行國際會議中心・臺北市信義區松仁路 123 號'
@@ -56,6 +57,11 @@ const polygonPoints = computed(() => polygonCoordinates.value.map(([lon, lat]) =
 
 const originMarker = computed(() => project(ORIGIN_POINT))
 const osmUrl = 'https://www.openstreetmap.org/?mlat=25.0339&mlon=121.5654#map=15/25.0339/121.5654'
+
+const reachableServices = computed(() => {
+  const providers = new Set(area.value?.locations.map((location) => location.providerId) ?? [])
+  return LIFE_CIRCLE_SERVICES.filter((service) => providers.has(service.providerId))
+})
 
 function locationMarker(id: string) {
   return project(LOCATION_POINTS[id] ?? ORIGIN_POINT)
@@ -167,9 +173,14 @@ onMounted(() => void load())
           <svg viewBox="0 0 100 100" aria-hidden="true">
             <defs><pattern id="reachability-grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" stroke-opacity=".16" stroke-width=".5" /></pattern></defs>
             <rect width="100" height="100" fill="url(#reachability-grid)" />
+            <path d="M -8 78 C 20 64 33 69 52 52 S 82 26 108 22" class="reachability-street major" />
+            <path d="M 14 -8 C 25 18 31 34 26 55 S 31 82 42 108" class="reachability-street" />
+            <path d="M 77 -8 C 69 22 74 42 68 61 S 73 84 89 108" class="reachability-street" />
+            <path d="M -8 34 C 17 39 39 29 58 35 S 84 49 108 45" class="reachability-street" />
             <polygon v-if="polygonPoints" :points="polygonPoints" class="reachability-polygon" />
             <g v-for="location in area.locations" :key="location.id" class="reachability-location-marker">
               <circle :cx="locationMarker(location.id).x" :cy="locationMarker(location.id).y" r="2.4" />
+              <text :x="locationMarker(location.id).x + 3" :y="locationMarker(location.id).y + 1">{{ location.name.replace('信義服務點', '') }}</text>
               <title>{{ location.name }}</title>
             </g>
             <g class="reachability-origin-marker"><circle :cx="originMarker.x" :cy="originMarker.y" r="3.2" /><text :x="originMarker.x + 3" :y="originMarker.y - 3">會場起點</text></g>
@@ -187,6 +198,28 @@ onMounted(() => void load())
           </li>
         </ul>
         <p v-else class="muted">這個條件目前沒有已確認的據點。</p>
+
+        <div class="reachability-services" aria-labelledby="reachable-service-title">
+          <div class="section-title-row">
+            <h3 id="reachable-service-title">生活圈內可以直接用的服務</h3>
+            <span class="status-badge">{{ reachableServices.length }} 項</span>
+          </div>
+          <div v-if="reachableServices.length" class="reachable-service-grid">
+            <article
+              v-for="service in reachableServices"
+              :key="service.id"
+              class="reachable-service-card"
+              data-testid="reachable-service-card"
+            >
+              <span class="reachable-service-category">{{ service.category }}</span>
+              <h4>{{ service.title }}</h4>
+              <p>{{ service.detail }}</p>
+              <strong>{{ service.priceLabel }}</strong>
+              <RouterLink class="button inline" :to="service.to">查看服務</RouterLink>
+            </article>
+          </div>
+          <p v-else class="muted">目前這個時間門檻沒有對應的服務卡片。</p>
+        </div>
       </section>
     </section>
   </section>
@@ -261,10 +294,25 @@ onMounted(() => void load())
   stroke-width: .8;
   stroke-linejoin: round;
 }
+.reachability-street {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 28%, transparent);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+}
+.reachability-street.major {
+  stroke: color-mix(in srgb, var(--ink) 44%, transparent);
+  stroke-width: 2.1;
+}
 .reachability-location-marker circle {
   fill: var(--peach);
   stroke: var(--ink);
   stroke-width: .8;
+}
+.reachability-location-marker text {
+  fill: var(--ink);
+  font-size: 2.2px;
+  font-weight: 900;
 }
 .reachability-origin-marker circle {
   fill: var(--accent, #ff725c);
@@ -305,6 +353,53 @@ onMounted(() => void load())
 .reachability-warning span,
 .reachability-warning small {
   display: block;
+}
+.reachability-services {
+  display: grid;
+  gap: .65rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px dashed var(--ink);
+}
+.reachability-services h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.reachable-service-grid {
+  display: grid;
+  gap: .65rem;
+}
+.reachable-service-card {
+  display: grid;
+  gap: .3rem;
+  padding: .75rem;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--mint);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.reachable-service-category {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 900;
+}
+.reachable-service-card h4,
+.reachable-service-card p {
+  margin: 0;
+}
+.reachable-service-card h4 {
+  font-size: .98rem;
+}
+.reachable-service-card p {
+  color: var(--muted);
+  font-size: .82rem;
+}
+.reachable-service-card strong {
+  font-size: .82rem;
+}
+.reachable-service-card .button {
+  justify-self: start;
+  margin-top: .2rem;
 }
 @media (max-width: 720px) {
   .reachability-control-grid,

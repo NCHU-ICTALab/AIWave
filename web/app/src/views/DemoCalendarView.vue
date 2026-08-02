@@ -1,29 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-interface DemoCalendarItem {
-  id: string
-  date: string
-  title: string
-  detail: string
-  kind: 'booking' | 'community' | 'reminder'
-}
+import {
+  MEMBER_CALENDAR_HOLIDAYS,
+  MEMBER_CALENDAR_ITEMS,
+  type MemberCalendarItem,
+} from '@/data/memberDemoContent'
 
 const DEMO_TODAY = '2026-08-02'
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
-const HOLIDAYS: Record<string, string> = {
-  '2026-08-08': '父親節',
-  '2026-10-10': '國慶日',
-  '2026-12-25': '行憲紀念日',
-}
-const ITEMS: DemoCalendarItem[] = [
-  { id: 'demo-calendar-repair', date: '2026-08-03', title: '水電到府檢測', detail: '地下室滲水・上午 09:00–11:00', kind: 'booking' },
-  { id: 'demo-calendar-father', date: '2026-08-08', title: '父親節・主動提醒', detail: '準備晚餐或傳訊息給爸爸', kind: 'reminder' },
-  { id: 'demo-calendar-reservation', date: '2026-08-12', title: '烤肉區預約', detail: '16:00–20:00・A 棟 10F-1 黃先生', kind: 'community' },
-  { id: 'demo-calendar-guide', date: '2026-08-15', title: '中元普渡準備提醒', detail: 'Demo 生活指南・先確認家庭需求', kind: 'reminder' },
-  { id: 'demo-calendar-cleaning', date: '2026-07-25', title: '冷氣清洗完成', detail: '社區優惠服務・已完成', kind: 'booking' },
-  { id: 'demo-calendar-elevator', date: '2026-09-04', title: 'B 棟電梯保養', detail: '09:00–17:00・社區公告', kind: 'community' },
-]
+const HOLIDAYS = MEMBER_CALENDAR_HOLIDAYS
+const ITEMS: MemberCalendarItem[] = MEMBER_CALENDAR_ITEMS
 
 const focusYear = ref(2026)
 const focusMonth = ref(7)
@@ -45,7 +32,7 @@ interface MonthCell {
   date: string | null
   day: number | null
   holiday: string | null
-  items: DemoCalendarItem[]
+  items: MemberCalendarItem[]
 }
 
 const monthCells = computed<MonthCell[]>(() => {

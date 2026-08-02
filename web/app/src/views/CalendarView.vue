@@ -5,20 +5,14 @@ import { computed, onMounted, ref } from 'vue'
 
 import { ApiError } from '@/api/http'
 import { createCalendarEvent, listCalendarEvents, type CalendarEvent } from '@/api/platformClient'
+import { MEMBER_CALENDAR_HOLIDAYS, MEMBER_CALENDAR_ITEMS } from '@/data/memberDemoContent'
 
 const SOURCE_LABELS: Record<string, string> = {
   booking: '訂單', manual: '手動', reminder: '提醒', community: '社區',
 }
 const SOURCE_TYPES = Object.keys(SOURCE_LABELS)
 const DEMO_TODAY = '2026-08-02'
-const DEMO_HOLIDAYS: Record<string, string> = {
-  '2026-02-28': '和平紀念日',
-  '2026-04-04': '兒童節',
-  '2026-05-01': '勞動節',
-  '2026-08-08': '父親節',
-  '2026-10-10': '國慶日',
-  '2026-12-25': '行憲紀念日',
-}
+const DEMO_HOLIDAYS = MEMBER_CALENDAR_HOLIDAYS
 
 const events = ref<CalendarEvent[]>([])
 const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
@@ -191,6 +185,18 @@ onMounted(load)
       </div>
       <p v-if="!monthEventCount && !monthCells.some((cell) => cell.holiday)" class="muted">這個月目前沒有符合的行程。</p>
       <p class="calendar-note muted">節日與父親節是固定 Demo 提醒；訂單事件仍會連回訂單詳情，這裡不直接改期。</p>
+      <section class="member-calendar-activity" data-testid="member-calendar-activity" aria-labelledby="member-calendar-activity-title">
+        <div class="section-title-row">
+          <h3 id="member-calendar-activity-title">住戶生活提醒</h3>
+          <span class="muted">與王小明 Demo 使用同一組展示事件</span>
+        </div>
+        <ul class="member-calendar-activity-list">
+          <li v-for="item in MEMBER_CALENDAR_ITEMS.slice(0, 4)" :key="item.id" :data-kind="item.kind">
+            <span class="member-calendar-activity-dot" aria-hidden="true" />
+            <div><strong>{{ item.title }}</strong><span>{{ item.date.slice(5).replace('-', '/') }}・{{ item.detail }}</span></div>
+          </li>
+        </ul>
+      </section>
     </section>
   </section>
 
@@ -298,6 +304,54 @@ onMounted(load)
 .calendar-note {
   margin: .75rem 0 0;
 }
+.member-calendar-activity {
+  display: grid;
+  gap: .65rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px dashed var(--ink);
+}
+.member-calendar-activity h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.member-calendar-activity-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.member-calendar-activity-list li {
+  display: flex;
+  gap: .5rem;
+  align-items: flex-start;
+  padding: .65rem;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.member-calendar-activity-list li[data-kind='community'] { background: var(--peach); }
+.member-calendar-activity-list li[data-kind='reminder'] { background: var(--yellow); }
+.member-calendar-activity-dot {
+  flex: 0 0 .7rem;
+  width: .7rem;
+  height: .7rem;
+  margin-top: .25rem;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--mint);
+}
+.member-calendar-activity-list div {
+  display: grid;
+  gap: .15rem;
+  min-width: 0;
+}
+.member-calendar-activity-list span:not(.member-calendar-activity-dot) {
+  color: var(--muted);
+  font-size: .78rem;
+}
 @media (max-width: 650px) {
   .month-cell {
     min-height: 3.2rem;
@@ -312,6 +366,9 @@ onMounted(load)
   }
   .calendar-month-actions {
     justify-content: flex-start;
+  }
+  .member-calendar-activity-list {
+    grid-template-columns: 1fr;
   }
 }
 

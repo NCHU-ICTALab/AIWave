@@ -28,32 +28,111 @@ if (typeof need === 'string' && need.trim()) {
 
 <template>
   <div class="assistant assistant-fill" data-testid="assistant-workspace">
-    <!-- 2026-07-31:標題壓成單行,聊天視窗撐滿;描述移入 title 提示不佔高度 -->
     <header class="assistant-head compact">
-      <h1 title="用一句話描述需求，我會拆解成可執行的安排；任何交易都會先問過你才執行。">AI 管家</h1>
+      <div>
+        <p class="eyebrow">EVERYDAY CONVERSATION</p>
+        <h1 title="用日常說法描述需求，我會先複述理解到的事，再一起安排。">AI 管家</h1>
+      </div>
+      <p class="assistant-head-copy">不用先知道服務分類，直接說你現在遇到的事；任何送出前都會先讓你確認。</p>
     </header>
-    <AgentSessionHistory />
-    <AgentConversation />
+    <div class="assistant-workspace-grid">
+      <aside class="assistant-session-column" data-testid="assistant-session-column" aria-label="AI 對話列表">
+        <AgentSessionHistory />
+      </aside>
+      <section class="assistant-chat-column" data-testid="assistant-chat-column" aria-label="AI 對話內容">
+        <AgentConversation />
+      </section>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .assistant-fill {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   /* topbar 約 4rem + 頁面上下留白;讓對話工作區吃滿剩餘視窗高度 */
   min-height: calc(100dvh - 8.5rem);
+  height: calc(100dvh - 8.5rem);
+  width: min(100%, 1160px);
+  margin-inline: auto;
+  gap: .65rem;
 }
 .assistant-head.compact {
-  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0;
+}
+.assistant-head > div,
+.assistant-head-copy {
+  min-width: 0;
+}
+.assistant-head-copy {
+  max-width: 38rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: .88rem;
+  text-align: right;
 }
 .assistant-head.compact h1 {
-  font-size: 1.05rem;
-  margin: 0;
+  margin: .1rem 0 0;
+  font-size: clamp(1.15rem, 2.5vw, 1.55rem);
 }
-.assistant-fill :deep(.agent-conversation),
-.assistant-fill > :last-child {
-  flex: 1;
+.assistant-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr);
   min-height: 0;
+  gap: .8rem;
+}
+.assistant-session-column,
+.assistant-chat-column {
+  min-width: 0;
+  min-height: 0;
+}
+.assistant-session-column :deep(.agent-session-history) {
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  overflow: auto;
+  align-content: start;
+}
+.assistant-session-column :deep(.session-history-list) {
+  max-height: none;
+}
+.assistant-chat-column :deep(.agent-conversation) {
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 760px) {
+  .assistant-fill {
+    height: auto;
+    min-height: calc(100dvh - 8.5rem);
+  }
+  .assistant-head.compact {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .25rem;
+  }
+  .assistant-head-copy {
+    max-width: none;
+    text-align: left;
+  }
+  .assistant-workspace-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(30rem, 1fr);
+  }
+  .assistant-session-column :deep(.agent-session-history) {
+    height: auto;
+    max-height: 14rem;
+  }
+  .assistant-session-column :deep(.session-history-list) {
+    max-height: 6rem;
+  }
+  .assistant-chat-column :deep(.agent-conversation) {
+    height: min(70dvh, 42rem);
+    min-height: 0;
+  }
 }
 </style>

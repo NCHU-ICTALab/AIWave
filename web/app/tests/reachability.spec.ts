@@ -14,12 +14,15 @@ describe('reachability view', () => {
 
     expect(wrapper.get('[data-testid="reachability-map"]').text()).toContain('步行・10 分鐘')
     expect(wrapper.get('[data-testid="reachable-location-list"]').text()).toContain('王子水電')
+    expect(wrapper.get('[data-testid="reachable-service-card"]').text()).toContain('水電修繕')
+    expect(wrapper.get('[data-testid="reachable-service-card"] a').attributes('href')).toBe('/user/services/repair')
     expect(wrapper.find('[data-testid="reachability-map-visual"] svg polygon').exists()).toBe(true)
     expect(wrapper.get('[data-testid="reachability-map"]').get('a').attributes('href')).toContain('openstreetmap.org')
 
     await wrapper.get('[data-testid="reachability-threshold"]').setValue('15')
     await flushPromises()
     expect(wrapper.get('[data-testid="reachable-location-list"]').text()).toContain('DUSKIN')
+    expect(wrapper.findAll('[data-testid="reachable-service-card"]')).toHaveLength(2)
 
     await wrapper.get('[data-testid="reachability-mode"]').setValue('scooter')
     await flushPromises()

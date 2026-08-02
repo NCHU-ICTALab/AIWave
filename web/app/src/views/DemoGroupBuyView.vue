@@ -13,6 +13,7 @@ const session = useSessionStore()
 const dashboard = computed(() => demo.residentDashboard)
 const group = computed(() => dashboard.value?.groupBuyHistory.find((item) => item.id === String(route.params.groupBuyId)) ?? null)
 const householdId = computed(() => session.accountId ?? DEMO_HOUSEHOLD_ID)
+const communityPath = computed(() => route.path.startsWith('/demo') ? '/demo/resident#group-buys' : '/user/community#group-buys')
 
 const selectedVariantId = ref('')
 const quantity = ref(1)
@@ -75,7 +76,7 @@ onMounted(() => {
 
 <template>
   <section v-if="group" class="demo-page demo-group-detail-page">
-    <div class="demo-back-row"><button class="demo-text-button" type="button" @click="router.push('/demo/resident#group-buys')">← 回住戶首頁</button><span class="demo-kicker">COMMUNITY GROUP BUY</span></div>
+    <div class="demo-back-row"><button class="demo-text-button" type="button" @click="router.push(communityPath)">← 回社區首頁</button><span class="demo-kicker">COMMUNITY GROUP BUY</span></div>
     <header class="demo-detail-hero">
       <div>
         <p class="eyebrow">{{ group.supplierType === 'external' ? '外部廠商・成交抽成 3%' : '統一集團商品・免抽成' }}</p>
@@ -109,7 +110,7 @@ onMounted(() => {
         <p v-if="feedback" class="demo-success" data-testid="join-feedback" role="status">{{ feedback }}</p>
         <p v-if="error" class="demo-error" role="alert">{{ error }}</p>
         <div v-if="myJoin" class="demo-my-order" data-testid="my-group-order">
-          <div><strong>王小明已跟團</strong><span>A 棟 12F-3・{{ myJoin.variantLabel }} × {{ myJoin.quantity }}</span></div>
+          <div><strong>{{ session.displayName }}已跟團</strong><span>A 棟 12F-3・{{ myJoin.variantLabel }} × {{ myJoin.quantity }}</span></div>
           <button v-if="group.status === 'open'" class="button" type="button" data-testid="cancel-group-buy" @click="cancel">截止前取消</button>
         </div>
         <p class="demo-note">成團門檻以「跟團單位」計算；六入 × 1 仍讓進度增加 1，規格彙總會另外記錄六入 1 組。</p>
@@ -125,5 +126,5 @@ onMounted(() => {
       </aside>
     </div>
   </section>
-  <section v-else class="panel demo-empty-page" role="alert"><h1>找不到這檔團購</h1><p>它可能尚未發布，或已被重設為 Demo 初始狀態。</p><RouterLink class="button primary" to="/demo/resident">回住戶首頁</RouterLink></section>
+  <section v-else class="panel demo-empty-page" role="alert"><h1>找不到這檔團購</h1><p>它可能尚未發布，或已被重設為 Demo 初始狀態。</p><RouterLink class="button primary" :to="communityPath">回社區首頁</RouterLink></section>
 </template>

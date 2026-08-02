@@ -19,7 +19,7 @@
 .demo-hero-resident { background: var(--peach); }
 .demo-hero-committee { background: var(--blue); }
 .demo-hero-subscription { background: var(--lilac); }
-.demo-hero h1 { margin: .2rem 0 .7rem; font-size: clamp(2rem, 5vw, 3.5rem); }
+.demo-hero h1, .demo-hero h2 { margin: .2rem 0 .7rem; font-size: clamp(2rem, 5vw, 3.5rem); }
 .demo-hero-lede { max-width: 50rem; margin: 0 0 1rem; color: var(--accent-ink); font-size: 1.05rem; }
 .demo-hero-side { display: grid; gap: .3rem; align-self: stretch; align-content: center; padding: 1rem; border: 2px solid var(--ink); border-radius: var(--radius-md); background: rgb(255 255 255 / 62%); }
 .demo-hero-side strong { font-size: clamp(1.25rem, 3vw, 2rem); line-height: 1.2; }
@@ -104,7 +104,7 @@
   .demo-hero, .demo-two-column, .demo-subscription-grid { grid-template-columns: 1fr; }
   .demo-hero { align-items: start; gap: 1rem; }
   .demo-hero-side { min-height: 0; }
-  .demo-hero h1 { font-size: clamp(2rem, 10vw, 3rem); }
+  .demo-hero h1, .demo-hero h2 { font-size: clamp(2rem, 10vw, 3rem); }
   .demo-detail-hero, .demo-business-cta, .demo-final-note { align-items: start; flex-direction: column; }
   .demo-detail-price { width: 100%; min-width: 0; }
   .demo-benefit-flow { grid-template-columns: 1fr; }

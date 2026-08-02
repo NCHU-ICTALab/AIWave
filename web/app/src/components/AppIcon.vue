@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type AppIconName = 'home' | 'points' | 'ai' | 'services' | 'member'
+type AppIconName = 'home' | 'community' | 'points' | 'ai' | 'services' | 'member'
 
 defineProps<{ name: AppIconName }>()
 </script>
@@ -19,6 +19,10 @@ defineProps<{ name: AppIconName }>()
       <path d="m3 11 9-8 9 8" />
       <path d="M5 10v10h14V10" />
       <path d="M9 20v-6h6v6" />
+    </template>
+    <template v-else-if="name === 'community'">
+      <path d="M4 20V8l8-5 8 5v12" />
+      <path d="M8 20v-5h8v5M8 10h.01M12 10h.01M16 10h.01" />
     </template>
     <template v-else-if="name === 'points'">
       <circle cx="12" cy="12" r="9" />

@@ -89,11 +89,11 @@ async function signOut() {
         <li>
           <span class="badge badge-blue">群組</span>
           <span class="grow">以不同群組範圍共享任務、提醒與團購</span>
-          <RouterLink class="button" to="/user/community">我的群組 →</RouterLink>
+          <RouterLink class="button" to="/user/community">我的群組與社區 →</RouterLink>
         </li>
         <li>
           <span class="badge badge-peach">社區</span>
-          <span class="grow">社區公告、問社區、團購與聯合服務進度</span>
+          <span class="grow">社區公告、問社區、團購、生活圈與聯合服務進度</span>
           <RouterLink class="button" data-testid="member-community-link" :to="communityLink">我的社區 →</RouterLink>
         </li>
         <li>

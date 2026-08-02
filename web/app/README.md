@@ -27,12 +27,18 @@ npm run build
 
 ## 目前展示路徑
 
-- `/app/today`：個人儀表板、推薦與「不感興趣」偏好回饋。
-- `/app/services`：OPENPOINT 式服務入口、搜尋、九項跨廠商服務。
-- `/app/orders`：跨廠商統一訂單狀態。
-- `/app/community`：社區需求彙整與團購。
-- `/app/vendor`：廠商報價、活動與接入流程。
-- `/app/platform`：統一 API 連接器與營運健康度。
+從 `/login` 進入後，一般住戶（包含王小明與林小圓）共用同一組主導覽：`首頁`、`社區`、`AI`、`服務`、`個人檔案`。
+
+- `/user`：住戶首頁、主動提醒與「交給 AI」入口。
+- `/user/community`：統一社區首頁，包含公告、包裹、報修、問社區、社區優惠、團購與原有群組／共同需求功能。
+- `/user/community/group-buy/:groupBuyId`：團購詳情、規格、數量、跟團、取消與進度。
+- `/user/assistant`：左側對話 Session、中央聊天內容；可以用日常語句描述多件生活需求。
+- `/user/services`：生活服務目錄與預約流程。
+- `/user/life-circle`：固定 Demo GeoJSON 生活圈地圖、步行／機車與 10／15 分鐘切換、範圍內服務卡片。
+- `/user/calendar`：月行事曆、訂單事件、固定節日提醒與住戶生活提醒。
+- `/user/member`：個人檔案、訂單／社區／行事曆入口與 Demo 重設。
+
+`/demo/*` 保留為簡報相容入口；住戶進入這些網址時，上方頁籤仍與一般住戶相同，不再另外顯示一套 Wang 專用導覽。
 
 ## 資料來源
 
@@ -58,13 +64,13 @@ npm run build
 
 ## AI 智慧社區 × 社區團購 Demo
 
-這次 Demo 以「管委會訂閱」為入口、以「社區團購」為商業突破口，與既有後端串接頁隔離在 `/demo/*`，不需要 API、資料庫或真實 LLM。
+這次 Demo 以「管委會訂閱」為入口、以「社區團購」為商業突破口。`/demo/*` 是可重設的前端展示資料；一般住戶路徑則保留既有 API、Session 與訂單流程。
 
 ### Demo 路由與角色切換
 
 - `/demo/community`：住戶王小明的日光森林社區頁，包含公告、包裹、報修、設備保養、公設預約、問社區與服務優惠；`/demo/resident` 保留為同一頁的住戶入口。
 - `/demo/resident/group-buy/:groupBuyId`：團購詳情、規格、數量、跟團、取消與進度。
-- `/demo/member`：統一 Demo 的個人檔案；從「我的社區」可回到 `/demo/community`。
+- `/demo/member`：統一 Demo 的個人檔案；從「我的社區」可回到 `/demo/community`。正式一般住戶則由 `/user/member` 連到 `/user/community`。
 - `/demo/committee`：主委陳建華的開團、訂單彙總、KPI、分潤試算與 Wiki 管理摘要。
 - `/demo/subscription`：112 戶的標準月費、試辦優惠、住戶省下與社區淨效益。
 
@@ -82,10 +88,12 @@ npm run build
 8. 查看 Wiki 查詢排行、最新問題與未回答清單，將問題標記為待補充。
 9. 進入 `/demo/subscription`，展示標準月費 NT$12,000／月、試辦優惠 NT$6,000／月、本月住戶省下 NT$18,420 與淨效益 +NT$12,420。
 
+日常對話展示可直接在 `/user/assistant` 輸入「爸媽週末要來，幫我安排清潔和晚餐」；AI 會把多件事放在同一段 Session 中，列出方案並在送出前等待確認。父親節主動提醒則會同時列出餐廳、清潔與水果／點心團購方向。
+
 ### Mock 與 LINE Bot 對接邊界
 
 型別在 `src/domain/communityDemo.ts`，集中世界觀資料在 `src/data/communityDemoSeed.ts`，狀態與操作由 `src/services/communityDemoService.ts` 和 `src/stores/communityDemo.ts` 提供。未來 LINE Bot 可直接讀取同一組 typed service 函式：
 
 `listAnnouncements()`、`getResidentDashboard(householdId)`、`askCommunity(query, householdId)`、`reportUnanswered(query, householdId)`、`listGroupBuys()`、`getGroupBuy(id)`、`publishDemoGroupBuy(input)`、`joinGroupBuy(input)`、`listMyOrders(householdId)`、`getCommitteeDashboard()`、`getSubscriptionSummary()`、`resetDemo()`。
 
-本次不實作 LINE Messaging API、聊天模擬器或真實 LLM；前端 Demo 只使用 Pinia + typed mock service。
+本次不實作 LINE Messaging API 或聊天模擬器；社區展示資料使用 Pinia + typed mock service，AI 對話頁沿用既有 Agent API 契約，不在前端自行捏造送單結果。

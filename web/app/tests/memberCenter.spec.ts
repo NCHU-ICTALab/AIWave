@@ -21,7 +21,7 @@ describe('member center', () => {
     expect(wrapper.get('h1').text()).toBe('會員中心')
     expect(wrapper.get('[data-testid="member-identity"]').text()).toContain(session.displayName)
     expect(wrapper.get('a[href="/user/orders"]').text()).toContain('訂單')
-    expect(wrapper.get('a[href="/user/community"]').text()).toContain('群組')
+    expect(wrapper.get('a[href="/user/community"]').text()).toContain('社區')
     expect(wrapper.get('[data-testid="member-community-link"]').attributes('href')).toBe('/user/community')
     expect(wrapper.text()).toContain('模擬 uniopen 身分')
   })

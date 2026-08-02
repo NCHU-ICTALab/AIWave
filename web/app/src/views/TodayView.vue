@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { createInsightsClient, type BehaviorSummary, type BriefingItem } from '@/api/insightsClient'
 import { createLifeTaskClient, type LifeTask } from '@/api/lifeTaskClient'
 import { createLifestyleClient } from '@/api/lifestyleClient'
+import FatherDayPushCard from '@/components/FatherDayPushCard.vue'
 import {
   listCalendarEvents, listNotifications, markNotificationRead,
   type CalendarEvent, type NotificationRecord,
@@ -222,6 +223,9 @@ async function submitNeed(text: string) {
         <template v-else-if="status === 'ready'">從第一件事開始。</template>
       </p>
     </header>
+
+    <!-- 一般住戶與王小明共用同一個主動關懷卡片：推薦服務，也說清楚可以買什麼。 -->
+    <FatherDayPushCard />
 
     <!-- 1. 點數與本月消費 -->
     <section class="home-card" data-home-section="overview" aria-labelledby="points-title">

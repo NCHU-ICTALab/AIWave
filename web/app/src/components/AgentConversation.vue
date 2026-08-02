@@ -33,7 +33,11 @@ const messageList = ref<HTMLElement | null>(null)
 const grant = ref<ExecutionGrant | null>(null)
 
 /** 起手式示例：按下就是真的送出訊息，不是導頁。 */
-const starters = ['浴室的燈不亮了', '想找人來打掃', '這週末想訂餐廳']
+const starters = [
+  '爸媽週末要來，幫我安排清潔和晚餐',
+  '浴室的燈不亮了，想找人明天來修',
+  '我想先看看社區有哪些服務',
+]
 
 const messages = computed(() => store.messages)
 const awaiting = computed(() => store.awaiting)
@@ -215,7 +219,7 @@ onMounted(async () => {
     <section ref="messageList" class="message-list" aria-live="polite" aria-label="對話內容">
       <div v-if="!messages.length && !pendingEcho" class="message from-assistant">
         <span>AI 管家</span>
-        <p>嗨，我可以幫你把一句話的需求拆成可執行的安排：找方案、比時段、備妥表單，最後由你核准才會真的送出。</p>
+        <p>嗨，我是 AI 管家。你可以像跟人聊天一樣直接說：「爸媽週末要來，家裡要清潔、燈要修，也想安排晚餐。」我會先把我聽懂的事說給你聽，再一起找方案；沒有你的核准不會送出訂單。</p>
       </div>
 
       <div
@@ -288,6 +292,9 @@ onMounted(async () => {
 
     <!-- 選項／動作列固定在輸入框上方；composer 固定在工作區底部 -->
     <section class="assistant-answer assistant-composer" data-testid="assistant-composer">
+      <p class="assistant-conversation-hint" data-testid="natural-language-hint">
+        直接用日常說法就可以，例如「爸媽週末要來，清潔留到下午，餐廳先看看」；不用先選服務分類。
+      </p>
       <div v-if="store.error" class="error-state" role="alert">
         <strong>目前無法繼續</strong>
         <p>{{ store.error }}</p>
@@ -454,6 +461,11 @@ onMounted(async () => {
   padding: 0.35rem 0.9rem 0.9rem;
   display: grid;
   gap: 0.6rem;
+}
+.assistant-conversation-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: .82rem;
 }
 
 /* 卡片沿用品牌語彙：深墨粗框＋硬偏移陰影；按鈕至少 44px、focus 用全域 3px 外框。 */
