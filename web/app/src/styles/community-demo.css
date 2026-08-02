@@ -44,6 +44,7 @@
 .demo-three-column { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); align-items: start; }
 .demo-panel { min-width: 0; }
 .demo-section-heading { display: flex; justify-content: space-between; align-items: start; gap: 1rem; margin-bottom: .8rem; }
+.demo-section-heading-actions { display: flex; align-items: center; justify-content: flex-end; gap: .75rem; flex-wrap: wrap; }
 .demo-section-heading h2 { margin-bottom: 0; }
 .demo-count-badge, .demo-price-tag, .demo-ai-badge { display: inline-flex; align-items: center; min-height: 30px; padding: .2rem .6rem; border: 2px solid var(--ink); border-radius: 999px; background: var(--mint); color: var(--ink); font-size: .72rem; font-weight: 800; white-space: nowrap; }
 .demo-price-tag { background: var(--peach); }.demo-ai-badge { background: var(--lilac); }

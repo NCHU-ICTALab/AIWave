@@ -17,7 +17,8 @@ describe('reachability view', () => {
     expect(wrapper.get('[data-testid="reachable-service-card"]').text()).toContain('水電修繕')
     expect(wrapper.get('[data-testid="reachable-service-card"] a').attributes('href')).toBe('/user/services/repair')
     expect(wrapper.find('[data-testid="reachability-map-visual"] svg polygon').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="reachability-map"]').get('a').attributes('href')).toContain('openstreetmap.org')
+    expect(wrapper.find('[data-testid="reachability-map"] a[href*="openstreetmap"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="reachability-map-visual"]').text()).toContain('10 分鐘通勤圈')
 
     await wrapper.get('[data-testid="reachability-threshold"]').setValue('15')
     await flushPromises()

@@ -13,7 +13,8 @@ import { computed, ref } from 'vue'
  * 角色是「人」，不是「範圍」。
  *
  * 社區是住戶共享的**範圍**（見 ADR-0003），不是一種身分——所以住戶端本身就看得到
- * 社區的團購與公設；`manager` 指的是管委會／物業那個**管理者**，負責開團、結單、審核。
+ * 社區的團購與公設；`manager` 指的是管委會／物業那個**管理者**，負責社區層級的結單、審核與營運；
+ * 開團本身是社區共享功能，任何已登入住戶都可以發起。
  * 先前叫 `admin` 把兩者混為一談，也與「平台管理者」語意衝突。
  */
 export type Role = 'user' | 'manager' | 'partner' | 'admin'
@@ -60,6 +61,7 @@ export const ROLE_LABEL: Record<Role, string> = {
 }
 
 const DEMO_MEMBER_TOKENS: Record<string, string> = {
+  'household-wang-xiaoming': 'aiwave-demo-resident',
   '019a52d3-7f6b-7da3-b48d-9c9e2522d616': 'aiwave',
   '019c0464-2d01-73f0-9f9b-d1392fdb941a': 'aiwave-chen',
   '019e6c8c-a061-7197-be0f-b7d341dbafdd': 'aiwave-vivian',

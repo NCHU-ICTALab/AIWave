@@ -68,7 +68,7 @@ async function enterPartner(item: (typeof DEMO_PARTNER_ACCOUNTS)[number]) {
   await router.push('/partner')
 }
 
-// ── 帳密登入(方向 A 原型:示範驗證與錯誤狀態;展示環境一律登入為小圓) ──
+// ── 帳密登入(方向 A 原型:示範驗證與錯誤狀態;展示環境一律登入為王小明) ──
 const loginEmail = ref('')
 const loginPassword = ref('')
 const emailError = ref('')
@@ -78,7 +78,7 @@ async function submitPassword() {
   emailError.value = loginEmail.value.includes('@') ? '' : '請輸入有效的電子郵件。'
   passwordError.value = loginPassword.value ? '' : '請輸入密碼。'
   if (emailError.value || passwordError.value) return
-  await enter('user', '019a52d3-7f6b-7da3-b48d-9c9e2522d616', '林小圓')
+  await enterCommunityDemo('user')
 }
 
 async function enter(role: Role, accountId: string | null, displayName: string) {
@@ -153,6 +153,11 @@ async function enterCommunityDemo(role: DemoRole) {
           以主委陳建華進入
         </button>
       </div>
+      <dl class="login-demo-credentials" data-testid="wang-demo-credentials">
+        <div><dt>主要 Demo 帳號</dt><dd><code>household-wang-xiaoming</code></dd></div>
+        <div><dt>Demo Bearer</dt><dd><code>aiwave-demo-resident</code></dd></div>
+        <div><dt>住戶</dt><dd>王小明・A 棟 12F-3</dd></div>
+      </dl>
     </section>
 
     <div class="login-panels">
@@ -173,7 +178,7 @@ async function enterCommunityDemo(role: DemoRole) {
           <p v-if="passwordError" class="field-error" role="alert">{{ passwordError }}</p>
           <button class="button primary full" type="submit" data-testid="login-submit">登入</button>
         </form>
-        <p class="muted login-hint">競賽展示:任何格式正確的帳密都會以展示住戶「林小圓」登入;正式版由平台簽發憑證。</p>
+        <p class="muted login-hint">競賽展示:任何格式正確的帳密都會以主要展示住戶「王小明」登入;正式版由平台簽發憑證。</p>
       </section>
 
       <section class="panel login-card" aria-labelledby="resident-entry">
@@ -288,6 +293,34 @@ async function enterCommunityDemo(role: DemoRole) {
   min-width: 15rem;
   gap: .55rem;
 }
+.login-demo-credentials {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .55rem;
+  margin: 0;
+  padding-top: .75rem;
+  border-top: 2px dashed var(--ink);
+}
+.login-demo-credentials > div {
+  display: grid;
+  gap: .15rem;
+  min-width: 0;
+}
+.login-demo-credentials dt {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 800;
+}
+.login-demo-credentials dd {
+  margin: 0;
+  font-size: .82rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.login-demo-credentials code {
+  font-size: .76rem;
+}
 @media (max-width: 720px) {
   .login-demo-entry {
     grid-template-columns: 1fr;
@@ -297,6 +330,9 @@ async function enterCommunityDemo(role: DemoRole) {
   }
   .login-demo-actions .button {
     width: 100%;
+  }
+  .login-demo-credentials {
+    grid-template-columns: 1fr;
   }
 }
 </style>

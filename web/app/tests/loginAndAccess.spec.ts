@@ -31,6 +31,10 @@ describe('entry points and identity', () => {
   it('uses /login as the unified entry for the community Demo', async () => {
     const resident = await mountApp('/login', { identity: null })
 
+    const credentials = resident.wrapper.get('[data-testid="wang-demo-credentials"]').text()
+    expect(credentials).toContain('household-wang-xiaoming')
+    expect(credentials).toContain('aiwave-demo-resident')
+
     await resident.wrapper.get('[data-testid="enter-community-demo-resident"]').trigger('click')
     await vi.waitFor(() => expect(resident.router.currentRoute.value.path).toBe('/demo/resident'))
     expect(resident.session.identity?.displayName).toBe('王小明')
@@ -41,6 +45,18 @@ describe('entry points and identity', () => {
     await vi.waitFor(() => expect(manager.router.currentRoute.value.path).toBe('/demo/committee'))
     expect(manager.session.identity?.displayName).toBe('主委陳建華')
     expect(manager.wrapper.text()).toContain('社區營運工作台')
+  })
+
+  it('maps password demo login to Wang Xiaoming with the published bearer', async () => {
+    const { wrapper, router, session } = await mountApp('/login', { identity: null })
+
+    await wrapper.get('[data-testid="login-email"]').setValue('wang@example.com')
+    await wrapper.get('[data-testid="login-password"]').setValue('demo-password')
+    await wrapper.get('form.password-form').trigger('submit')
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/demo/resident'))
+
+    expect(session.accountId).toBe('household-wang-xiaoming')
+    expect(session.accessToken).toBe('aiwave-demo-resident')
   })
 
   it('starts a new account with no records at all', async () => {

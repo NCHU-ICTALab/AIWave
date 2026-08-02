@@ -1,11 +1,12 @@
 """Agent 協調器(spec 15 §4):理解 → 拆解 → 查真目錄 → 提案 → 預填 TaskDraft。
 
 責任邊界:
-- LLM 只做三件事:把使用者語句拆成子任務、抽服務關鍵詞/日期片語、抽表單欄位值。
+- LLM 負責自然對話、把使用者語句拆成子任務、抽服務關鍵詞/日期片語、抽表單欄位值。
 - 服務是否存在(Registry)、日期(TimeResolver)、方案/時段(目錄投影)、
   價格(pricing.estimate)、授權(Grant)全部由確定性模組裁決。
 - 提案理由是模板化文字(評分/價格/時段),不是 LLM 生成,因此永遠可驗證。
-- LLM 輸出解析失敗:重試一次,再失敗就誠實降級為追問;絕不假裝理解成功。
+- 自然對話的模型輸出只會成為文字回覆，不能建立草稿、修改任務或送出交易。
+- LLM 輸出解析失敗:重試一次,再失敗就誠實降級為安全回覆;絕不假裝理解成功。
 - 這裡只讀目錄與寫草稿;送單走 platform_core 與手動完全相同的 submit 閉包。
 """
 
@@ -217,9 +218,13 @@ class AgentOrchestrator:
                 action_id=f"action-catalog-search-{uuid4().hex[:8]}",
                 capability_id="catalog.search", arguments={"query": message},
             ))
-            self._append(session, "assistant", "可以先比較核准目錄中的服務與方案；這一步不會建立草稿、授權或交易。")
+            answer, source = self._natural_conversation_reply(session, message, intent=turn.intent)
+            self._append(session, "assistant", answer)
+            turn.grounded_response = {"answer": answer, "source": source, "warnings": []}
         else:
-            self._append(session, "assistant", "可以，我先陪你整理想法；你想查詢、比較，或要我協助安排時再告訴我。")
+            answer, source = self._natural_conversation_reply(session, message, intent=turn.intent)
+            self._append(session, "assistant", answer)
+            turn.grounded_response = {"answer": answer, "source": source, "warnings": []}
 
     def _handle_pause(self, turn: AgentTurn, *, message: str) -> None:
         """Pause/cancel is a zero-side-effect conversational control action."""
@@ -442,6 +447,85 @@ class AgentOrchestrator:
                     ):
                         return item
         return None
+
+    def _llm_chat(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        temperature: float = 0.45,
+        max_tokens: int = 420,
+    ) -> str | None:
+        """Generate a bounded conversational reply through the existing LLM seam.
+
+        A conversational response can be warm and contextual, but it must
+        never claim that a provider was contacted or that an order was created.
+        The deterministic Agent flow remains the only path that can create
+        drafts, grants, or external side effects.
+        """
+        try:
+            llm = self._llm_factory()
+        except Exception:
+            return None
+
+        for _ in range(2):
+            try:
+                raw = llm.chat(messages, temperature=temperature, max_tokens=max_tokens)
+            except Exception:
+                continue
+            if not isinstance(raw, str):
+                continue
+            reply = raw.strip()
+            reply = re.sub(r"^```(?:text|markdown)?\s*|\s*```$", "", reply, flags=re.IGNORECASE).strip()
+            if not reply or len(reply) > 800:
+                continue
+            if re.search(r"(已下單|已預約|已送出訂單|已付款|已聯絡廠商|已建立訂單)", reply):
+                continue
+            return reply
+        return None
+
+    @staticmethod
+    def _conversation_fallback(message: str) -> str:
+        """A useful honest fallback for an unavailable conversational model."""
+        normalized = re.sub(r"\s+", "", message.lower())
+        if any(marker in normalized for marker in ("天氣", "下雨", "氣溫", "會不會下雨")):
+            return (
+                "我目前沒有接上即時天氣資料，所以不想亂報一個答案。"
+                "你可以告訴我所在城市和大概時間；如果是要安排出門、接送或家人來訪，"
+                "我可以先幫你把需要注意的事情整理好。"
+            )
+        if any(marker in normalized for marker in ("你好", "哈囉", "嗨", "早安", "晚安")):
+            return (
+                "嗨，我在這裡。你不用先想服務名稱，直接說生活中卡住的事就好；"
+                "我會先確認自己聽懂了什麼，再陪你找方案。"
+            )
+        return (
+            "我有收到這句，但目前還看不出你想處理的是哪件生活小事。"
+            "可以多告訴我目的、時間或地點，我會先用自己的話整理，再問你需要確認的部分。"
+        )
+
+    def _natural_conversation_reply(self, session: dict, message: str, *, intent: TurnIntent) -> tuple[str, str]:
+        """Reply to small talk/exploration with recent context, never with side effects."""
+        history = [
+            item for item in session.get("messages", [])[-8:]
+            if item.get("role") in {"user", "assistant"} and isinstance(item.get("content"), str)
+        ]
+        mode_hint = (
+            "使用者正在探索平台可以做什麼；不要假裝已查到方案，請自然地說明下一步可以怎麼查。"
+            if intent is TurnIntent.EXPLORE
+            else "使用者正在閒聊或提出尚未成為服務任務的話題；先回應對方，再用一個自然的追問把話題接住。"
+        )
+        system = (
+            "你是台灣家庭的 AI 生活管家，請用自然、溫暖、簡潔的繁體中文回覆。"
+            "你不是客服腳本，也不要每次都用『可以，我先陪你整理想法』開頭。"
+            "請根據對話脈絡回應，最多 3 個短段落，必要時只問一個最有幫助的問題。"
+            "不要虛構即時天氣、價格、店家、時段、規約或任何查詢結果；資料不足就直接說目前沒有這項資料。"
+            "不要宣稱已下單、已預約、已付款、已聯絡廠商，也不要要求使用者提供密碼或 Bearer token。"
+            f"{mode_hint}"
+        )
+        reply = self._llm_chat([{"role": "system", "content": system}, *history])
+        if reply:
+            return reply, "llm-conversation"
+        return self._conversation_fallback(message), "safe-fallback"
 
     def _selected_wiki_context(self, session: dict) -> list[dict[str, Any]]:
         if self.wiki is None:

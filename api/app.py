@@ -1533,9 +1533,12 @@ def create_app(
         req: CreateCampaignReq,
         principal: Principal = Depends(current_platform_principal),
     ) -> dict:
-        """【管委會】開團。"""
-        require_manager_principal(principal)
-        return {"data": community.create_campaign(**req.model_dump())}
+        """【住戶／管委會】發起團購；結單仍由社區管理者負責。"""
+        if principal.role is Role.MEMBER:
+            created_by = require_member_principal(principal)
+        else:
+            created_by = require_manager_principal(principal)
+        return {"data": community.create_campaign(created_by=created_by, **req.model_dump())}
 
     @application.post("/api/v1/community/campaigns/{campaign_id}/join")
     def join_campaign(

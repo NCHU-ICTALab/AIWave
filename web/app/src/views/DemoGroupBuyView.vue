@@ -13,7 +13,7 @@ const session = useSessionStore()
 const dashboard = computed(() => demo.residentDashboard)
 const group = computed(() => dashboard.value?.groupBuyHistory.find((item) => item.id === String(route.params.groupBuyId)) ?? null)
 const householdId = computed(() => session.accountId ?? DEMO_HOUSEHOLD_ID)
-const communityPath = computed(() => route.path.startsWith('/demo') ? '/demo/resident#group-buys' : '/user/community#group-buys')
+const communityPath = computed(() => route.path.startsWith('/demo') ? '/demo/resident#group-buys' : '/user/community/group-buys')
 
 const selectedVariantId = ref('')
 const quantity = ref(1)

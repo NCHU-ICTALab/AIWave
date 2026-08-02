@@ -186,7 +186,7 @@ AIWave 是一個**會員優先的生活服務平台**：住戶用自然語言講
 
 | 功能 | 做到什麼 | 程式碼 | 端點 | 測試 |
 | --- | --- | --- | --- | --- |
-| 社區團購 | 管委會開團 → 住戶跟團 → 到期結單；`open` → `closed`（產出給廠商的彙總）→ `fulfilled`。同一檔活動住戶與管委會看到不同視角，**資料只有一份**（ADR-0003） | `core/community/group_buy.py` | `/api/v1/community/campaigns*` | `test_group_buy.py` |
+| 社區團購 | 住戶或管委會發起 → 社區住戶跟團 → 管理者到期結單；`open` → `closed`（產出給廠商的彙總）→ `fulfilled`。同一檔活動住戶與管委會看到不同視角，**資料只有一份**（ADR-0003） | `core/community/group_buy.py` | `/api/v1/community/campaigns*` | `test_group_buy.py` |
 | 社區聯合服務 | 匿名需求、方案決策與廠商履約放在同一筆可稽核資料；種子帶 `competition_seed` 來源標記 | `core/community/joint_service.py` | `/api/v1/community/joint-services*`、`/api/v1/vendor/joint-services*` | `test_joint_service.py` |
 | 社區公告 | 公告發布與閱讀 | `core/communities/` | `/platform/communities/{id}/announcements` | `test_communities.py` |
 

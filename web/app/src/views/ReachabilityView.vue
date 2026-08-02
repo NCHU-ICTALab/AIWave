@@ -11,10 +11,13 @@ const thresholdMinutes = ref<10 | 15>(10)
 const area = ref<ReachabilityArea | null>(null)
 const loading = ref(false)
 const error = ref('')
+const offlineDemo = ref(false)
 const locationState = ref<'idle' | 'requesting' | 'granted' | 'denied'>('idle')
 const locationMessage = ref('')
 const ORIGIN_POINT = { lon: 121.5654, lat: 25.0339 }
 const LOCATION_POINTS: Record<string, { lon: number; lat: number }> = {
+  'loc-prince-01': { lon: 121.5628, lat: 25.0347 },
+  'loc-duskin-01': { lon: 121.5708, lat: 25.0362 },
   'loc-01-01': { lon: 121.5588, lat: 25.0353 },
   'loc-02-01': { lon: 121.5668, lat: 25.0347 },
   'loc-03-01': { lon: 121.5708, lat: 25.0362 },
@@ -23,6 +26,17 @@ const LOCATION_POINTS: Record<string, { lon: number; lat: number }> = {
 }
 
 type Coordinate = [number, number]
+
+const VIRTUAL_BLOCKS = [
+  { x: 5, y: 9, width: 16, height: 14, label: '晴光里', tone: 'mint' },
+  { x: 28, y: 7, width: 18, height: 18, label: '森林公園', tone: 'green' },
+  { x: 56, y: 8, width: 18, height: 15, label: '日光市場', tone: 'peach' },
+  { x: 81, y: 7, width: 14, height: 18, label: '河畔宅', tone: 'blue' },
+  { x: 5, y: 63, width: 20, height: 18, label: '社區學苑', tone: 'blue' },
+  { x: 32, y: 68, width: 16, height: 14, label: '中庭廣場', tone: 'yellow' },
+  { x: 56, y: 65, width: 19, height: 18, label: '生活工坊', tone: 'peach' },
+  { x: 82, y: 64, width: 13, height: 17, label: '安居街', tone: 'mint' },
+]
 
 const polygonCoordinates = computed<Coordinate[]>(() => {
   const coordinates = (area.value?.geometry as { coordinates?: unknown } | undefined)?.coordinates
@@ -56,7 +70,11 @@ const polygonPoints = computed(() => polygonCoordinates.value.map(([lon, lat]) =
 }).join(' '))
 
 const originMarker = computed(() => project(ORIGIN_POINT))
-const osmUrl = 'https://www.openstreetmap.org/?mlat=25.0339&mlon=121.5654#map=15/25.0339/121.5654'
+const commuteRingRadius = computed(() => {
+  const threshold = area.value?.thresholdMinutes ?? thresholdMinutes.value
+  if (threshold === 15) return travelMode.value === 'scooter' ? 43 : 36
+  return travelMode.value === 'scooter' ? 34 : 26
+})
 
 const reachableServices = computed(() => {
   const providers = new Set(area.value?.locations.map((location) => location.providerId) ?? [])
@@ -67,9 +85,37 @@ function locationMarker(id: string) {
   return project(LOCATION_POINTS[id] ?? ORIGIN_POINT)
 }
 
+function locationTone(providerId: string) {
+  return providerId === 'vendor-duskin' ? 'cleaning' : 'repair'
+}
+
+function createVirtualArea(): ReachabilityArea {
+  const wide = thresholdMinutes.value === 15
+  const coordinates: Coordinate[] = wide
+    ? [[121.559, 25.030], [121.573, 25.029], [121.578, 25.036], [121.570, 25.041], [121.558, 25.038], [121.559, 25.030]]
+    : [[121.562, 25.032], [121.569, 25.031], [121.572, 25.036], [121.567, 25.039], [121.561, 25.036], [121.562, 25.032]]
+  const prince = { id: 'loc-prince-01', providerId: 'vendor-prince-electric', name: '王子水電・晴光服務點', address: '虛擬示範路 1 號' }
+  const duskin = { id: 'loc-duskin-01', providerId: 'vendor-duskin', name: 'DUSKIN 樂清・河畔服務點', address: '虛擬示範路 2 號' }
+  const locations = wide ? [prince, duskin] : [prince]
+  return {
+    originId: ORIGIN_ID,
+    travelMode: travelMode.value,
+    thresholdMinutes: thresholdMinutes.value,
+    geometry: { type: 'Polygon', coordinates: [coordinates] },
+    eligibleLocationIds: locations.map((location) => location.id),
+    locations,
+    source: 'virtual-life-circle',
+    calculatedAt: '2026-08-02T10:00:00+08:00',
+    isDemo: true,
+    realTime: false,
+    navigation: false,
+  }
+}
+
 async function load() {
   loading.value = true
   error.value = ''
+  offlineDemo.value = false
   try {
     area.value = await getReachabilityArea({
       originId: ORIGIN_ID,
@@ -77,8 +123,9 @@ async function load() {
       thresholdMinutes: thresholdMinutes.value,
     })
   } catch (reason) {
-    area.value = null
-    error.value = reason instanceof Error ? reason.message : '目前無法載入生活圈資料。'
+    void reason
+    area.value = createVirtualArea()
+    offlineDemo.value = true
   } finally {
     loading.value = false
   }
@@ -157,7 +204,6 @@ onMounted(() => void load())
     <p v-else-if="error" class="panel reachability-warning" role="alert">
       <strong>目前沒有可驗證的生活圈範圍</strong>
       <span>{{ error }}</span>
-      <small>不顯示未審核的座標、即時路況或導航；資料補齊後可在同一個畫面切換步行／機車與 10／15 分鐘。</small>
     </p>
 
     <section v-if="area" class="reachability-result" aria-live="polite">
@@ -169,23 +215,31 @@ onMounted(() => void load())
         <p>起點：{{ originLabel }}</p>
         <p><strong>{{ area.travelMode === 'pedestrian' ? '步行' : '機車' }}・{{ area.thresholdMinutes }} 分鐘</strong></p>
         <p class="source-note">來源：{{ area.source }}・{{ area.realTime ? '含即時資料' : '非即時路況' }}・{{ area.navigation ? '可導航' : '不提供導航' }}</p>
+        <p v-if="offlineDemo" class="reachability-demo-notice" data-testid="reachability-offline-demo">後端未啟動，現在使用完全虛擬的生活圈示意；道路、街區與服務點都是 Demo 資料。</p>
         <div class="reachability-visual" data-testid="reachability-map-visual" role="img" :aria-label="`${area.travelMode === 'pedestrian' ? '步行' : '機車'} ${area.thresholdMinutes} 分鐘固定示意範圍`">
           <svg viewBox="0 0 100 100" aria-hidden="true">
             <defs><pattern id="reachability-grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" stroke-opacity=".16" stroke-width=".5" /></pattern></defs>
             <rect width="100" height="100" fill="url(#reachability-grid)" />
+            <g class="reachability-blocks">
+              <g v-for="block in VIRTUAL_BLOCKS" :key="block.label" :class="`block-${block.tone}`">
+                <rect :x="block.x" :y="block.y" :width="block.width" :height="block.height" rx="2" />
+                <text :x="block.x + block.width / 2" :y="block.y + block.height / 2 + 1">{{ block.label }}</text>
+              </g>
+            </g>
             <path d="M -8 78 C 20 64 33 69 52 52 S 82 26 108 22" class="reachability-street major" />
             <path d="M 14 -8 C 25 18 31 34 26 55 S 31 82 42 108" class="reachability-street" />
             <path d="M 77 -8 C 69 22 74 42 68 61 S 73 84 89 108" class="reachability-street" />
             <path d="M -8 34 C 17 39 39 29 58 35 S 84 49 108 45" class="reachability-street" />
+            <circle :cx="originMarker.x" :cy="originMarker.y" :r="commuteRingRadius" class="commute-ring" />
             <polygon v-if="polygonPoints" :points="polygonPoints" class="reachability-polygon" />
-            <g v-for="location in area.locations" :key="location.id" class="reachability-location-marker">
+            <g v-for="location in area.locations" :key="location.id" :class="['reachability-location-marker', locationTone(location.providerId)]">
               <circle :cx="locationMarker(location.id).x" :cy="locationMarker(location.id).y" r="2.4" />
               <text :x="locationMarker(location.id).x + 3" :y="locationMarker(location.id).y + 1">{{ location.name.replace('信義服務點', '') }}</text>
               <title>{{ location.name }}</title>
             </g>
             <g class="reachability-origin-marker"><circle :cx="originMarker.x" :cy="originMarker.y" r="3.2" /><text :x="originMarker.x + 3" :y="originMarker.y - 3">會場起點</text></g>
           </svg>
-          <div class="reachability-map-caption"><span>● 會場起點</span><span>● Catalog 據點</span><a :href="osmUrl" target="_blank" rel="noreferrer">用 OpenStreetMap 查看位置 ↗</a></div>
+          <div class="reachability-map-caption"><span>● 會場起點</span><span class="legend-repair">● 修繕服務</span><span class="legend-cleaning">● 清潔服務</span><span>○ {{ area.thresholdMinutes }} 分鐘通勤圈</span></div>
         </div>
         <p class="geometry-fact">GeoJSON geometry：{{ area.geometry.type ?? 'unknown' }}・固定示意範圍，不代表導航路線</p>
       </div>
@@ -294,6 +348,21 @@ onMounted(() => void load())
   stroke-width: .8;
   stroke-linejoin: round;
 }
+.reachability-blocks rect {
+  stroke: color-mix(in srgb, var(--ink) 32%, transparent);
+  stroke-width: .45;
+}
+.reachability-blocks text {
+  fill: color-mix(in srgb, var(--ink) 62%, transparent);
+  font-size: 1.55px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+.block-mint rect { fill: color-mix(in srgb, var(--mint) 62%, transparent); }
+.block-green rect { fill: color-mix(in srgb, #9bd5ad 52%, transparent); }
+.block-peach rect { fill: color-mix(in srgb, var(--peach) 64%, transparent); }
+.block-blue rect { fill: color-mix(in srgb, var(--blue) 66%, transparent); }
+.block-yellow rect { fill: color-mix(in srgb, var(--yellow, #fde68a) 60%, transparent); }
 .reachability-street {
   fill: none;
   stroke: color-mix(in srgb, var(--ink) 28%, transparent);
@@ -304,11 +373,19 @@ onMounted(() => void load())
   stroke: color-mix(in srgb, var(--ink) 44%, transparent);
   stroke-width: 2.1;
 }
+.commute-ring {
+  fill: color-mix(in srgb, var(--accent) 12%, transparent);
+  stroke: var(--accent);
+  stroke-width: 1.1;
+  stroke-dasharray: 2.2 1.5;
+}
 .reachability-location-marker circle {
   fill: var(--peach);
   stroke: var(--ink);
   stroke-width: .8;
 }
+.reachability-location-marker.repair circle { fill: var(--accent, #ff725c); }
+.reachability-location-marker.cleaning circle { fill: var(--lilac, #e6e6fa); }
 .reachability-location-marker text {
   fill: var(--ink);
   font-size: 2.2px;
@@ -331,7 +408,18 @@ onMounted(() => void load())
   font-size: .72rem;
   font-weight: 800;
 }
-.reachability-map-caption a { color: var(--ink); }
+.reachability-map-caption .legend-repair { color: var(--accent-ink); }
+.reachability-map-caption .legend-cleaning { color: var(--primary); }
+.reachability-demo-notice {
+  margin: .6rem 0 0;
+  padding: .6rem .7rem;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--yellow, #fde68a);
+  color: var(--accent-ink);
+  font-size: .78rem;
+  font-weight: 800;
+}
 .status-badge {
   padding: 0.25rem 0.55rem;
   border: 2px solid var(--ink);

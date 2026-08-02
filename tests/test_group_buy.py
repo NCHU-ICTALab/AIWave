@@ -1,4 +1,4 @@
-"""社區團購：管委會開團 → 住戶跟團 → 結單彙總給廠商。
+"""社區團購：住戶或管委會發起 → 住戶跟團 → 結單彙總給廠商。
 
 社區是住戶共享的範圍（ADR-0003）：同一檔活動，兩個角色看到同一份資料。
 """
@@ -134,6 +134,20 @@ def test_manager_creates_a_campaign_that_residents_immediately_see(client: TestC
         "/api/v1/community/campaigns?only_open=true", headers=MEMBER_HEADERS,
     ).json()["data"]
     assert created["id"] in [item["id"] for item in listed]
+
+
+def test_resident_can_create_a_campaign_without_manager_role(client: TestClient):
+    created = client.post("/api/v1/community/campaigns", headers=MEMBER_HEADERS, json={
+        "title": "住戶發起的八月團購", "item_name": "父親節鮮果禮盒", "unit_price": 699, "min_quantity": 8,
+    })
+
+    assert created.status_code == 200
+    assert created.json()["data"]["status"] == OPEN
+
+    listed = client.get(
+        "/api/v1/community/campaigns?only_open=true", headers=MEMBER_HEADERS,
+    ).json()["data"]
+    assert created.json()["data"]["id"] in [item["id"] for item in listed]
 
 
 def test_closing_produces_a_purchase_order_for_the_vendor(client: TestClient, repository: SqliteGroupBuyRepository):

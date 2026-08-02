@@ -16,8 +16,10 @@ const DEMO_HOLIDAYS = MEMBER_CALENDAR_HOLIDAYS
 
 const events = ref<CalendarEvent[]>([])
 const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
+const offlineDemo = ref(false)
 const error = ref('')
 const selectedTypes = ref<string[]>([...SOURCE_TYPES])
+let offlineEventSequence = 0
 
 const sourceType = (event: CalendarEvent) => event.source?.type ?? 'manual'
 
@@ -26,11 +28,36 @@ const visibleEvents = computed(() => events.value
   .slice()
   .sort((a, b) => a.startsAt.localeCompare(b.startsAt)))
 
+function demoCalendarEvents(): CalendarEvent[] {
+  return MEMBER_CALENDAR_ITEMS.map((item) => {
+    const start = item.title.includes('烤肉') ? '16:00' : item.title.includes('清潔') ? '14:00' : '09:00'
+    const end = item.title.includes('烤肉') ? '20:00' : item.title.includes('清潔') ? '16:00' : '11:00'
+    return {
+      id: item.id,
+      title: item.title,
+      startsAt: `${item.date}T${start}:00+08:00`,
+      endsAt: `${item.date}T${end}:00+08:00`,
+      allDay: item.kind === 'reminder',
+      note: item.detail,
+      status: 'demo',
+      source: { type: item.kind, id: null },
+      recurrence: null,
+    }
+  })
+}
+
 async function load() {
   status.value = 'loading'
+  offlineDemo.value = false
+  error.value = ''
   try {
     const loaded = await listCalendarEvents()
-    events.value = Array.isArray(loaded) ? loaded : []
+    if (Array.isArray(loaded) && loaded.length) {
+      events.value = loaded
+    } else {
+      events.value = demoCalendarEvents()
+      offlineDemo.value = true
+    }
     const first = events.value[0]?.startsAt.slice(0, 10)
     if (first) {
       const [year, month] = first.split('-').map(Number)
@@ -41,7 +68,9 @@ async function load() {
     }
     status.value = 'ready'
   } catch {
-    status.value = 'unavailable'
+    events.value = demoCalendarEvents()
+    offlineDemo.value = true
+    status.value = 'ready'
   }
 }
 
@@ -118,7 +147,27 @@ async function submitEvent() {
     draftStart.value = ''
     draftEnd.value = ''
   } catch (reason) {
-    error.value = reason instanceof ApiError ? reason.message : '事件未能新增,請稍後再試。'
+    if (offlineDemo.value) {
+      offlineEventSequence += 1
+      const created: CalendarEvent = {
+        id: `offline-calendar-${offlineEventSequence}`,
+        title,
+        startsAt: draftStart.value,
+        endsAt: draftEnd.value,
+        allDay: false,
+        note: '王小明離線 Demo 手動事件',
+        status: 'demo',
+        source: { type: 'manual', id: null },
+        recurrence: null,
+      }
+      events.value = [...events.value, created]
+      createNotice.value = `已新增「${created.title}」（離線 Demo）。`
+      draftTitle.value = ''
+      draftStart.value = ''
+      draftEnd.value = ''
+    } else {
+      error.value = reason instanceof ApiError ? reason.message : '事件未能新增,請稍後再試。'
+    }
   } finally {
     creating.value = false
   }
@@ -135,7 +184,7 @@ onMounted(load)
       <p class="muted">訂單行程與自己的事件放在同一份時間軸上。</p>
     </div>
     <span class="page-status">
-      {{ status === 'ready' ? `${visibleEvents.length} 筆` : status === 'loading' ? '載入中…' : '離線' }}
+      {{ status === 'ready' ? `${visibleEvents.length} 筆${offlineDemo ? '・Demo' : ''}` : status === 'loading' ? '載入中…' : '離線' }}
     </span>
   </header>
 
@@ -164,10 +213,11 @@ onMounted(load)
     </fieldset>
 
     <p v-if="status === 'loading'" role="status">正在載入行事曆…</p>
-    <p v-else-if="status === 'unavailable'" class="muted" role="status">
-      目前無法取得行事曆,請確認後端服務是否啟動。
-    </p>
+    <p v-else-if="status === 'unavailable'" class="muted" role="status">目前無法取得行事曆。</p>
     <section v-else :aria-label="`${monthLabel}月曆`">
+      <p v-if="offlineDemo" class="calendar-demo-notice" data-testid="calendar-offline-demo" role="status">
+        後端未啟動，目前顯示王小明的固定 Demo 行事曆；啟動 API 並有會員事件後會切換成實際資料。
+      </p>
       <div class="month-grid">
         <span v-for="weekday in ['日', '一', '二', '三', '四', '五', '六']" :key="weekday" class="month-head">{{ weekday }}</span>
         <div v-for="cell in monthCells" :key="cell.key" class="month-cell" :class="{ out: cell.day === null, today: cell.date === DEMO_TODAY }" :data-date="cell.date ?? undefined">
@@ -184,7 +234,7 @@ onMounted(load)
         </div>
       </div>
       <p v-if="!monthEventCount && !monthCells.some((cell) => cell.holiday)" class="muted">這個月目前沒有符合的行程。</p>
-      <p class="calendar-note muted">節日與父親節是固定 Demo 提醒；訂單事件仍會連回訂單詳情，這裡不直接改期。</p>
+      <p class="calendar-note muted">行事曆已放入 2026 國定假日、民俗節日與王小明生活提醒；訂單事件仍會連回訂單詳情，這裡不直接改期。</p>
       <section class="member-calendar-activity" data-testid="member-calendar-activity" aria-labelledby="member-calendar-activity-title">
         <div class="section-title-row">
           <h3 id="member-calendar-activity-title">住戶生活提醒</h3>
@@ -303,6 +353,16 @@ onMounted(load)
 }
 .calendar-note {
   margin: .75rem 0 0;
+}
+.calendar-demo-notice {
+  margin: 0 0 .8rem;
+  padding: .7rem .8rem;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--yellow, #fde68a);
+  color: var(--accent-ink);
+  font-size: .82rem;
+  font-weight: 800;
 }
 .member-calendar-activity {
   display: grid;

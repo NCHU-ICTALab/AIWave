@@ -35,6 +35,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/user/orders', name: 'orders', component: () => import('@/views/OrdersView.vue'), meta: { role: 'user' } },
   { path: '/user/orders/:orderId', name: 'order-detail', component: () => import('@/views/OrderDetailView.vue'), meta: { role: 'user' } },
   { path: '/user/community', name: 'community-board', component: () => import('@/views/CommunityHubView.vue'), meta: { role: 'user' } },
+  { path: '/user/community/group-buys', name: 'community-group-buys', component: () => import('@/views/GroupBuyCatalogView.vue'), meta: { role: 'user' } },
+  { path: '/user/community/group-buys/open', name: 'community-group-buy-open', component: () => import('@/views/GroupBuyOpenView.vue'), meta: { role: 'user' } },
   {
     path: '/user/community/group-buy/:groupBuyId',
     name: 'community-group-buy',

@@ -9,7 +9,7 @@ import DemoResidentView from '@/views/DemoResidentView.vue'
       <p class="eyebrow">MY COMMUNITY・日光森林社區</p>
       <strong>住戶的社區入口</strong>
       <p>公告、生活規約、社區優惠、團購與住戶群組都在同一頁；需要查地圖時也可以直接開生活圈。</p>
-      <RouterLink class="button inline" to="/user/life-circle">開啟生活圈地圖</RouterLink>
+      <div class="community-hub-intro-actions"><RouterLink class="button inline" to="/user/community/group-buys">瀏覽社區團購</RouterLink><RouterLink class="button inline" to="/user/life-circle">開啟生活圈地圖</RouterLink></div>
     </div>
 
     <!-- 顯示順序把 Demo-first 社區首頁放前面；舊的群組／共同需求功能仍保留在下方。 -->
@@ -53,9 +53,16 @@ import DemoResidentView from '@/views/DemoResidentView.vue'
   color: var(--accent-ink);
 }
 .community-hub-intro .button {
+  align-self: center;
+}
+.community-hub-intro-actions {
+  display: flex;
   grid-column: 2;
   grid-row: 2 / span 2;
   align-self: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: .5rem;
 }
 .community-hub-layout {
   display: flex;
@@ -75,9 +82,11 @@ import DemoResidentView from '@/views/DemoResidentView.vue'
     grid-template-columns: 1fr;
   }
   .community-hub-intro .button,
+  .community-hub-intro-actions,
   .community-hub-intro p:not(.eyebrow) {
     grid-column: 1;
     grid-row: auto;
   }
+  .community-hub-intro-actions { justify-content: flex-start; }
 }
 </style>

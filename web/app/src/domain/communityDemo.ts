@@ -220,6 +220,7 @@ export interface DemoSubscriptionSummary {
 
 export interface PublishDemoGroupBuyInput {
   name?: string
+  description?: string
   marketPrice?: number
   variants?: DemoGroupBuyVariant[]
   thresholdUnits?: number

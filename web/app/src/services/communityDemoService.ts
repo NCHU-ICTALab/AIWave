@@ -33,6 +33,7 @@ export interface CommunityDemoServiceApi {
   reportUnanswered(query: string, householdId: string): ReturnType<CommunityDemoService['reportUnanswered']>
   listGroupBuys(): ReturnType<CommunityDemoService['listGroupBuys']>
   getGroupBuy(id: string): ReturnType<CommunityDemoService['getGroupBuy']>
+  openResidentGroupBuy(input?: PublishDemoGroupBuyInput): ReturnType<CommunityDemoService['openResidentGroupBuy']>
   publishDemoGroupBuy(input?: PublishDemoGroupBuyInput): ReturnType<CommunityDemoService['publishDemoGroupBuy']>
   updateGroupBuy(groupBuyId: string, input: UpdateDemoGroupBuyInput): ReturnType<CommunityDemoService['updateGroupBuy']>
   closeGroupBuy(groupBuyId: string): ReturnType<CommunityDemoService['closeGroupBuy']>
@@ -142,6 +143,43 @@ export class CommunityDemoService implements CommunityDemoServiceApi {
   getGroupBuy(id: string): DemoGroupBuy | null {
     const group = this.state.groupBuys.find((item) => item.id === id && item.published)
     return group ? clone(this.withProgress(group)) : null
+  }
+
+  /**
+   * Any signed-in resident can start a group buy. The committee dashboard
+   * remains useful for later community-wide management, but it is not a
+   * publishing gate for the resident flow.
+   */
+  openResidentGroupBuy(input: PublishDemoGroupBuyInput = {}): DemoGroupBuy {
+    const residentGroupCount = this.state.groupBuys.filter((group) => group.id.startsWith('group-resident-')).length + 1
+    const marketPrice = Number.isFinite(input.marketPrice) && (input.marketPrice ?? 0) > 0 ? input.marketPrice as number : 399
+    const variants = input.variants?.filter((variant) => (
+      variant.id.trim() && variant.label.trim() && Number.isFinite(variant.price) && variant.price > 0
+    ))
+    const supplierType = input.supplierType ?? 'external'
+    const group: DemoGroupBuy = {
+      id: `group-resident-${DEMO_NOW.slice(0, 10).replaceAll('-', '')}-${String(residentGroupCount).padStart(3, '0')}`,
+      name: input.name?.trim() || '新的社區團購',
+      description: input.description?.trim() || '由社區住戶發起，達標後集中送至管理室。',
+      marketPrice,
+      variants: clone(variants?.length ? variants : [{ id: 'resident-default', label: '標準規格', price: Math.max(1, Math.round(marketPrice * .9)) }]),
+      thresholdUnits: Number.isInteger(input.thresholdUnits) && (input.thresholdUnits ?? 0) > 0 ? input.thresholdUnits as number : 10,
+      seededProgressUnits: 0,
+      progressUnits: 0,
+      pickupLocation: input.pickupLocation?.trim() || '社區管理室',
+      expectedArrival: input.expectedArrival?.trim() || '2026-08-15',
+      closeAt: input.closeAt?.trim() || '2026-08-10T21:00:00+08:00',
+      supplierType,
+      supplierName: input.supplierName?.trim() || '住戶推薦廠商',
+      supplierFeeRate: supplierType === 'external' ? 0.03 : 0,
+      status: 'open',
+      statusLabel: '進行中',
+      published: true,
+      publishedAt: DEMO_NOW.slice(0, 10),
+      joins: [],
+    }
+    this.state.groupBuys.unshift(group)
+    return clone(this.withProgress(group))
   }
 
   publishDemoGroupBuy(input: PublishDemoGroupBuyInput = {}): DemoGroupBuy {

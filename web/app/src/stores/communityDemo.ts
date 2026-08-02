@@ -58,6 +58,13 @@ export const useCommunityDemoStore = defineStore('community-demo', () => {
     return communityDemoService.getGroupBuy(id)
   }
 
+  function openResidentGroupBuy(input?: PublishDemoGroupBuyInput) {
+    const group = communityDemoService.openResidentGroupBuy(input)
+    loadResident()
+    loadCommittee()
+    return group
+  }
+
   function publishDemoGroupBuy(input?: PublishDemoGroupBuyInput) {
     const group = communityDemoService.publishDemoGroupBuy(input)
     loadResident()
@@ -138,6 +145,7 @@ export const useCommunityDemoStore = defineStore('community-demo', () => {
     loadResident,
     markUnansweredForWiki,
     myOrders,
+    openResidentGroupBuy,
     publishDemoGroupBuy,
     reopenGroupBuy,
     reportUnanswered,

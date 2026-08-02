@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
+import type { DemoGroupBuyVariant } from '@/domain/communityDemo'
 import { useCommunityDemoStore } from '@/stores/communityDemo'
 
 const demo = useCommunityDemoStore()
+const route = useRoute()
 const dashboard = computed(() => demo.committeeDashboard)
 const publishFeedback = ref('')
 const wikiFeedback = ref('')
@@ -19,13 +22,66 @@ const chocolateRevenue = computed(() => chocolateOrders.value.reduce((sum, order
 const editableGroup = computed(() => draft.value ?? chocolate.value)
 const editableName = ref('')
 const editableMarketPrice = ref(149)
+const editableThresholdUnits = ref(10)
+const editablePickupLocation = ref('社區管理室')
+const editableExpectedArrival = ref('2026-08-07')
 const editableCloseAt = ref('2026-08-06T21:00')
+const editableSupplierType = ref<'external' | 'group'>('external')
+const editableSupplierName = ref('可可日常食品')
+const editableVariants = ref<DemoGroupBuyVariant[]>([])
+const prefillNotice = ref('')
+const prefillApplied = ref(false)
+
+function queryText(key: string) {
+  return typeof route.query[key] === 'string' ? route.query[key] as string : ''
+}
+
+function queryVariants(): DemoGroupBuyVariant[] {
+  const raw = queryText('variants')
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((item): item is DemoGroupBuyVariant => (
+      Boolean(item) && typeof item === 'object'
+      && typeof (item as DemoGroupBuyVariant).id === 'string'
+      && typeof (item as DemoGroupBuyVariant).label === 'string'
+      && typeof (item as DemoGroupBuyVariant).price === 'number'
+    ))
+  } catch {
+    return []
+  }
+}
 
 watch(editableGroup, (group) => {
   if (!group) return
   editableName.value = group.name
   editableMarketPrice.value = group.marketPrice
+  editableThresholdUnits.value = group.thresholdUnits
+  editablePickupLocation.value = group.pickupLocation
+  editableExpectedArrival.value = group.expectedArrival
   editableCloseAt.value = group.closeAt.slice(0, 16)
+  editableSupplierType.value = group.supplierType
+  editableSupplierName.value = group.supplierName
+  editableVariants.value = group.variants.map((variant) => ({ ...variant }))
+
+  if (route.query.prefill === 'catalog' && !prefillApplied.value) {
+    const name = queryText('name')
+    const marketPrice = Number(queryText('marketPrice'))
+    const thresholdUnits = Number(queryText('thresholdUnits'))
+    if (name) editableName.value = name
+    if (Number.isFinite(marketPrice) && marketPrice > 0) editableMarketPrice.value = marketPrice
+    if (Number.isInteger(thresholdUnits) && thresholdUnits > 0) editableThresholdUnits.value = thresholdUnits
+    if (queryText('pickupLocation')) editablePickupLocation.value = queryText('pickupLocation')
+    if (queryText('expectedArrival')) editableExpectedArrival.value = queryText('expectedArrival')
+    if (queryText('closeAt')) editableCloseAt.value = queryText('closeAt').slice(0, 16)
+    if (queryText('supplierName')) editableSupplierName.value = queryText('supplierName')
+    if (queryText('supplierType') === 'group' || queryText('supplierType') === 'external') editableSupplierType.value = queryText('supplierType') as 'external' | 'group'
+    const variants = queryVariants()
+    if (variants.length) editableVariants.value = variants.map((variant) => ({ ...variant }))
+    prefillApplied.value = true
+    prefillNotice.value = '已從商品列表帶入這檔商品；你可以修改條件後再發布。'
+  }
 }, { immediate: true })
 
 const money = (value: number, decimals = false) => `NT$ ${value.toLocaleString('zh-TW', decimals ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : undefined)}`
@@ -34,9 +90,15 @@ function publishChocolate() {
   demo.publishDemoGroupBuy({
     name: editableName.value,
     marketPrice: editableMarketPrice.value,
+    variants: editableVariants.value,
+    thresholdUnits: editableThresholdUnits.value,
+    pickupLocation: editablePickupLocation.value,
+    expectedArrival: editableExpectedArrival.value,
     closeAt: `${editableCloseAt.value}:00+08:00`,
+    supplierType: editableSupplierType.value,
+    supplierName: editableSupplierName.value,
   })
-  publishFeedback.value = '杜拜巧克力已發布，住戶端現在看得到這檔團購。'
+  publishFeedback.value = `${editableName.value}已發布，住戶端現在看得到這檔團購。`
 }
 
 function saveChocolate() {
@@ -46,9 +108,12 @@ function saveChocolate() {
     demo.updateGroupBuy(chocolateId, {
       name: editableName.value,
       marketPrice: editableMarketPrice.value,
+      thresholdUnits: editableThresholdUnits.value,
+      pickupLocation: editablePickupLocation.value,
+      expectedArrival: editableExpectedArrival.value,
       closeAt: `${editableCloseAt.value}:00+08:00`,
     })
-    manageFeedback.value = '團購條件已更新，住戶端會讀取最新資料。'
+    manageFeedback.value = '團購條件已更新，住戶端會讀取最新資料；規格與供應商會在發布時一起帶入。'
   } catch (reason) {
     manageError.value = reason instanceof Error ? reason.message : '團購條件未能更新。'
   }
@@ -97,26 +162,34 @@ onMounted(() => {
 
     <section class="panel demo-panel demo-publish-panel" data-testid="publish-group-buy-panel" aria-labelledby="publish-group-buy-title">
       <div class="demo-section-heading"><div><p class="eyebrow">STEP 1・PUBLISH</p><h2 id="publish-group-buy-title">發布一檔示範團購</h2></div><span class="demo-count-badge">{{ draft ? '草稿已備妥' : '已發布' }}</span></div>
-      <p class="demo-panel-lede">商品資料預先備妥，主委只要確認商業條件就能發布；發布後住戶端立即讀取同一份資料。</p>
+        <p class="demo-panel-lede">商品資料可以從住戶商品列表帶入，主委確認或修改商業條件後就能發布；發布後住戶端立即讀取同一份資料。</p>
+      <p v-if="prefillNotice" class="demo-success" data-testid="group-buy-prefill-notice" role="status">{{ prefillNotice }}</p>
       <div class="demo-product-card">
-        <div class="demo-product-main"><span class="demo-product-icon" aria-hidden="true">🍫</span><div><h3>杜拜巧克力</h3><p>外部廠商：可可日常食品・預計 8/7 到貨・取貨地點：{{ (draft ?? chocolate)?.pickupLocation ?? '社區管理室' }}</p></div></div>
+        <div class="demo-product-main"><span class="demo-product-icon" aria-hidden="true">🛒</span><div><h3>{{ editableName || (draft ?? chocolate)?.name || '新的社區團購' }}</h3><p>{{ editableSupplierType === 'external' ? '外部廠商' : '集團商品' }}：{{ editableSupplierName }}・預計 {{ editableExpectedArrival }} 到貨・取貨地點：{{ editablePickupLocation }}</p></div></div>
         <dl class="demo-product-specs">
-          <div><dt>市價</dt><dd>{{ money((draft ?? chocolate)?.marketPrice ?? 149) }}</dd></div>
-          <div><dt>社區價</dt><dd>單入 {{ money((draft ?? chocolate)?.variants[0]?.price ?? 135) }}<br />六入 {{ money((draft ?? chocolate)?.variants[1]?.price ?? 780) }}</dd></div>
-          <div><dt>成團門檻</dt><dd>{{ (draft ?? chocolate)?.thresholdUnits ?? 10 }} 個跟團單位</dd></div>
-          <div><dt>廠商抽成</dt><dd>外部 3%<br />集團商品 0%</dd></div>
+          <div><dt>市價</dt><dd>{{ money(editableMarketPrice) }}</dd></div>
+          <div><dt>社區價</dt><dd v-for="variant in editableVariants" :key="variant.id">{{ variant.label }} {{ money(variant.price) }}</dd></div>
+          <div><dt>成團門檻</dt><dd>{{ editableThresholdUnits }} 個跟團單位</dd></div>
+          <div><dt>廠商抽成</dt><dd>{{ editableSupplierType === 'external' ? '外部 3%' : '集團商品 0%' }}</dd></div>
         </dl>
       </div>
-      <div class="demo-product-progress"><span>發布後初始進度固定為</span><strong>{{ (draft ?? chocolate)?.progressUnits ?? 7 }}/10</strong><span>・截止 {{ (draft ?? chocolate)?.closeAt?.slice(0, 16).replace('T', ' ') ?? '2026-08-06 21:00' }}</span></div>
+      <div class="demo-product-progress"><span>發布後初始進度固定為</span><strong>{{ (draft ?? chocolate)?.progressUnits ?? 7 }}/{{ editableThresholdUnits }}</strong><span>・截止 {{ editableCloseAt.replace('T', ' ') }}</span></div>
       <div class="demo-edit-grid" data-testid="group-buy-editor">
         <label><span>團購名稱</span><input v-model="editableName" data-testid="group-buy-name" type="text" /></label>
         <label><span>市價</span><input v-model.number="editableMarketPrice" data-testid="group-buy-market-price" type="number" min="1" /></label>
+        <label><span>成團門檻</span><input v-model.number="editableThresholdUnits" data-testid="group-buy-threshold" type="number" min="1" /></label>
+        <label><span>預計到貨</span><input v-model="editableExpectedArrival" data-testid="group-buy-expected-arrival" type="date" /></label>
         <label><span>收單截止</span><input v-model="editableCloseAt" data-testid="group-buy-close-at" type="datetime-local" /></label>
+        <label><span>取貨地點</span><input v-model="editablePickupLocation" data-testid="group-buy-pickup" type="text" /></label>
+        <label><span>供應商</span><input v-model="editableSupplierName" data-testid="group-buy-supplier" type="text" /></label>
+        <label><span>規格名稱</span><input v-if="editableVariants[0]" v-model="editableVariants[0].label" data-testid="group-buy-variant-label" type="text" /></label>
+        <label><span>規格價格</span><input v-if="editableVariants[0]" v-model.number="editableVariants[0].price" data-testid="group-buy-variant-price" type="number" min="1" /></label>
+        <label><span>供應商類型</span><select v-model="editableSupplierType" data-testid="group-buy-supplier-type"><option value="external">外部廠商</option><option value="group">集團商品</option></select></label>
         <button class="button" data-testid="save-group-buy" type="button" @click="saveChocolate">儲存條件</button>
       </div>
       <p v-if="manageFeedback" class="demo-success" data-testid="group-buy-manage-feedback" role="status">{{ manageFeedback }}</p>
       <p v-if="manageError" class="demo-error" data-testid="group-buy-manage-error" role="alert">{{ manageError }}</p>
-      <button v-if="draft" class="button primary demo-wide-button" data-testid="publish-dubai-group-buy" type="button" @click="publishChocolate">發布杜拜巧克力開團</button>
+      <button v-if="draft" class="button primary demo-wide-button" data-testid="publish-dubai-group-buy" type="button" @click="publishChocolate">發布「{{ editableName || '這檔商品' }}」開團</button>
       <p v-else class="demo-success" data-testid="publish-feedback" role="status">{{ publishFeedback || '已發布，等待住戶跟團。' }}</p>
       <p v-if="draft && publishFeedback" class="demo-success" data-testid="publish-feedback" role="status">{{ publishFeedback }}</p>
     </section>

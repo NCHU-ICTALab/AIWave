@@ -211,7 +211,7 @@ onMounted(() => {
     <section id="group-buys" class="panel demo-panel" data-testid="resident-group-buys" aria-labelledby="group-buy-title">
       <div class="demo-section-heading">
         <div><p class="eyebrow">COMMUNITY GROUP BUY</p><h2 id="group-buy-title">社區團購</h2></div>
-        <span class="demo-count-badge">{{ dashboard.activeGroupBuys.length }} 檔收單中</span>
+        <div class="demo-section-heading-actions"><span class="demo-count-badge">{{ dashboard.activeGroupBuys.length }} 檔收單中</span><RouterLink class="demo-text-button" to="/user/community/group-buys">瀏覽全部商品 →</RouterLink></div>
       </div>
       <p class="demo-panel-lede">社區優惠價與跟團進度透明，取貨地點固定在管理室。</p>
       <div class="demo-group-grid">

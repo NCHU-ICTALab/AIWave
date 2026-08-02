@@ -56,7 +56,7 @@ describe('calendar month view', () => {
     await wrapper.get('form.calendar-form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="calendar-event"]').text()).toContain('回收家具搬運')
+    expect(wrapper.findAll('[data-testid="calendar-event"]').some((item) => item.text().includes('回收家具搬運'))).toBe(true)
   })
 
   it('navigates to the previous and next month without changing the view mode', async () => {
@@ -73,7 +73,7 @@ describe('calendar month view', () => {
     const { wrapper } = await mountApp('/user/calendar')
 
     expect(wrapper.find('[data-testid="calendar-holiday"]').text()).toContain('父親節')
-    expect(wrapper.text()).toContain('固定 Demo 提醒')
+    expect(wrapper.text()).toContain('固定 Demo 行事曆')
   })
 
   it('hides a source when its filter is unchecked', async () => {
