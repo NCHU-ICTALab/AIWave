@@ -15,6 +15,7 @@ const answer = ref<DemoCommunityAnswer | null>(null)
 const askState = ref<'idle' | 'thinking' | 'answered'>('idle')
 const askFeedback = ref('')
 const serviceNoteOpen = ref(false)
+const fatherDayDismissed = ref(false)
 
 const money = (value: number) => `NT$ ${value.toLocaleString('zh-TW')}`
 const dateLabel = (value: string) => {
@@ -46,6 +47,10 @@ function reportAnswer() {
   if (!answer.value || answer.value.matched) return
   demo.reportUnanswered(answer.value.query, householdId.value)
   askFeedback.value = '已送入管委會未回答問題清單，謝謝你的提醒。'
+}
+
+function dismissFatherDay() {
+  fatherDayDismissed.value = true
 }
 
 onMounted(() => {
@@ -93,6 +98,12 @@ onMounted(() => {
         <div><strong>{{ dashboard.activeGroupBuys.length }}</strong><span>檔進行中團購</span></div>
         <small>最低成團單位清楚可見</small>
       </article>
+    </section>
+
+    <section v-if="!fatherDayDismissed" class="panel demo-panel demo-care-push" data-testid="father-day-push" aria-labelledby="father-day-push-title">
+      <div class="demo-care-push-icon" aria-hidden="true">💌</div>
+      <div class="demo-care-push-copy"><p class="eyebrow">AI 主動提醒・8/8</p><h2 id="father-day-push-title">父親節快到了，王小明要不要先安排一下？</h2><p>這是根據你已授權的 Demo 行事曆提醒；可以先看看月曆，再決定要不要準備晚餐或傳訊息給爸爸。</p><span class="demo-meta">資料來源：競賽 Demo 固定事件・不背景追蹤位置</span></div>
+      <div class="button-row demo-care-push-actions"><RouterLink class="button primary" data-testid="father-day-calendar-link" to="/demo/calendar">看月曆</RouterLink><button class="button" type="button" data-testid="father-day-snooze" @click="dismissFatherDay">稍後提醒</button></div>
     </section>
 
     <div class="demo-two-column">
@@ -236,3 +247,23 @@ onMounted(() => {
   </section>
   <div v-else class="panel demo-loading" role="status">正在整理日光森林社區資料…</div>
 </template>
+
+<style scoped>
+.demo-care-push {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  border-color: var(--ink);
+  background: var(--yellow, #fde68a);
+}
+.demo-care-push-icon { font-size: 2.25rem; }
+.demo-care-push-copy { min-width: 0; }
+.demo-care-push-copy h2 { margin: 0 0 .35rem; }
+.demo-care-push-copy p { margin: .2rem 0 .45rem; }
+.demo-care-push-actions { justify-content: flex-end; }
+@media (max-width: 720px) {
+  .demo-care-push { grid-template-columns: auto minmax(0, 1fr); }
+  .demo-care-push-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+</style>

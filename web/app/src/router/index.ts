@@ -46,6 +46,8 @@ const routes: RouteRecordRaw[] = [
   // M4 六場景手動閉環:booking wizard 由服務探索進入;行事曆由首頁卡片進入(不佔主導覽)
   { path: '/user/booking', name: 'booking-wizard', component: () => import('@/views/BookingWizardView.vue'), meta: { role: 'user' } },
   { path: '/user/calendar', name: 'calendar', component: () => import('@/views/CalendarView.vue'), meta: { role: 'user' } },
+  { path: '/user/life-circle', name: 'life-circle', component: () => import('@/views/ReachabilityView.vue'), meta: { role: 'user' } },
+  { path: '/user/wellbeing', name: 'wellbeing', component: () => import('@/views/WellbeingView.vue'), meta: { role: 'user' } },
 
   // 管委會／合作廠商的管理工作台
   { path: '/community', name: 'community-home', component: () => import('@/views/CommunityView.vue'), meta: { role: 'manager' } },
@@ -64,7 +66,8 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/DemoGroupBuyView.vue'),
     meta: { role: 'user' },
   },
-  { path: '/demo/member', name: 'demo-member-center', component: () => import('@/views/MemberView.vue'), meta: { role: 'user' } },
+  { path: '/demo/member', name: 'demo-member-center', component: () => import('@/views/DemoMemberView.vue'), meta: { role: 'user' } },
+  { path: '/demo/calendar', name: 'demo-calendar', component: () => import('@/views/DemoCalendarView.vue'), meta: { role: 'user' } },
   { path: '/demo/committee', name: 'demo-committee', component: () => import('@/views/DemoCommitteeView.vue'), meta: { role: 'manager' } },
   { path: '/demo/subscription', name: 'demo-subscription', component: () => import('@/views/DemoSubscriptionView.vue'), meta: { role: 'manager' } },
 

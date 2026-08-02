@@ -2,6 +2,7 @@
 import { useRoute, useRouter } from 'vue-router'
 
 import AgentConversation from '@/components/AgentConversation.vue'
+import AgentSessionHistory from '@/components/AgentSessionHistory.vue'
 import { useAgentSessionStore } from '@/stores/agentSession'
 
 /**
@@ -31,6 +32,7 @@ if (typeof need === 'string' && need.trim()) {
     <header class="assistant-head compact">
       <h1 title="用一句話描述需求，我會拆解成可執行的安排；任何交易都會先問過你才執行。">AI 管家</h1>
     </header>
+    <AgentSessionHistory />
     <AgentConversation />
   </div>
 </template>

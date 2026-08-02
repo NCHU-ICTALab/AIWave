@@ -54,6 +54,22 @@ describe('AI 智慧社區 Demo', () => {
     expect(wrapper.get('[data-testid="community-answer"]').text()).toContain('週日及國定假日禁止')
   })
 
+  it('首頁顯示父親節主動提醒，個人檔案可以進社區與王小明月曆', async () => {
+    const { wrapper, router } = await mountApp('/demo/resident', { identity: DEMO_RESIDENT_IDENTITY })
+
+    expect(wrapper.get('[data-testid="father-day-push"]').text()).toContain('父親節快到了')
+    await wrapper.get('[data-testid="father-day-calendar-link"]').trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/demo/calendar'))
+    expect(wrapper.get('[data-testid="demo-calendar"]').text()).toContain('父親節')
+
+    await router.push('/demo/member')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="member-identity"]').text()).toContain('王小明')
+    expect(wrapper.get('[data-testid="member-community-link"]').attributes('href')).toBe('/demo/community')
+    await wrapper.get('[data-testid="member-community-link"]').trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/demo/community'))
+  })
+
   it('未知問題可送入未回答清單，管委會可以標記待補充', async () => {
     const { wrapper } = await mountApp('/demo/resident', { identity: DEMO_RESIDENT_IDENTITY })
 
@@ -90,6 +106,22 @@ describe('AI 智慧社區 Demo', () => {
     expect(wrapper.get('[data-testid="group-progress"]').text()).toContain('8/10')
     expect(wrapper.get('[data-testid="join-feedback"]').text()).toContain('NT$ 780')
     expect(wrapper.get('[data-testid="my-group-order"]').text()).toContain('王小明已跟團')
+  })
+
+  it('主委可以修改條件、結束收單，再重新開放同一檔團購', async () => {
+    const { wrapper } = await mountApp('/demo/committee', { identity: DEMO_MANAGER_IDENTITY })
+
+    await wrapper.get('[data-testid="group-buy-name"]').setValue('杜拜巧克力・社區限定')
+    await wrapper.get('[data-testid="save-group-buy"]').trigger('click')
+    expect(wrapper.get('[data-testid="group-buy-manage-feedback"]').text()).toContain('已更新')
+
+    await wrapper.get('[data-testid="publish-dubai-group-buy"]').trigger('click')
+    await flushPromises()
+    await wrapper.get(`[data-testid="close-group-buy-${CHOCOLATE_ID}"]`).trigger('click')
+    expect(wrapper.get(`[data-testid="managed-group-buy-${CHOCOLATE_ID}"]`).text()).toContain('已結束收單')
+
+    await wrapper.get(`[data-testid="reopen-group-buy-${CHOCOLATE_ID}"]`).trigger('click')
+    expect(wrapper.get(`[data-testid="managed-group-buy-${CHOCOLATE_ID}"]`).text()).toContain('進行中')
   })
 
   it('管委會彙總會出現王小明、住址、六入與 NT$780，KPI 與分潤同步更新', async () => {

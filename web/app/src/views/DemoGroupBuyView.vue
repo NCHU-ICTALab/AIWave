@@ -105,12 +105,12 @@ onMounted(() => {
         </fieldset>
 
         <div class="demo-quantity-row"><span>數量</span><div class="demo-stepper"><button type="button" aria-label="減少數量" @click="adjustQuantity(-1)">−</button><strong data-testid="group-quantity">{{ quantity }}</strong><button type="button" aria-label="增加數量" @click="adjustQuantity(1)">＋</button></div><strong class="demo-line-total">{{ money((selectedVariant?.price ?? 0) * quantity) }}</strong></div>
-        <button class="button primary demo-join-button" data-testid="join-group-buy" type="button" @click="join">我要 +1</button>
+        <button class="button primary demo-join-button" data-testid="join-group-buy" type="button" :disabled="group.status !== 'open'" @click="join">{{ group.status === 'open' ? '我要 +1' : '目前已結束收單' }}</button>
         <p v-if="feedback" class="demo-success" data-testid="join-feedback" role="status">{{ feedback }}</p>
         <p v-if="error" class="demo-error" role="alert">{{ error }}</p>
         <div v-if="myJoin" class="demo-my-order" data-testid="my-group-order">
           <div><strong>王小明已跟團</strong><span>A 棟 12F-3・{{ myJoin.variantLabel }} × {{ myJoin.quantity }}</span></div>
-          <button class="button" type="button" data-testid="cancel-group-buy" @click="cancel">截止前取消</button>
+          <button v-if="group.status === 'open'" class="button" type="button" data-testid="cancel-group-buy" @click="cancel">截止前取消</button>
         </div>
         <p class="demo-note">成團門檻以「跟團單位」計算；六入 × 1 仍讓進度增加 1，規格彙總會另外記錄六入 1 組。</p>
       </section>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { useCommunityDemoStore } from '@/stores/communityDemo'
 
@@ -7,6 +7,8 @@ const demo = useCommunityDemoStore()
 const dashboard = computed(() => demo.committeeDashboard)
 const publishFeedback = ref('')
 const wikiFeedback = ref('')
+const manageFeedback = ref('')
+const manageError = ref('')
 
 const chocolateId = 'group-dubai-chocolate-2026-08'
 const draft = computed(() => dashboard.value?.draftGroupBuy ?? null)
@@ -14,12 +16,54 @@ const chocolate = computed(() => dashboard.value?.groupBuys.find((group) => grou
 const chocolateOrders = computed(() => dashboard.value?.orders.filter((order) => order.groupBuyId === chocolateId) ?? [])
 const chocolateHouseholds = computed(() => dashboard.value?.ordersByHousehold.filter((row) => row.items.some((item) => item.groupBuyId === chocolateId)) ?? [])
 const chocolateRevenue = computed(() => chocolateOrders.value.reduce((sum, order) => sum + order.amount, 0))
+const editableGroup = computed(() => draft.value ?? chocolate.value)
+const editableName = ref('')
+const editableMarketPrice = ref(149)
+const editableCloseAt = ref('2026-08-06T21:00')
+
+watch(editableGroup, (group) => {
+  if (!group) return
+  editableName.value = group.name
+  editableMarketPrice.value = group.marketPrice
+  editableCloseAt.value = group.closeAt.slice(0, 16)
+}, { immediate: true })
 
 const money = (value: number, decimals = false) => `NT$ ${value.toLocaleString('zh-TW', decimals ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : undefined)}`
 
 function publishChocolate() {
-  demo.publishDemoGroupBuy()
+  demo.publishDemoGroupBuy({
+    name: editableName.value,
+    marketPrice: editableMarketPrice.value,
+    closeAt: `${editableCloseAt.value}:00+08:00`,
+  })
   publishFeedback.value = '杜拜巧克力已發布，住戶端現在看得到這檔團購。'
+}
+
+function saveChocolate() {
+  manageFeedback.value = ''
+  manageError.value = ''
+  try {
+    demo.updateGroupBuy(chocolateId, {
+      name: editableName.value,
+      marketPrice: editableMarketPrice.value,
+      closeAt: `${editableCloseAt.value}:00+08:00`,
+    })
+    manageFeedback.value = '團購條件已更新，住戶端會讀取最新資料。'
+  } catch (reason) {
+    manageError.value = reason instanceof Error ? reason.message : '團購條件未能更新。'
+  }
+}
+
+function changeGroupStatus(groupId: string, action: 'close' | 'reopen') {
+  manageFeedback.value = ''
+  manageError.value = ''
+  try {
+    if (action === 'close') demo.closeGroupBuy(groupId)
+    else demo.reopenGroupBuy(groupId)
+    manageFeedback.value = action === 'close' ? '已結束收單；住戶不能再新增跟團。' : '已重新開放收單；住戶可以繼續跟團。'
+  } catch (reason) {
+    manageError.value = reason instanceof Error ? reason.message : '團購狀態未能更新。'
+  }
 }
 
 function markForWiki(id: string) {
@@ -64,9 +108,32 @@ onMounted(() => {
         </dl>
       </div>
       <div class="demo-product-progress"><span>發布後初始進度固定為</span><strong>{{ (draft ?? chocolate)?.progressUnits ?? 7 }}/10</strong><span>・截止 {{ (draft ?? chocolate)?.closeAt?.slice(0, 16).replace('T', ' ') ?? '2026-08-06 21:00' }}</span></div>
+      <div class="demo-edit-grid" data-testid="group-buy-editor">
+        <label><span>團購名稱</span><input v-model="editableName" data-testid="group-buy-name" type="text" /></label>
+        <label><span>市價</span><input v-model.number="editableMarketPrice" data-testid="group-buy-market-price" type="number" min="1" /></label>
+        <label><span>收單截止</span><input v-model="editableCloseAt" data-testid="group-buy-close-at" type="datetime-local" /></label>
+        <button class="button" data-testid="save-group-buy" type="button" @click="saveChocolate">儲存條件</button>
+      </div>
+      <p v-if="manageFeedback" class="demo-success" data-testid="group-buy-manage-feedback" role="status">{{ manageFeedback }}</p>
+      <p v-if="manageError" class="demo-error" data-testid="group-buy-manage-error" role="alert">{{ manageError }}</p>
       <button v-if="draft" class="button primary demo-wide-button" data-testid="publish-dubai-group-buy" type="button" @click="publishChocolate">發布杜拜巧克力開團</button>
       <p v-else class="demo-success" data-testid="publish-feedback" role="status">{{ publishFeedback || '已發布，等待住戶跟團。' }}</p>
       <p v-if="draft && publishFeedback" class="demo-success" data-testid="publish-feedback" role="status">{{ publishFeedback }}</p>
+    </section>
+
+    <section class="panel demo-panel" data-testid="group-buy-management" aria-labelledby="group-buy-management-title">
+      <div class="demo-section-heading"><div><p class="eyebrow">MANAGE GROUP BUYS</p><h2 id="group-buy-management-title">團購管理</h2></div><span class="demo-count-badge">可即時操作</span></div>
+      <p class="demo-panel-lede">主委可以結束收單或重新開放；狀態會同步到住戶端，已存在的跟團資料不會被偷偷刪除。</p>
+      <ul class="demo-management-list">
+        <li v-for="group in dashboard.groupBuys" :key="group.id" :data-testid="`managed-group-buy-${group.id}`">
+          <div><strong>{{ group.name }}</strong><span class="demo-meta">{{ group.progressUnits }}/{{ group.thresholdUnits }} 單位・截止 {{ group.closeAt.slice(0, 16).replace('T', ' ') }}</span></div>
+          <div class="button-row">
+            <span class="status" :data-status="group.status">{{ group.statusLabel }}</span>
+            <button v-if="group.status === 'open'" class="button" type="button" :data-testid="`close-group-buy-${group.id}`" @click="changeGroupStatus(group.id, 'close')">結束收單</button>
+            <button v-else-if="group.status === 'closed'" class="button" type="button" :data-testid="`reopen-group-buy-${group.id}`" @click="changeGroupStatus(group.id, 'reopen')">重新開放</button>
+          </div>
+        </li>
+      </ul>
     </section>
 
     <div class="demo-two-column">
@@ -107,3 +174,31 @@ onMounted(() => {
   </section>
   <section v-else class="panel demo-loading" role="status">正在整理管委會工作台…</section>
 </template>
+
+<style scoped>
+.demo-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(7rem, .6fr) minmax(0, 1fr) auto;
+  gap: .75rem;
+  align-items: end;
+  margin-top: 1rem;
+  padding: .85rem;
+  border: 2px dashed var(--ink);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.demo-edit-grid label { display: grid; gap: .3rem; font-weight: 800; }
+.demo-edit-grid input { min-width: 0; min-height: var(--tap); padding: .45rem .55rem; border: 2px solid var(--ink); border-radius: 10px; background: var(--surface); }
+.demo-management-list { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
+.demo-management-list li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem; border: 2px solid var(--ink); border-radius: 12px; background: var(--surface); }
+.demo-management-list li > div:first-child { display: grid; gap: .2rem; }
+.demo-management-list .button-row { justify-content: flex-end; }
+@media (max-width: 780px) {
+  .demo-edit-grid { grid-template-columns: 1fr 1fr; }
+  .demo-edit-grid .button { justify-self: start; }
+}
+@media (max-width: 560px) {
+  .demo-edit-grid, .demo-management-list li { grid-template-columns: 1fr; display: grid; }
+  .demo-management-list .button-row { justify-content: flex-start; }
+}
+</style>

@@ -12,6 +12,7 @@
 import { nextTick, ref } from 'vue'
 
 import AgentConversation from '@/components/AgentConversation.vue'
+import AgentSessionHistory from '@/components/AgentSessionHistory.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useAgentSessionStore } from '@/stores/agentSession'
 
@@ -76,6 +77,7 @@ function onToggle() {
       >關閉</button>
     </header>
     <div class="agent-drawer-body">
+      <AgentSessionHistory />
       <AgentConversation />
     </div>
   </aside>

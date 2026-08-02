@@ -10,6 +10,7 @@ import { createJointServiceClient, type JointServiceCampaign } from '@/api/joint
 import { ApiError } from '@/api/http'
 import {
   getProviderAvailability,
+  getProviderSettlement,
   getProviderSnapshot,
   listBookings,
   listCommerceOrders,
@@ -19,6 +20,7 @@ import {
   type Booking,
   type CatalogSlot,
   type CommerceOrder,
+  type ProviderSettlement,
 } from '@/api/platformClient'
 import { createVendorApiClient, type VendorApiInquiry, type VendorApiOrder } from '@/api/vendorApiClient'
 import { useSessionStore } from '@/stores/session'
@@ -117,6 +119,7 @@ const platformSnapshot = ref<ProviderSnapshotView | null>(null)
 const platformStatus = ref<'loading' | 'ready' | 'unavailable'>('loading')
 const platformError = ref('')
 const platformToast = ref('')
+const platformSettlement = ref<ProviderSettlement | null>(null)
 
 // ── 本週可服務時段(provider availability) ──
 
@@ -194,10 +197,11 @@ async function loadPlatform() {
   platformStatus.value = 'loading'
   platformError.value = ''
   try {
-    const [bookings, orders, snapshot] = await Promise.all([
+    const [bookings, orders, snapshot, settlement] = await Promise.all([
       listBookings(),
       listCommerceOrders(),
       getProviderSnapshot(),
+      getProviderSettlement(),
     ])
     platformBookings.value = bookings
     platformOrders.value = orders
@@ -207,6 +211,7 @@ async function loadPlatform() {
       seedVersion: typeof snapshot.seedVersion === 'string' ? snapshot.seedVersion : null,
       bookingCount: typeof counts?.bookings === 'number' ? counts.bookings : bookings.length,
     }
+    platformSettlement.value = settlement
     platformStatus.value = 'ready'
   } catch (reason) {
     platformStatus.value = 'unavailable'
@@ -512,6 +517,31 @@ onMounted(load)
           </div>
         </article>
       </template>
+    </template>
+  </section>
+
+  <section class="panel" aria-labelledby="settlement-title" data-testid="provider-settlement">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">完成後投影・Demo</p>
+        <h2 id="settlement-title">Provider 結算</h2>
+      </div>
+      <span class="status" data-kind="suggestion">非正式費率</span>
+    </div>
+    <p v-if="platformStatus === 'loading'" class="muted" role="status">正在取得結算投影…</p>
+    <p v-else-if="!platformSettlement" class="muted">目前沒有可顯示的結算投影。</p>
+    <template v-else>
+      <p class="data-notice">
+        Provider {{ platformSettlement.providerId }}・費率 {{ platformSettlement.rateBps / 100 }}%・
+        淨投影 {{ currency(platformSettlement.netAmount) }}；此費率不是正式合作條件。
+      </p>
+      <ul v-if="platformSettlement.fees.length" class="summary-list compact">
+        <li v-for="fee in platformSettlement.fees" :key="fee.id">
+          <strong>{{ fee.kind === 'reversal' ? '沖銷' : '成功服務費' }}</strong>
+          <span>{{ currency(fee.kind === 'reversal' ? -fee.amount : fee.amount) }}・{{ fee.subjectId }}</span>
+        </li>
+      </ul>
+      <p v-else class="muted">完成成果後才會產生成功服務費投影。</p>
     </template>
   </section>
 

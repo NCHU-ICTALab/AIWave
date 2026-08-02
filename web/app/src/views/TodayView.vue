@@ -331,6 +331,15 @@ async function submitNeed(text: string) {
       <p class="source-note">依你的委託與案件狀態以規則整理，非語言模型生成。</p>
     </section>
 
+    <!-- v4 生活圈入口：資料未審核時頁面會明確顯示 blocker，不顯示假範圍。 -->
+    <section class="panel home-panel" data-v4-section="life-circle" aria-labelledby="life-circle-title">
+      <div class="section-title-row">
+        <h2 id="life-circle-title">會場生活圈</h2>
+        <RouterLink class="button inline" to="/user/life-circle">查看生活圈</RouterLink>
+      </div>
+      <p class="muted">從指定會場切換步行／機車與 10／15 分鐘；只在有經確認 GeoJSON 時顯示據點。</p>
+    </section>
+
     <!-- 3. 交給 AI 管家 -->
     <section class="panel home-panel home-ai" data-home-section="ai" aria-labelledby="ai-title">
       <h2 id="ai-title">交給 AI 管家</h2>
@@ -394,6 +403,7 @@ async function submitNeed(text: string) {
         <li><RouterLink to="/user/services">預約服務</RouterLink></li>
         <li><RouterLink to="/user/orders">我的訂單</RouterLink></li>
         <li><RouterLink to="/user/calendar">行事曆</RouterLink></li>
+        <li><RouterLink to="/user/wellbeing">生活關懷與成果</RouterLink></li>
         <li><RouterLink to="/user/community#my-groups-title">我的群組</RouterLink></li>
         <li><RouterLink to="/user/community">我的社區</RouterLink></li>
       </ul>

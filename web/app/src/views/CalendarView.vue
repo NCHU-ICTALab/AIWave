@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// M4 行事曆:訂單/提醒/手動事件的同一份 projection,列表檢視 + 來源篩選 + 手動新增。
+// 行事曆：訂單／提醒／手動事件的同一份 projection，以月曆為主並可前後翻月。
 // 訂單來源的事件不在這裡改期——改期屬於訂單詳情的廠商流程,這裡只連過去。
 import { computed, onMounted, ref } from 'vue'
 
@@ -10,65 +10,74 @@ const SOURCE_LABELS: Record<string, string> = {
   booking: '訂單', manual: '手動', reminder: '提醒', community: '社區',
 }
 const SOURCE_TYPES = Object.keys(SOURCE_LABELS)
+const DEMO_TODAY = '2026-08-02'
+const DEMO_HOLIDAYS: Record<string, string> = {
+  '2026-02-28': '和平紀念日',
+  '2026-04-04': '兒童節',
+  '2026-05-01': '勞動節',
+  '2026-08-08': '父親節',
+  '2026-10-10': '國慶日',
+  '2026-12-25': '行憲紀念日',
+}
 
 const events = ref<CalendarEvent[]>([])
 const status = ref<'loading' | 'ready' | 'unavailable'>('loading')
 const error = ref('')
 const selectedTypes = ref<string[]>([...SOURCE_TYPES])
 
-const timeOfDay = (value: string | null | undefined) => (value ?? '').slice(11, 16)
 const sourceType = (event: CalendarEvent) => event.source?.type ?? 'manual'
-const sourceLabel = (event: CalendarEvent) => SOURCE_LABELS[sourceType(event)] ?? sourceType(event)
 
 const visibleEvents = computed(() => events.value
   .filter((event) => selectedTypes.value.includes(sourceType(event)) || !(sourceType(event) in SOURCE_LABELS))
   .slice()
   .sort((a, b) => a.startsAt.localeCompare(b.startsAt)))
 
-/** 依日期分組,組內已按開始時間排序。 */
-const grouped = computed(() => {
-  const groups: Array<{ date: string; items: CalendarEvent[] }> = []
-  for (const event of visibleEvents.value) {
-    const date = event.startsAt.slice(0, 10)
-    const group = groups.at(-1)
-    if (group && group.date === date) group.items.push(event)
-    else groups.push({ date, items: [event] })
-  }
-  return groups
-})
-
 async function load() {
   status.value = 'loading'
   try {
     const loaded = await listCalendarEvents()
     events.value = Array.isArray(loaded) ? loaded : []
+    const first = events.value[0]?.startsAt.slice(0, 10)
+    if (first) {
+      const [year, month] = first.split('-').map(Number)
+      if (year && month) {
+        focusYear.value = year
+        focusMonth.value = month - 1
+      }
+    }
     status.value = 'ready'
   } catch {
     status.value = 'unavailable'
   }
 }
 
-// ── 月/週檢視(方向 A 原型:月/週/列表切換;列表為預設) ──
-const viewMode = ref<'list' | 'month' | 'week'>('list')
+// ── 月檢視：月份由使用者控制，不會因事件列表更新而跳回去 ──
+const focusYear = ref(Number(DEMO_TODAY.slice(0, 4)))
+const focusMonth = ref(Number(DEMO_TODAY.slice(5, 7)) - 1)
+const monthLabel = computed(() => `${focusYear.value} 年 ${focusMonth.value + 1} 月`)
 
-/** 聚焦月份:最早一筆可見事件所在月;沒有事件時用今天。 */
-const focusMonth = computed(() => {
-  const first = visibleEvents.value[0]?.startsAt
-  const base = first ? new Date(`${first.slice(0, 10)}T00:00:00`) : new Date()
-  return { year: base.getFullYear(), month: base.getMonth() }
-})
+function changeMonth(delta: number) {
+  const next = new Date(focusYear.value, focusMonth.value + delta, 1)
+  focusYear.value = next.getFullYear()
+  focusMonth.value = next.getMonth()
+}
 
-const monthLabel = computed(() => `${focusMonth.value.year} 年 ${focusMonth.value.month + 1} 月`)
+function goToDemoToday() {
+  focusYear.value = Number(DEMO_TODAY.slice(0, 4))
+  focusMonth.value = Number(DEMO_TODAY.slice(5, 7)) - 1
+}
 
 interface MonthCell {
   key: string
   day: number | null
   date: string | null
   events: CalendarEvent[]
+  holiday: string | null
 }
 
 const monthCells = computed<MonthCell[]>(() => {
-  const { year, month } = focusMonth.value
+  const year = focusYear.value
+  const month = focusMonth.value
   const firstDay = new Date(year, month, 1)
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const leading = firstDay.getDay() // 週日開頭,與原型一致
@@ -79,57 +88,18 @@ const monthCells = computed<MonthCell[]>(() => {
   }
   const cells: MonthCell[] = []
   for (let index = 0; index < leading; index += 1) {
-    cells.push({ key: `lead-${index}`, day: null, date: null, events: [] })
+    cells.push({ key: `lead-${index}`, day: null, date: null, events: [], holiday: null })
   }
   for (let day = 1; day <= daysInMonth; day += 1) {
     const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    cells.push({ key: date, day, date, events: byDate.get(date) ?? [] })
+    cells.push({ key: date, day, date, events: byDate.get(date) ?? [], holiday: DEMO_HOLIDAYS[date] ?? null })
   }
   while (cells.length % 7 !== 0) {
-    cells.push({ key: `tail-${cells.length}`, day: null, date: null, events: [] })
+    cells.push({ key: `tail-${cells.length}`, day: null, date: null, events: [], holiday: null })
   }
   return cells
 })
-
-// ── 週檢視:聚焦週 = 最早可見事件所在週(週日開頭),沒有事件時用今天 ──
-interface WeekCell {
-  key: string
-  weekday: string
-  date: string
-  label: string
-  events: CalendarEvent[]
-}
-
-const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'] as const
-
-const weekCells = computed<WeekCell[]>(() => {
-  const first = visibleEvents.value[0]?.startsAt
-  const base = first ? new Date(`${first.slice(0, 10)}T00:00:00`) : new Date()
-  const sunday = new Date(base)
-  sunday.setDate(base.getDate() - base.getDay()) // 週日開頭,與月檢視一致
-  const byDate = new Map<string, CalendarEvent[]>()
-  for (const event of visibleEvents.value) {
-    const date = event.startsAt.slice(0, 10)
-    byDate.set(date, [...(byDate.get(date) ?? []), event])
-  }
-  return WEEKDAYS.map((weekday, index) => {
-    const day = new Date(sunday)
-    day.setDate(sunday.getDate() + index)
-    const date = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
-    return {
-      key: date,
-      weekday,
-      date,
-      label: `${day.getMonth() + 1}/${day.getDate()}`,
-      events: byDate.get(date) ?? [],
-    }
-  })
-})
-
-const weekLabel = computed(() => {
-  const cells = weekCells.value
-  return cells.length ? `${cells[0]!.label}(日)– ${cells.at(-1)!.label}(六)` : ''
-})
+const monthEventCount = computed(() => monthCells.value.reduce((count, cell) => count + cell.events.length, 0))
 
 // ── 手動新增事件 ──
 const draftTitle = ref('')
@@ -177,9 +147,18 @@ onMounted(load)
 
   <p v-if="error" class="need-error" role="alert">{{ error }}</p>
 
-  <section class="panel" aria-labelledby="calendar-list-title">
-    <div class="section-title-row">
-      <h2 id="calendar-list-title">行程列表</h2>
+  <section class="panel calendar-month-panel" aria-labelledby="calendar-month-title">
+    <div class="section-title-row calendar-month-heading">
+      <div>
+        <p class="eyebrow">MONTH VIEW</p>
+        <h2 id="calendar-month-title">月行事曆</h2>
+      </div>
+      <div class="calendar-month-actions" role="group" aria-label="切換月份">
+        <button class="button" type="button" data-testid="calendar-prev-month" aria-label="上一個月" @click="changeMonth(-1)">←</button>
+        <strong data-testid="calendar-month-label">{{ monthLabel }}</strong>
+        <button class="button" type="button" data-testid="calendar-next-month" aria-label="下一個月" @click="changeMonth(1)">→</button>
+        <button class="button" type="button" data-testid="calendar-today" @click="goToDemoToday">回到 Demo 本月</button>
+      </div>
     </div>
 
     <fieldset class="filter-fieldset">
@@ -190,88 +169,29 @@ onMounted(load)
       </label>
     </fieldset>
 
-    <div class="view-toggle" role="group" aria-label="檢視方式">
-      <button
-        class="button" type="button" data-testid="view-list"
-        :aria-pressed="viewMode === 'list'" @click="viewMode = 'list'"
-      >列表</button>
-      <button
-        class="button" type="button" data-testid="view-month"
-        :aria-pressed="viewMode === 'month'" @click="viewMode = 'month'"
-      >月</button>
-      <button
-        class="button" type="button" data-testid="view-week"
-        :aria-pressed="viewMode === 'week'" @click="viewMode = 'week'"
-      >週</button>
-    </div>
-
     <p v-if="status === 'loading'" role="status">正在載入行事曆…</p>
     <p v-else-if="status === 'unavailable'" class="muted" role="status">
       目前無法取得行事曆,請確認後端服務是否啟動。
     </p>
-    <section v-else-if="viewMode === 'month'" :aria-label="`${monthLabel}月曆`">
-      <h3 class="eyebrow">{{ monthLabel }}</h3>
+    <section v-else :aria-label="`${monthLabel}月曆`">
       <div class="month-grid">
         <span v-for="weekday in ['日', '一', '二', '三', '四', '五', '六']" :key="weekday" class="month-head">{{ weekday }}</span>
-        <div v-for="cell in monthCells" :key="cell.key" class="month-cell" :class="{ out: cell.day === null }">
+        <div v-for="cell in monthCells" :key="cell.key" class="month-cell" :class="{ out: cell.day === null, today: cell.date === DEMO_TODAY }" :data-date="cell.date ?? undefined">
           <span v-if="cell.day" class="month-day">{{ cell.day }}</span>
+          <span v-if="cell.holiday" class="month-holiday" data-testid="calendar-holiday">{{ cell.holiday }}</span>
           <template v-for="event in cell.events" :key="event.id">
             <RouterLink
               v-if="sourceType(event) === 'booking' && event.source?.id"
-              class="month-event" :data-source="sourceType(event)"
+              class="month-event" :data-source="sourceType(event)" data-testid="calendar-order-link"
               :to="`/user/orders/${event.source.id}`"
-            >{{ event.title }}</RouterLink>
-            <span v-else class="month-event" :data-source="sourceType(event)">{{ event.title }}</span>
+            ><span data-testid="calendar-event">{{ event.title }}</span></RouterLink>
+            <span v-else class="month-event" :data-source="sourceType(event)" data-testid="calendar-event">{{ event.title }}</span>
           </template>
         </div>
       </div>
-      <p v-if="!visibleEvents.length" class="muted">目前沒有符合的行程。</p>
+      <p v-if="!monthEventCount && !monthCells.some((cell) => cell.holiday)" class="muted">這個月目前沒有符合的行程。</p>
+      <p class="calendar-note muted">節日與父親節是固定 Demo 提醒；訂單事件仍會連回訂單詳情，這裡不直接改期。</p>
     </section>
-    <section v-else-if="viewMode === 'week'" :aria-label="`本週 ${weekLabel}`" data-testid="week-view">
-      <h3 class="eyebrow">本週 {{ weekLabel }}</h3>
-      <div class="month-grid week-grid">
-        <div v-for="cell in weekCells" :key="cell.key" class="month-cell week-cell" data-testid="week-column">
-          <span class="month-head">{{ cell.weekday }} {{ cell.label }}</span>
-          <template v-for="event in cell.events" :key="event.id">
-            <RouterLink
-              v-if="sourceType(event) === 'booking' && event.source?.id"
-              class="month-event" :data-source="sourceType(event)"
-              :to="`/user/orders/${event.source.id}`"
-              data-testid="week-order-link"
-            >{{ event.title }}</RouterLink>
-            <span v-else class="month-event" :data-source="sourceType(event)">{{ event.title }}</span>
-          </template>
-        </div>
-      </div>
-      <p v-if="!visibleEvents.length" class="muted">目前沒有符合的行程。</p>
-    </section>
-    <template v-else>
-      <section v-for="group in grouped" :key="group.date" :aria-label="group.date">
-        <h3 class="eyebrow">{{ group.date }}</h3>
-        <ul class="plain-list">
-          <li v-for="event in group.items" :key="event.id" class="order-row" data-testid="calendar-event">
-            <div>
-              <strong>{{ event.title }}</strong>
-              <span class="row-meta">
-                {{ event.allDay ? '全天' : `${timeOfDay(event.startsAt)} – ${timeOfDay(event.endsAt)}` }}
-                <template v-if="event.note">・{{ event.note }}</template>
-              </span>
-            </div>
-            <span class="status" :data-status="sourceType(event)">{{ sourceLabel(event) }}</span>
-            <RouterLink
-              v-if="sourceType(event) === 'booking' && event.source?.id"
-              class="text-link"
-              :to="`/user/orders/${event.source.id}`"
-              data-testid="calendar-order-link"
-            >查看訂單</RouterLink>
-          </li>
-        </ul>
-      </section>
-      <div v-if="!grouped.length" class="empty-state compact">
-        <h3>目前沒有符合的行程</h3>
-        <p>建立預約後,行程會自動出現;也可以在下方新增自己的事件。</p>
-      </div>
-    </template>
   </section>
 
   <section class="panel" aria-labelledby="calendar-create-title">
@@ -294,14 +214,23 @@ onMounted(load)
 </template>
 
 <style scoped>
-.view-toggle {
-  display: flex;
-  gap: var(--space-2);
-  margin-block: var(--space-3);
+.calendar-month-heading {
+  align-items: center;
+  gap: 1rem;
 }
-.view-toggle .button[aria-pressed='true'] {
-  background: var(--mint);
-  box-shadow: inset 0 0 0 2px var(--ink);
+.calendar-month-heading h2 {
+  margin: 0;
+}
+.calendar-month-actions {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.calendar-month-actions strong {
+  min-width: 8rem;
+  text-align: center;
 }
 .month-grid {
   display: grid;
@@ -330,14 +259,14 @@ onMounted(load)
 .month-cell.out {
   background: var(--bg);
 }
-/* 週檢視:沿用 .month-* 樣式,單列 7 欄,每欄自帶「星期+日期」表頭 */
-.week-cell {
-  min-height: 7rem;
+.month-cell.today {
+  box-shadow: inset 0 0 0 3px var(--accent);
 }
-.week-cell .month-head {
-  margin: -0.25rem -0.35rem 0.15rem;
-  padding-inline: 0.2rem;
-  white-space: nowrap;
+.month-holiday {
+  display: block;
+  color: var(--danger, #a13d32);
+  font-size: .65rem;
+  font-weight: 900;
 }
 .month-day {
   font-weight: 800;
@@ -366,6 +295,9 @@ onMounted(load)
 .month-event[data-source='community'] {
   background: var(--peach);
 }
+.calendar-note {
+  margin: .75rem 0 0;
+}
 @media (max-width: 650px) {
   .month-cell {
     min-height: 3.2rem;
@@ -373,6 +305,13 @@ onMounted(load)
   }
   .month-event {
     font-size: .58rem;
+  }
+  .calendar-month-heading {
+    align-items: flex-start;
+    display: grid;
+  }
+  .calendar-month-actions {
+    justify-content: flex-start;
   }
 }
 

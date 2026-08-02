@@ -11,6 +11,7 @@ import {
   type DemoUnansweredQuestion,
   type JoinGroupBuyInput,
   type PublishDemoGroupBuyInput,
+  type UpdateDemoGroupBuyInput,
 } from '@/domain/communityDemo'
 
 function clone<T>(value: T): T {
@@ -33,6 +34,9 @@ export interface CommunityDemoServiceApi {
   listGroupBuys(): ReturnType<CommunityDemoService['listGroupBuys']>
   getGroupBuy(id: string): ReturnType<CommunityDemoService['getGroupBuy']>
   publishDemoGroupBuy(input?: PublishDemoGroupBuyInput): ReturnType<CommunityDemoService['publishDemoGroupBuy']>
+  updateGroupBuy(groupBuyId: string, input: UpdateDemoGroupBuyInput): ReturnType<CommunityDemoService['updateGroupBuy']>
+  closeGroupBuy(groupBuyId: string): ReturnType<CommunityDemoService['closeGroupBuy']>
+  reopenGroupBuy(groupBuyId: string): ReturnType<CommunityDemoService['reopenGroupBuy']>
   joinGroupBuy(input: JoinGroupBuyInput): ReturnType<CommunityDemoService['joinGroupBuy']>
   cancelGroupBuy(groupBuyId: string, householdId: string): ReturnType<CommunityDemoService['cancelGroupBuy']>
   listMyOrders(householdId: string): ReturnType<CommunityDemoService['listMyOrders']>
@@ -162,6 +166,51 @@ export class CommunityDemoService implements CommunityDemoServiceApi {
     return clone(this.withProgress(group))
   }
 
+  updateGroupBuy(groupBuyId: string, input: UpdateDemoGroupBuyInput): DemoGroupBuy {
+    const group = this.state.groupBuys.find((item) => item.id === groupBuyId)
+    if (!group) throw new Error('找不到這檔團購')
+
+    const name = input.name?.trim()
+    const pickupLocation = input.pickupLocation?.trim()
+    if (input.name !== undefined && !name) throw new Error('團購名稱不可為空白')
+    if (input.marketPrice !== undefined && (!Number.isFinite(input.marketPrice) || input.marketPrice <= 0)) {
+      throw new Error('市價必須大於 0')
+    }
+    if (input.thresholdUnits !== undefined && (!Number.isInteger(input.thresholdUnits) || input.thresholdUnits <= 0)) {
+      throw new Error('成團門檻必須是正整數')
+    }
+    if (input.closeAt !== undefined && !input.closeAt.trim()) throw new Error('截止時間不可為空白')
+    if (input.pickupLocation !== undefined && !pickupLocation) throw new Error('取貨地點不可為空白')
+
+    Object.assign(group, {
+      ...(name ? { name } : {}),
+      ...(input.marketPrice !== undefined ? { marketPrice: input.marketPrice } : {}),
+      ...(input.thresholdUnits !== undefined ? { thresholdUnits: input.thresholdUnits } : {}),
+      ...(pickupLocation ? { pickupLocation } : {}),
+      ...(input.expectedArrival !== undefined ? { expectedArrival: input.expectedArrival } : {}),
+      ...(input.closeAt !== undefined ? { closeAt: input.closeAt } : {}),
+    })
+    return clone(this.withProgress(group))
+  }
+
+  closeGroupBuy(groupBuyId: string): DemoGroupBuy {
+    const group = this.state.groupBuys.find((item) => item.id === groupBuyId && item.published)
+    if (!group) throw new Error('找不到已發布的團購')
+    if (group.status !== 'open') throw new Error('這檔團購目前不是收單中')
+    group.status = 'closed'
+    group.statusLabel = '已結束收單'
+    return clone(this.withProgress(group))
+  }
+
+  reopenGroupBuy(groupBuyId: string): DemoGroupBuy {
+    const group = this.state.groupBuys.find((item) => item.id === groupBuyId && item.published)
+    if (!group) throw new Error('找不到已發布的團購')
+    if (group.status !== 'closed') throw new Error('只有已結束收單的團購可以重新開放')
+    group.status = 'open'
+    group.statusLabel = '進行中'
+    return clone(this.withProgress(group))
+  }
+
   joinGroupBuy(input: JoinGroupBuyInput): DemoGroupBuy {
     const group = this.state.groupBuys.find((item) => item.id === input.groupBuyId && item.published)
     if (!group) throw new Error('找不到這檔團購')
@@ -189,9 +238,7 @@ export class CommunityDemoService implements CommunityDemoServiceApi {
     if (existingIndex >= 0) group.joins.splice(existingIndex, 1, join)
     else group.joins.push(join)
 
-    if (this.withProgress(group).progressUnits >= group.thresholdUnits) {
-      group.statusLabel = '已成團'
-    }
+    group.statusLabel = this.withProgress(group).progressUnits >= group.thresholdUnits ? '已成團' : '進行中'
     return clone(this.withProgress(group))
   }
 

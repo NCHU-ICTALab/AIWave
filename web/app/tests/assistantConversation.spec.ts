@@ -117,6 +117,19 @@ describe('agent conversation shell', () => {
     expect(stages.attributes('role')).toBeUndefined()
   })
 
+  it('renders ToolResult facts, audit references, citations, and update dates', async () => {
+    recordAgentPosts()
+    const { wrapper } = await mountApp('/user/assistant')
+
+    await say(wrapper, 'OPENPOINT 怎麼折抵')
+
+    const evidence = wrapper.get('[aria-label="權威資料卡"]')
+    expect(evidence.text()).toContain('已驗證結果・succeeded')
+    expect(evidence.text()).toContain('來源：published-wiki')
+    expect(evidence.text()).toContain('稽核參照：wiki:product-help')
+    expect(evidence.text()).toContain('OPENPOINT 折抵與兌換・折抵規則・更新 2026-07-31')
+  })
+
   it('treats starter chips as real messages instead of navigation', async () => {
     const posted = recordAgentPosts()
     const { wrapper, router } = await mountApp('/user/assistant')

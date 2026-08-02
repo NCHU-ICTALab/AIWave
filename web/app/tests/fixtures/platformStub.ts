@@ -145,6 +145,10 @@ interface StubState {
   calendar: any[]
   announcements?: any[]
   agentSession?: any
+  careMessages: any[]
+  taskPackages: any[]
+  outcomes: any
+  providerSettlement: any
   counter: number
 }
 
@@ -171,7 +175,34 @@ function bodyOf(init?: RequestInit): any {
 export function createPlatformStub() {
   const state: StubState = {
     drafts: new Map(), bookings: new Map(), orders: new Map(),
-    payments: new Map(), notifications: [], calendar: [], counter: 0,
+    payments: new Map(), notifications: [], calendar: [], careMessages: [{
+      id: 'care-message-stub-1', candidateId: 'care-candidate-stub-1', state: 'delivered',
+      deliveredAt: '2026-08-01T10:00:00+08:00', actedAt: null, action: null,
+      candidate: {
+        id: 'care-candidate-stub-1', eventId: 'life-event-demo-stub', kind: 'life_preparation',
+        reason: '你已授權的競賽 Demo event 可能需要提前查看準備資訊。',
+        evidence: { source: 'competition_demo_event', isDemo: true, noBackgroundTracking: true, guideStatus: 'published_internal_demo' },
+        status: 'delivered',
+      },
+    }], taskPackages: [{
+      id: 'package-stub-1', source: { type: 'agent_session', id: 'agent-stub-1' },
+      beneficiary: { label: 'Demo' }, serviceLocation: {}, status: 'awaiting_confirmation', grantId: 'grant-stub-1', version: 1,
+      totalAmount: 1200, totalPoints: 0, providerIds: ['vendor-prince-electric'], selectedItemIds: ['package-stub-1-item-1'], taskDraftRefs: ['draft-stub-1'],
+      items: [{ id: 'package-stub-1-item-1', position: 1, taskDraftId: 'draft-stub-1', sourceSubtaskId: 'task-stub-1', providerId: 'vendor-prince-electric', providerName: '王子水電', offeringId: 'off-prince-electric-repair', offeringName: '水電修繕・到府檢測', amount: 1200, points: 0, startsAt: '2026-08-08T09:00:00+08:00', endsAt: '2026-08-08T11:00:00+08:00', status: 'selected', details: { proposalOptions: [] }, lastError: null, version: 1 }],
+    }], outcomes: {
+      outcomes: [{ id: 'outcome-stub-1', packageId: null, subjectType: 'booking', subjectId: 'booking-stub-1', providerId: 'vendor-prince-electric', amount: 0, status: 'completed', summary: 'booking booking-stub-1 狀態：completed', eventId: 'event-stub-1', createdAt: '2026-08-01T10:00:00+08:00' }],
+      achievements: [{ key: 'first_life_outcome', title: '完成一項生活任務', outcomeId: 'outcome-stub-1', unlockedAt: '2026-08-01T10:00:00+08:00' }],
+      rewards: [{ id: 'reward-stub-1', campaignId: 'demo-completion-reward-2026', subjectType: 'booking', subjectId: 'booking-stub-1', kind: 'grant', amount: 20, pointsEntryId: 'points-stub-1', reversesEntryId: null, createdAt: '2026-08-01T10:00:00+08:00' }],
+      note: '會員端只顯示自己的成果、成就與 Demo 回饋；Provider success fee 不在此顯示。',
+    }, providerSettlement: {
+      providerId: 'vendor-prince-electric',
+      fees: [{
+        id: 'fee-stub-1', subjectType: 'booking', subjectId: 'booking-stub-1',
+        kind: 'charge', amount: 60, rateBps: 500, eventId: 'event-stub-1',
+        reversalOf: null, createdAt: '2026-08-01T10:00:00+08:00',
+      }],
+      netAmount: 60, rateBps: 500, dataSource: 'competition_demo_fee_projection', officialRate: false,
+    }, counter: 0,
   }
 
   function nextId(prefix: string): string {
@@ -453,6 +484,9 @@ export function createPlatformStub() {
     if (path === '/api/v1/platform/provider/snapshot') {
       return ok({ providerId: 'vendor-prince-electric', seedVersion: 'partner-demo-v5', counts: { bookings: state.bookings.size } })
     }
+    if (path === '/api/v1/platform/provider/settlement') {
+      return ok(state.providerSettlement)
+    }
     if (path === '/api/v1/platform/provider/catalog') {
       return ok(providerDetail('vendor-prince-electric'))
     }
@@ -498,20 +532,131 @@ export function createPlatformStub() {
     if (path === '/api/v1/platform/provider/availability' && method === 'GET') {
       return ok(slotsFor('vendor-prince-electric', 'off-prince-electric-repair'))
     }
-    // ── M8 Agent 對話替身:確定性腳本(修繕流程+洗衣服釐清),行為鏡射後端協調器 ──
+    // ── v4 Session lifecycle + M8 Agent 對話替身 ──
+    if (path === '/api/v1/platform/agent/sessions' && method === 'GET') {
+      const current = state.agentSession
+      const includeArchived = query.get('include_archived') === 'true'
+      if (!current || (current.status === 'archived' && !includeArchived)) return ok([])
+      return ok([{
+        id: current.id, title: current.title ?? '新對話', status: current.status ?? 'active',
+        summary: current.summary ?? '', pendingGrantId: current.pendingGrantId ?? current.grantId ?? null,
+        archivedAt: current.archivedAt ?? null, version: current.version ?? 1,
+        createdAt: current.createdAt ?? '2026-07-30T10:00:00+08:00', updatedAt: current.updatedAt,
+      }])
+    }
+    if (path === '/api/v1/platform/reachability/area') {
+      const mode = query.get('travelMode') ?? 'pedestrian'
+      const threshold = Number(query.get('thresholdMinutes') ?? 10)
+      return ok({
+        originId: query.get('originId'), travelMode: mode, thresholdMinutes: threshold,
+        geometry: { type: 'Polygon', coordinates: [[[121.562, 25.031], [121.569, 25.031], [121.570, 25.037], [121.563, 25.038], [121.562, 25.031]]] },
+        eligibleLocationIds: threshold === 10 ? ['loc-prince-01'] : ['loc-prince-01', 'loc-duskin-01'],
+        locations: threshold === 10
+          ? [{ id: 'loc-prince-01', providerId: 'vendor-prince-electric', name: '王子水電信義服務點', address: '示範路 1 號' }]
+          : [
+            { id: 'loc-prince-01', providerId: 'vendor-prince-electric', name: '王子水電信義服務點', address: '示範路 1 號' },
+            { id: 'loc-duskin-01', providerId: 'vendor-duskin', name: 'DUSKIN 樂清信義服務點', address: '示範路 2 號' },
+          ],
+        source: 'reviewed-demo-fixture', calculatedAt: '2026-08-01T10:00:00+08:00',
+        isDemo: true, realTime: false, navigation: false,
+      })
+    }
+    // ── v4 主動照護／任務包／成果替身 ──
+    if (path === '/api/v1/platform/care/messages' && method === 'GET') {
+      const includeClosed = query.get('include_closed') === 'true'
+      return ok(includeClosed ? state.careMessages : state.careMessages.filter((item) => !['closed', 'ignored'].includes(item.state)))
+    }
+    const careActionMatch = path.match(/^\/api\/v1\/platform\/care\/messages\/([^/]+)\/actions$/)
+    if (careActionMatch && method === 'POST') {
+      const message = state.careMessages.find((item) => item.id === careActionMatch[1])
+      if (!message) return json({ detail: '查無照護訊息' }, 404)
+      const action = bodyOf(init).action
+      message.action = action
+      message.actedAt = '2026-08-01T10:05:00+08:00'
+      if (action === 'ignore') message.state = 'ignored'
+      if (action === 'snooze') message.state = 'snoozed'
+      if (action === 'close') message.state = 'closed'
+      if (action === 'open_guide') message.guide = {
+        status: 'published', title: '中元普渡準備・競賽 Demo 指南',
+        message: '這是一份人工檢視過的競賽 Demo 指南，不是政府公告或採購清單；請依家庭與社區規範調整。',
+        source: 'AIWave 競賽 Demo 編寫資料', updatedAt: '2026-08-01', reviewedBy: 'AIWave Demo Editorial',
+        steps: [
+          { id: 'confirm-context', title: '先確認情境', body: '確認家人是否參與、日期、地點與社區公共區域規則。' },
+          { id: 'make-checklist', title: '建立可修改清單', body: '依人數、場地與保存方式建立準備清單。' },
+        ],
+        preparationItems: [
+          { id: 'common-supplies', name: '供桌／容器與飲水', necessity: 'common-required', quantityBasis: '依家庭與場地規範', estimatedPoints: 20 },
+          { id: 'optional-food', name: '水果或點心', necessity: 'optional', quantityBasis: '依參與人數與家庭習慣', estimatedPoints: 15 },
+          { id: 'community-help', name: '社區代收／整理服務', necessity: 'cooperation-recommendation', cooperationLabel: '合作推薦（非必要）', estimatedPoints: 20 },
+        ],
+        pointsEstimate: { min: 20, max: 55, label: 'Demo 點數估算 20–55 點' },
+        warnings: ['不同家庭、宗教與社區規定可能不同；不確定時先詢問家人或管理室。'],
+        suggestedActions: [{ type: 'create-checklist', label: '幫我整理準備清單' }],
+        commercialBoundary: '只整理類別與 Demo 點數估算，不建立訂單、不代替會員同意採購。',
+      }
+      return ok(message)
+    }
+    if (path === '/api/v1/platform/agent/task-packages' && method === 'GET') return ok(state.taskPackages)
+    const packageItemMatch = path.match(/^\/api\/v1\/platform\/agent\/task-packages\/([^/]+)\/items\/([^/]+)$/)
+    if (packageItemMatch && method === 'PATCH') {
+      const taskPackage = state.taskPackages.find((item) => item.id === packageItemMatch[1])
+      const packageItem = taskPackage?.items.find((item: any) => item.id === packageItemMatch[2])
+      if (!taskPackage || !packageItem) return json({ detail: '查無任務包項目' }, 404)
+      const body = bodyOf(init)
+      if (Number(body.expected_version) !== taskPackage.version) return json({ detail: '任務包版本已更新，請重新載入' }, 409)
+      if (body.operation === 'pause') packageItem.status = 'paused'
+      if (body.operation === 'resume') packageItem.status = 'selected'
+      if (body.operation === 'remove') packageItem.status = 'removed'
+      taskPackage.version += 1
+      taskPackage.totalAmount = taskPackage.items.filter((item: any) => !['paused', 'removed'].includes(item.status)).reduce((sum: number, item: any) => sum + item.amount, 0)
+      return ok(taskPackage)
+    }
+    if (path === '/api/v1/platform/outcomes' && method === 'GET') return ok(state.outcomes)
+    if (path === '/api/v1/platform/agent/sessions' && method === 'POST') {
+      const body = bodyOf(init)
+      state.agentSession = {
+        id: nextId('agent'), title: String(body.title ?? '').trim() || '新對話', status: 'active',
+        summary: '', messages: [], subtasks: [], awaiting: null, grantId: null,
+        pendingGrantId: null, archivedAt: null, version: 1, lastTurn: null,
+      }
+      return ok(state.agentSession)
+    }
+    const archiveMatch = path.match(/^\/api\/v1\/platform\/agent\/sessions\/([^/]+)\/(archive|restore)$/)
+    if (archiveMatch && method === 'POST') {
+      if (!state.agentSession || state.agentSession.id !== archiveMatch[1]) return json({ detail: '查無此對話' }, 404)
+      const body = bodyOf(init)
+      if (Number(body.expected_version ?? 1) !== Number(state.agentSession.version ?? 1)) {
+        return json({ detail: '對話版本衝突' }, 409)
+      }
+      state.agentSession.status = archiveMatch[2] === 'archive' ? 'archived' : 'active'
+      state.agentSession.archivedAt = state.agentSession.status === 'archived' ? '2026-08-01T10:00:00+08:00' : null
+      state.agentSession.version = Number(state.agentSession.version ?? 1) + 1
+      return ok(state.agentSession)
+    }
     if (path === '/api/v1/platform/agent/sessions/latest') {
       return ok(state.agentSession ?? null)
     }
     const agentSessionMatch = path.match(/^\/api\/v1\/platform\/agent\/sessions\/([^/]+)$/)
     if (agentSessionMatch) {
-      if (state.agentSession?.id === agentSessionMatch[1]) return ok(state.agentSession)
+      if (state.agentSession?.id === agentSessionMatch[1]) {
+        if (method === 'PATCH') {
+          const body = bodyOf(init)
+          if (Number(body.expected_version ?? 1) !== Number(state.agentSession.version ?? 1)) {
+            return json({ detail: '對話版本衝突' }, 409)
+          }
+          state.agentSession.title = String(body.title ?? state.agentSession.title).trim()
+          state.agentSession.version = Number(state.agentSession.version ?? 1) + 1
+        }
+        return ok(state.agentSession)
+      }
       return json({ detail: '查無此對話,請重新開始' }, 404)
     }
     if (path === '/api/v1/platform/agent/messages' || path === '/api/v1/platform/agent/messages/stream') {
       const body = bodyOf(init)
       if (!state.agentSession) {
         state.agentSession = {
-          id: nextId('agent'), messages: [], subtasks: [], awaiting: null, grantId: null,
+          id: nextId('agent'), title: '新對話', status: 'active', version: 1,
+          messages: [], subtasks: [], awaiting: null, grantId: null, lastTurn: null,
         }
       }
       const session = state.agentSession
@@ -607,6 +752,31 @@ export function createPlatformStub() {
           }]
           session.awaiting = 'clarify'
           reply('「洗衣服」是想找人到府做家事(含洗衣),還是洗衣機本身要清洗?')
+        } else if (text.includes('OPENPOINT')) {
+          stages.push('理解需求', '查閱已發布說明', '整理引用', '完成回覆')
+          session.awaiting = null
+          session.lastTurn = {
+            intent: 'product_help',
+            citedKnowledge: [{
+              articleId: 'points-and-redemption',
+              title: 'OPENPOINT 折抵與兌換',
+              section: '折抵規則',
+              updatedAt: '2026-07-31',
+              domain: 'product-help',
+            }],
+            toolResults: [{
+              actionId: 'action-product-help-demo',
+              status: 'succeeded',
+              facts: { domain: 'product-help', source: 'published-wiki' },
+              cards: [{ type: 'knowledge', domain: 'product-help', articleId: 'points-and-redemption' }],
+              warnings: [], retryPolicy: 'none', auditRef: 'wiki:product-help',
+            }],
+            groundedResponse: {
+              answer: 'OPENPOINT 是否可折抵，請依已發布說明與結帳頁實際顯示為準。',
+              source: 'tool_results', warnings: [],
+            },
+          }
+          reply('我找到已發布的 OPENPOINT 說明；折抵規則請以結帳頁實際顯示為準。')
         } else {
           stages.push('理解需求', '查詢可用方案與時段', '整理方案', '等待你確認')
           session.subtasks = [{
@@ -618,6 +788,22 @@ export function createPlatformStub() {
             subjectType: null, subjectId: null,
           }]
           session.awaiting = 'option'
+          const task = session.subtasks[0]
+          session.lastTurn = {
+            intent: 'plan', citedKnowledge: [], groundedResponse: null,
+            toolResults: task ? [{
+              actionId: `action-catalog-${task.id}`,
+              status: 'succeeded',
+              facts: { subtaskId: task.id, domain: task.domain, proposalCount: task.proposals.length },
+              cards: task.proposals.map((proposal: any) => ({
+                type: 'offering', providerId: proposal.providerId, providerName: proposal.providerName,
+                offeringId: proposal.offeringId, offeringName: proposal.offeringName,
+                amount: proposal.basePrice, slotId: proposal.slot?.id,
+              })),
+              warnings: ['目前使用可重置 Demo 目錄'], retryPolicy: 'none',
+              auditRef: `catalog-search:${task.id}`,
+            }] : [],
+          }
           reply('我把需求拆成:水電修繕(8/1(週六))。以下方案來自平台核准店家的真實資料,請選一個,最終由你決定。')
         }
       }

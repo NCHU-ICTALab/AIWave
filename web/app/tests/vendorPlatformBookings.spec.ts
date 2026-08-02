@@ -65,6 +65,7 @@ describe('vendor platform bookings (M4)', () => {
     const bookingId = await seedBooking()
     const { wrapper } = await mountApp('/partner', { identity: PARTNER })
 
+    expect(wrapper.get('[data-testid="provider-settlement"]').text()).toContain('非正式費率')
     const row = wrapper.get(`[data-platform-booking="${bookingId}"]`)
     expect(row.text()).toContain(bookingId)
     expect(row.text()).toContain('待接單')

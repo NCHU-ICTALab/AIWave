@@ -38,14 +38,57 @@ export interface AgentMessage {
   content: string
 }
 
+export interface AgentToolResult {
+  actionId: string
+  status: string
+  facts: Record<string, unknown>
+  cards: Array<Record<string, unknown>>
+  warnings: string[]
+  retryPolicy?: string
+  auditRef?: string | null
+}
+
+export interface AgentCitation {
+  articleId: string
+  section?: string
+  title?: string
+  updatedAt?: string
+  domain?: string
+}
+
+export interface AgentLastTurn {
+  intent?: string
+  citedKnowledge?: AgentCitation[]
+  toolResults?: AgentToolResult[]
+  groundedResponse?: {
+    answer?: string
+    source?: string
+    warnings?: string[]
+    reason?: string
+  } | null
+}
+
 export interface AgentSession {
   id: string
+  title?: string
+  status?: 'active' | 'waiting_confirmation' | 'task_created' | 'archived' | string
+  summary?: string
   messages: AgentMessage[]
   subtasks: AgentSubtask[]
   awaiting: 'clarify' | 'option' | 'fields' | 'grant' | null
   grantId: string | null
+  pendingGrantId?: string | null
+  activeTaskPackageId?: string | null
+  archivedAt?: string | null
+  version?: number
+  createdAt?: string
   updatedAt?: string
+  lastTurn?: AgentLastTurn | null
 }
+
+export type AgentSessionSummary = Pick<AgentSession,
+  'id' | 'title' | 'status' | 'summary' | 'pendingGrantId' | 'archivedAt' | 'version' | 'createdAt' | 'updatedAt'
+>
 
 export interface AgentTurnResult {
   session: AgentSession
@@ -120,6 +163,35 @@ export async function sendAgentMessageStream(
 
 export function getLatestAgentSession(): Promise<AgentSession | null> {
   return request(`${BASE}/agent/sessions/latest`)
+}
+
+export function getAgentSessions(includeArchived = false): Promise<AgentSessionSummary[]> {
+  return request(`${BASE}/agent/sessions`, { query: { include_archived: includeArchived } })
+}
+
+export function createAgentSession(title?: string): Promise<AgentSession> {
+  return request(`${BASE}/agent/sessions`, {
+    body: { title: title?.trim() || null },
+  })
+}
+
+export function renameAgentSession(sessionId: string, title: string, expectedVersion: number): Promise<AgentSession> {
+  return request(`${BASE}/agent/sessions/${encodeURIComponent(sessionId)}`, {
+    method: 'PATCH',
+    body: { title, expected_version: expectedVersion },
+  })
+}
+
+export function archiveAgentSession(sessionId: string, expectedVersion: number): Promise<AgentSession> {
+  return request(`${BASE}/agent/sessions/${encodeURIComponent(sessionId)}/archive`, {
+    body: { expected_version: expectedVersion },
+  })
+}
+
+export function restoreAgentSession(sessionId: string, expectedVersion: number): Promise<AgentSession> {
+  return request(`${BASE}/agent/sessions/${encodeURIComponent(sessionId)}/restore`, {
+    body: { expected_version: expectedVersion },
+  })
 }
 
 export function getAgentSession(sessionId: string): Promise<AgentSession> {

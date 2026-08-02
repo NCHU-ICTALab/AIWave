@@ -4,7 +4,9 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import {
   getExecutionGrant,
   type AgentAction,
+  type AgentLastTurn,
   type AgentProposal,
+  type AgentToolResult,
   type ExecutionGrant,
 } from '@/api/agentClient'
 import { useAgentSessionStore } from '@/stores/agentSession'
@@ -35,6 +37,13 @@ const starters = ['浴室的燈不亮了', '想找人來打掃', '這週末想�
 
 const messages = computed(() => store.messages)
 const awaiting = computed(() => store.awaiting)
+const lastTurn = computed<AgentLastTurn | null>(() => store.session?.lastTurn ?? null)
+const evidenceResults = computed<AgentToolResult[]>(() => lastTurn.value?.toolResults ?? [])
+const evidenceCitations = computed(() => lastTurn.value?.citedKnowledge ?? [])
+const evidenceWarnings = computed(() => [
+  ...evidenceResults.value.flatMap((result) => result.warnings ?? []),
+  ...(lastTurn.value?.groundedResponse?.warnings ?? []),
+])
 
 /** 互動區(收合式)是否有內容,與 summary 摘要文字。 */
 const hasActions = computed(() =>
@@ -78,6 +87,41 @@ const FIELD_LABELS: Record<string, string> = {
 }
 function fieldLabel(field: string): string {
   return FIELD_LABELS[field] ?? field
+}
+
+const FACT_LABELS: Record<string, string> = {
+  providerName: '服務商',
+  offeringName: '方案',
+  amount: '金額',
+  payable: '應付',
+  points: '點數',
+  status: '狀態',
+  subjectId: '案件編號',
+  startsAt: '開始',
+  endsAt: '結束',
+  source: '來源',
+}
+
+function evidenceLines(result: AgentToolResult): string[] {
+  const lines: string[] = []
+  const append = (record: Record<string, unknown>) => {
+    for (const key of Object.keys(FACT_LABELS)) {
+      const value = record[key]
+      if (value === undefined || value === null || typeof value === 'object') continue
+      const line = `${FACT_LABELS[key]}：${key === 'amount' || key === 'payable' ? money(Number(value)) : String(value)}`
+      if (!lines.includes(line)) lines.push(line)
+    }
+  }
+  append(result.facts ?? {})
+  for (const card of result.cards ?? []) append(card)
+  return lines
+}
+
+function citationLabel(citation: { title?: string; articleId: string; section?: string; updatedAt?: string }): string {
+  const title = citation.title || citation.articleId
+  const section = citation.section && citation.section !== title ? `・${citation.section}` : ''
+  const updated = citation.updatedAt ? `・更新 ${citation.updatedAt}` : ''
+  return `${title}${section}${updated}`
 }
 
 function slotLabel(slot: AgentProposal['slot']): string {
@@ -183,6 +227,28 @@ onMounted(async () => {
         <span>{{ message.role === 'user' ? '你' : 'AI 管家' }}</span>
         <p>{{ message.content }}</p>
       </div>
+
+      <section v-if="evidenceResults.length || evidenceCitations.length" class="agent-evidence" aria-label="權威資料卡">
+        <p class="eyebrow">平台權威資料</p>
+        <article v-for="result in evidenceResults" :key="result.actionId" class="agent-evidence-card">
+          <strong>{{ result.status === 'succeeded' ? '已驗證結果' : '結果狀態' }}・{{ result.status }}</strong>
+          <ul v-if="evidenceLines(result).length" class="agent-evidence-facts">
+            <li v-for="line in evidenceLines(result)" :key="`${result.actionId}-${line}`">{{ line }}</li>
+          </ul>
+          <p v-if="result.auditRef" class="muted">稽核參照：{{ result.auditRef }}</p>
+        </article>
+        <div v-if="evidenceCitations.length" class="agent-evidence-citations">
+          <strong>引用</strong>
+          <ul>
+            <li v-for="citation in evidenceCitations" :key="`${citation.articleId}-${citation.section}`">
+              {{ citationLabel(citation) }}
+            </li>
+          </ul>
+        </div>
+        <ul v-if="evidenceWarnings.length" class="agent-evidence-warnings" role="status">
+          <li v-for="warning in evidenceWarnings" :key="warning">限制：{{ warning }}</li>
+        </ul>
+      </section>
 
       <div v-if="pendingEcho" class="message from-user">
         <span>你</span>
@@ -417,6 +483,33 @@ onMounted(async () => {
 .agent-result p {
   margin: 0 0 0.6rem;
 }
+
+.agent-evidence {
+  display: grid;
+  gap: 0.45rem;
+  justify-self: stretch;
+  padding: 0.8rem;
+  border: 1px solid var(--line, #d6d0c6);
+  border-radius: 14px;
+  background: var(--surface-2, #f5f2ec);
+}
+.agent-evidence > .eyebrow { margin: 0; }
+.agent-evidence-card {
+  padding: 0.65rem 0.8rem;
+  border-left: 4px solid var(--blue-strong, var(--ink));
+  background: var(--surface, #fff);
+}
+.agent-evidence-card p { margin: 0.35rem 0 0; }
+.agent-evidence-facts,
+.agent-evidence-citations ul,
+.agent-evidence-warnings {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+}
+.agent-evidence-citations strong { display: block; margin-top: 0.35rem; }
+.agent-evidence-warnings { color: var(--muted, #666); }
 
 .agent-stages {
   display: flex;

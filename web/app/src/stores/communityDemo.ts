@@ -12,6 +12,7 @@ import {
   type DemoUnansweredQuestion,
   type JoinGroupBuyInput,
   type PublishDemoGroupBuyInput,
+  type UpdateDemoGroupBuyInput,
 } from '@/domain/communityDemo'
 import { communityDemoService } from '@/services/communityDemoService'
 
@@ -64,6 +65,27 @@ export const useCommunityDemoStore = defineStore('community-demo', () => {
     return group
   }
 
+  function updateGroupBuy(groupBuyId: string, input: UpdateDemoGroupBuyInput) {
+    const group = communityDemoService.updateGroupBuy(groupBuyId, input)
+    loadResident()
+    loadCommittee()
+    return group
+  }
+
+  function closeGroupBuy(groupBuyId: string) {
+    const group = communityDemoService.closeGroupBuy(groupBuyId)
+    loadResident()
+    loadCommittee()
+    return group
+  }
+
+  function reopenGroupBuy(groupBuyId: string) {
+    const group = communityDemoService.reopenGroupBuy(groupBuyId)
+    loadResident()
+    loadCommittee()
+    return group
+  }
+
   function joinGroupBuy(input: JoinGroupBuyInput) {
     const group = communityDemoService.joinGroupBuy(input)
     loadResident(input.householdId)
@@ -104,6 +126,7 @@ export const useCommunityDemoStore = defineStore('community-demo', () => {
     activeGroupBuys,
     askCommunity,
     cancelGroupBuy,
+    closeGroupBuy,
     committeeDashboard,
     getGroupBuy,
     getSubscriptionSummary,
@@ -116,9 +139,11 @@ export const useCommunityDemoStore = defineStore('community-demo', () => {
     markUnansweredForWiki,
     myOrders,
     publishDemoGroupBuy,
+    reopenGroupBuy,
     reportUnanswered,
     resetDemo,
     residentDashboard,
     subscription,
+    updateGroupBuy,
   }
 })

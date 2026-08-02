@@ -100,6 +100,216 @@ export function listAvailability(params: {
   return request(`${BASE}/catalog/availability`, { query: { ...params } })
 }
 
+// ── v4 時間可達生活圈／到府服務範圍 ───────────────────
+
+export interface ReachabilityArea {
+  originId: string
+  travelMode: 'pedestrian' | 'scooter' | string
+  thresholdMinutes: number
+  geometry: Record<string, unknown>
+  eligibleLocationIds: string[]
+  locations: CatalogLocation[]
+  source: string
+  calculatedAt: string | null
+  isDemo: boolean
+  realTime: boolean
+  navigation: boolean
+}
+
+export interface ProviderServiceAreaResult {
+  providerId: string
+  decision: 'provider_service_area' | string
+  eligible: boolean
+  county?: string
+  district?: string
+  serviceArea?: Record<string, unknown>
+  reason?: string
+  source: string
+}
+
+export function getReachabilityArea(params: {
+  originId: string
+  travelMode: 'pedestrian' | 'scooter'
+  thresholdMinutes: 10 | 15
+}): Promise<ReachabilityArea> {
+  return request(`${BASE}/reachability/area`, { query: {
+    originId: params.originId,
+    travelMode: params.travelMode,
+    thresholdMinutes: params.thresholdMinutes,
+  } })
+}
+
+export function getProviderServiceArea(params: {
+  providerId: string
+  county: string
+  district: string
+}): Promise<ProviderServiceAreaResult> {
+  return request(`${BASE}/provider-service-areas/${encodeURIComponent(params.providerId)}`, {
+    query: { county: params.county, district: params.district },
+  })
+}
+
+// ── v4 主動照護／可編輯生活任務包／成果投影 ──────────────
+
+export interface CareMessage {
+  id: string
+  candidateId: string
+  state: 'delivered' | 'ignored' | 'snoozed' | 'closed' | string
+  deliveredAt: string
+  actedAt: string | null
+  action: string | null
+  candidate: {
+    id: string
+    eventId: string
+    kind: string
+    reason: string
+    evidence: {
+      dataUsed?: string[]
+      source?: string
+      isDemo?: boolean
+      noBackgroundTracking?: boolean
+      guideStatus?: string
+      actions?: string[]
+    }
+    status: string
+  }
+  guide?: {
+    status: string
+    title?: string
+    message: string
+    source: string
+    updatedAt?: string
+    reviewedBy?: string
+    steps?: Array<{ id: string; title: string; body: string }>
+    preparationItems?: Array<{
+      id: string
+      name: string
+      necessity: 'common-required' | 'optional' | 'convenience' | 'cooperation-recommendation' | string
+      quantityBasis?: string
+      cooperationLabel?: string
+      estimatedPoints?: number
+    }>
+    pointsEstimate?: { min: number; max: number; label: string }
+    warnings?: string[]
+    suggestedActions?: Array<{ type: string; label: string }>
+    commercialBoundary?: string
+  }
+}
+
+export function listCareMessages(includeClosed = false): Promise<CareMessage[]> {
+  return request(`${BASE}/care/messages`, { query: { include_closed: includeClosed } })
+}
+
+export function actOnCareMessage(
+  messageId: string,
+  action: 'ignore' | 'snooze' | 'close' | 'open_guide',
+): Promise<CareMessage> {
+  return request(`${BASE}/care/messages/${encodeURIComponent(messageId)}/actions`, {
+    body: { action },
+  })
+}
+
+export interface TaskPackageItem {
+  id: string
+  position: number
+  taskDraftId: string | null
+  sourceSubtaskId: string
+  providerId: string
+  providerName: string
+  offeringId: string
+  offeringName: string
+  amount: number
+  points: number
+  startsAt: string | null
+  endsAt: string | null
+  status: string
+  details: { proposalOptions?: Array<Record<string, unknown>>; [key: string]: unknown }
+  lastError: string | null
+  version: number
+}
+
+export interface TaskPackage {
+  id: string
+  source: { type: string; id: string }
+  beneficiary: Record<string, unknown>
+  serviceLocation: Record<string, unknown>
+  status: string
+  grantId: string | null
+  version: number
+  totalAmount: number
+  totalPoints: number
+  providerIds: string[]
+  selectedItemIds: string[]
+  taskDraftRefs: string[]
+  items: TaskPackageItem[]
+}
+
+export function listTaskPackages(): Promise<TaskPackage[]> {
+  return request(`${BASE}/agent/task-packages`)
+}
+
+export function patchTaskPackageItem(
+  packageId: string,
+  itemId: string,
+  input: {
+    expectedVersion: number
+    operation: 'update' | 'pause' | 'resume' | 'remove' | 'replace_provider'
+    changes?: Record<string, unknown>
+  },
+): Promise<TaskPackage> {
+  return request(`${BASE}/agent/task-packages/${encodeURIComponent(packageId)}/items/${encodeURIComponent(itemId)}`, {
+    method: 'PATCH',
+    body: {
+      expected_version: input.expectedVersion,
+      operation: input.operation,
+      changes: input.changes ?? {},
+    },
+  })
+}
+
+export interface MemberOutcome {
+  id: string
+  packageId: string | null
+  subjectType: string
+  subjectId: string
+  providerId: string | null
+  amount: number
+  status: string
+  summary: string
+  eventId: string
+  createdAt: string
+}
+
+export interface AchievementUnlock {
+  key: string
+  title: string
+  outcomeId: string
+  unlockedAt: string
+}
+
+export interface DemoRewardEntry {
+  id: string
+  campaignId: string
+  subjectType: string
+  subjectId: string
+  kind: 'grant' | 'reversal' | string
+  amount: number
+  pointsEntryId: string | null
+  reversesEntryId: string | null
+  createdAt: string
+}
+
+export interface MemberOutcomeProjection {
+  outcomes: MemberOutcome[]
+  achievements: AchievementUnlock[]
+  rewards: DemoRewardEntry[]
+  note: string
+}
+
+export function getMemberOutcomes(): Promise<MemberOutcomeProjection> {
+  return request(`${BASE}/outcomes`)
+}
+
 // ── 試算 ────────────────────────────────────────────
 
 export interface Quote {
@@ -444,6 +654,31 @@ export function createCalendarEvent(input: {
 
 export function getProviderSnapshot(): Promise<Record<string, unknown>> {
   return request(`${BASE}/provider/snapshot`)
+}
+
+export interface ProviderSettlementFee {
+  id: string
+  subjectType: string
+  subjectId: string
+  kind: 'charge' | 'reversal' | string
+  amount: number
+  rateBps: number
+  eventId: string
+  reversalOf: string | null
+  createdAt: string
+}
+
+export interface ProviderSettlement {
+  providerId: string
+  fees: ProviderSettlementFee[]
+  netAmount: number
+  rateBps: number
+  dataSource: string
+  officialRate: boolean
+}
+
+export function getProviderSettlement(): Promise<ProviderSettlement> {
+  return request(`${BASE}/provider/settlement`)
 }
 
 export function getProviderCatalog(providerId?: string): Promise<Record<string, unknown>> {

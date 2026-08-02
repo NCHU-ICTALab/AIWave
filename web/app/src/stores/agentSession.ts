@@ -4,15 +4,22 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import {
+  archiveAgentSession,
+  createAgentSession,
+  getAgentSessions,
   getLatestAgentSession,
+  renameAgentSession,
+  restoreAgentSession,
   sendAgentMessage,
   sendAgentMessageStream,
   type AgentAction,
   type AgentSession,
+  type AgentSessionSummary,
 } from '@/api/agentClient'
 
 export const useAgentSessionStore = defineStore('agent-session', () => {
   const session = ref<AgentSession | null>(null)
+  const sessions = ref<AgentSessionSummary[]>([])
   const stages = ref<string[]>([])
   const busy = ref(false)
   const error = ref('')
@@ -26,11 +33,79 @@ export const useAgentSessionStore = defineStore('agent-session', () => {
   async function restore(): Promise<void> {
     if (restored.value) return
     try {
+      sessions.value = await getAgentSessions(false)
+    } catch {
+      sessions.value = []
+    }
+    try {
       session.value = await getLatestAgentSession()
     } catch {
       // 未登入或後端不可用時保持空白;送訊息時會誠實回報
     } finally {
       restored.value = true
+    }
+  }
+
+  async function loadSessions(includeArchived = false): Promise<void> {
+    try {
+      sessions.value = await getAgentSessions(includeArchived)
+    } catch (reason) {
+      error.value = reason instanceof Error ? reason.message : '目前無法載入對話歷史。'
+    }
+  }
+
+  async function newSession(title?: string): Promise<void> {
+    if (busy.value) return
+    error.value = ''
+    try {
+      session.value = await createAgentSession(title)
+      restored.value = true
+      await loadSessions(false)
+    } catch (reason) {
+      error.value = reason instanceof Error ? reason.message : '目前無法建立新對話。'
+    }
+  }
+
+  async function selectSession(sessionId: string): Promise<void> {
+    if (busy.value) return
+    error.value = ''
+    try {
+      session.value = await (await import('@/api/agentClient')).getAgentSession(sessionId)
+      restored.value = true
+    } catch (reason) {
+      error.value = reason instanceof Error ? reason.message : '目前無法開啟這段對話。'
+    }
+  }
+
+  async function renameSession(title: string): Promise<void> {
+    if (!session.value) return
+    try {
+      session.value = await renameAgentSession(
+        session.value.id, title, session.value.version ?? 1,
+      )
+      await loadSessions(false)
+    } catch (reason) {
+      error.value = reason instanceof Error ? reason.message : '目前無法重新命名對話。'
+    }
+  }
+
+  async function archiveSession(): Promise<void> {
+    if (!session.value) return
+    try {
+      const archived = await archiveAgentSession(session.value.id, session.value.version ?? 1)
+      session.value = archived
+      await loadSessions(true)
+    } catch (reason) {
+      error.value = reason instanceof Error ? reason.message : '目前無法封存對話。'
+    }
+  }
+
+  async function restoreSession(sessionId: string, version: number): Promise<void> {
+    try {
+      session.value = await restoreAgentSession(sessionId, version)
+      await loadSessions(false)
+    } catch (reason) {
+      error.value = reason instanceof Error ? reason.message : '目前無法恢復對話。'
     }
   }
 
@@ -58,6 +133,7 @@ export const useAgentSessionStore = defineStore('agent-session', () => {
 
   function resetLocal(): void {
     session.value = null
+    sessions.value = []
     stages.value = []
     error.value = ''
     restored.value = false
@@ -76,7 +152,9 @@ export const useAgentSessionStore = defineStore('agent-session', () => {
   }
 
   return {
-    session, stages, busy, error, awaiting, messages, subtasks,
-    pendingMessage, restore, send, resetLocal, queueMessage, flushPending,
+    session, sessions, stages, busy, error, awaiting, messages, subtasks,
+    pendingMessage, restore, loadSessions, newSession, selectSession,
+    renameSession, archiveSession, restoreSession,
+    send, resetLocal, queueMessage, flushPending,
   }
 })

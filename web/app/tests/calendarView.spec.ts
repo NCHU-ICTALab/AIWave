@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { stubCatalogFetch } from './fixtures/catalogClient'
 import { mountApp } from './fixtures/mountApp'
 
-/** 直接對 platform stub 造一筆 booking,行事曆會長出對應的訂單來源事件。 */
+/** 直接對 platform stub 造一筆 booking,月曆會長出對應的訂單來源事件。 */
 async function postJson(url: string, body: unknown) {
   const response = await fetch(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -32,21 +32,22 @@ async function createBooking() {
   return result.booking
 }
 
-describe('calendar view', () => {
+describe('calendar month view', () => {
   beforeEach(() => stubCatalogFetch())
 
-  it('lists booking-sourced events and links them to the order detail', async () => {
+  it('shows booking events in the primary month view and links to the order detail', async () => {
     const booking = await createBooking()
     const { wrapper } = await mountApp('/user/calendar')
 
     const event = wrapper.get('[data-testid="calendar-event"]')
     expect(event.text()).toContain('水電修繕・到府檢測')
-    expect(event.text()).toContain('訂單')
     expect(wrapper.get('[data-testid="calendar-order-link"]').attributes('href'))
       .toBe(`/user/orders/${booking.id}`)
+    expect(wrapper.find('[data-testid="view-week"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="view-list"]').exists()).toBe(false)
   })
 
-  it('adds a manual event and shows it in the list', async () => {
+  it('adds a manual event to the focused month', async () => {
     const { wrapper } = await mountApp('/user/calendar')
 
     await wrapper.get('[data-testid="calendar-title"]').setValue('回收家具搬運')
@@ -55,33 +56,24 @@ describe('calendar view', () => {
     await wrapper.get('form.calendar-form').trigger('submit')
     await flushPromises()
 
-    const events = wrapper.findAll('[data-testid="calendar-event"]')
-    expect(events.some((row) => row.text().includes('回收家具搬運') && row.text().includes('手動'))).toBe(true)
+    expect(wrapper.get('[data-testid="calendar-event"]').text()).toContain('回收家具搬運')
   })
 
-  it('switches to the week view and lays the focused week out as 7 day columns', async () => {
-    await createBooking()
+  it('navigates to the previous and next month without changing the view mode', async () => {
     const { wrapper } = await mountApp('/user/calendar')
 
-    await wrapper.get('[data-testid="view-week"]').trigger('click')
-
-    expect(wrapper.get('[data-testid="view-week"]').attributes('aria-pressed')).toBe('true')
-    expect(wrapper.get('[data-testid="view-list"]').attributes('aria-pressed')).toBe('false')
-    const columns = wrapper.findAll('[data-testid="week-column"]')
-    expect(columns).toHaveLength(7)
-    // booking 是 2026-08-01(六);聚焦週為 7/26(日)–8/1(六),事件落在最後一欄
-    expect(columns[6]!.text()).toContain('8/1')
-    expect(columns[6]!.text()).toContain('水電修繕・到府檢測')
+    expect(wrapper.get('[data-testid="calendar-month-label"]').text()).toBe('2026 年 8 月')
+    await wrapper.get('[data-testid="calendar-next-month"]').trigger('click')
+    expect(wrapper.get('[data-testid="calendar-month-label"]').text()).toBe('2026 年 9 月')
+    await wrapper.get('[data-testid="calendar-prev-month"]').trigger('click')
+    expect(wrapper.get('[data-testid="calendar-month-label"]').text()).toBe('2026 年 8 月')
   })
 
-  it('keeps booking events linked to the order detail in the week view', async () => {
-    const booking = await createBooking()
+  it('shows the fixed Demo holiday and Father’s Day reminder in August', async () => {
     const { wrapper } = await mountApp('/user/calendar')
 
-    await wrapper.get('[data-testid="view-week"]').trigger('click')
-
-    expect(wrapper.get('[data-testid="week-order-link"]').attributes('href'))
-      .toBe(`/user/orders/${booking.id}`)
+    expect(wrapper.find('[data-testid="calendar-holiday"]').text()).toContain('父親節')
+    expect(wrapper.text()).toContain('固定 Demo 提醒')
   })
 
   it('hides a source when its filter is unchecked', async () => {

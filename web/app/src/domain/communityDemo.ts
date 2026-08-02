@@ -1,6 +1,6 @@
 export type DemoSupplierType = 'external' | 'group'
 
-export type DemoGroupBuyStatus = 'draft' | 'open' | 'achieved' | 'pickup' | 'completed' | 'failed'
+export type DemoGroupBuyStatus = 'draft' | 'open' | 'achieved' | 'pickup' | 'completed' | 'closed' | 'failed'
 
 export type DemoRepairStatus = 'received' | 'assigned' | 'in_progress' | 'completed'
 
@@ -228,6 +228,15 @@ export interface PublishDemoGroupBuyInput {
   closeAt?: string
   supplierType?: DemoSupplierType
   supplierName?: string
+}
+
+export interface UpdateDemoGroupBuyInput {
+  name?: string
+  marketPrice?: number
+  thresholdUnits?: number
+  pickupLocation?: string
+  expectedArrival?: string
+  closeAt?: string
 }
 
 export interface JoinGroupBuyInput {
