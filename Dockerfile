@@ -4,7 +4,10 @@
 # 而 Lambda 冷啟動直接打在評審的第一印象上。同一個映像也能跑 Lambda 容器映像，
 # 所以這個決定是可逆的（ADR-0004 的介面隔離就是為了保住這種可逆性）。
 
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+FROM python:3.13-slim-bookworm
+
+# 固定工具版本，避免部署映像隨 latest tag 漂移；也避開受限環境無法存取 GHCR。
+RUN pip install --no-cache-dir uv==0.8.11
 
 WORKDIR /app
 
